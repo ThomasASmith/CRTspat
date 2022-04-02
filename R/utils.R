@@ -126,20 +126,22 @@ DefineClusters = function(trial=trial, h=NULL, nclusters=NULL, algo='NN', reuseT
       dist_coordinates <- dist(coordinates, method = "euclidean")
       tsp_coordinates <- TSP::TSP(dist_coordinates) # object of class TSP
       tsp_coordinates <- TSP::insert_dummy(tsp_coordinates)
-      tour <- TSP::solve_TSP(tsp_coordinates) #solves TSP, expensive
-      path <- TSP::cut_tour(tour,'dummy')
+      tour <- TSP::solve_TSP(tsp_coordinates,"repetitive_nn") #solves TSP, expensive
+      path <- TSP::cut_tour(x=tour,cut='dummy')
       coordinates$path <- path
 
     }
     #order coordinates
-    #coordinates <- coordinates[coordinates$path,]
+    coordinates$order = seq(1:nrow(coordinates))
+    coordinates <- coordinates[order(coordinates$path),]
 
-    coordinates$cluster <- NA
     n1 = (nclusters-1)*h
     nclusters_1 = nclusters - 1
     # The last cluster may be a different size (if h is not a factor of the population size) )
+    coordinates$cluster = NA
     coordinates$cluster[1:n1] <- c(rep(1:nclusters_1, each=h)) #add cluster assignment
     coordinates$cluster[which(is.na(coordinates$cluster))] = nclusters
+    coordinates <- coordinates[order(coordinates$order),]
     return(coordinates)
   }
 
@@ -169,9 +171,6 @@ DefineClusters = function(trial=trial, h=NULL, nclusters=NULL, algo='NN', reuseT
     # The last cluster may be a different size (if h is not a factor of the population size) )
     coordinates$cluster[which(is.na(coordinates$cluster))] = nclusters
 
-    # order it
-    #coordinates <- coordinates[order(coordinates$cluster),]
-
     return(coordinates)
   }
 
@@ -181,14 +180,12 @@ DefineClusters = function(trial=trial, h=NULL, nclusters=NULL, algo='NN', reuseT
     km <- kmeans(x=coordinates,centers=nclusters)
     coordinates$cluster <- km$cluster
 
-    # order it
-    #coordinates <- coordinates[order(coordinates$cluster),]
-
     return(coordinates)
   }
 
   # Local data from study area (ground survey and/or satellite images)
-  coordinates = data.frame(x=trial$x,y=trial$y)
+  coordinates = data.frame(x=as.numeric(as.character(trial$x)),
+                           y=as.numeric(as.character(trial$y)))
 
   # the number of clusters and the target cluster size must be integers.
   # cluster size may vary slightly
