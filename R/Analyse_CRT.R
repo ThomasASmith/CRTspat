@@ -56,7 +56,7 @@ Analyse_CRT <- function(trial,
   if(method=='piecewise_linear'){
     #an01: piecewise_linear
     initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
-    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateExpectP01,initialTheta)
+    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateLinearPredictor01,initialTheta)
     PointEstimates$contaminationRange <- TransformPW(PointEstimates$GAsolution3,eta)
     if(requireBootstrap){
       es = unlist(PointEstimates[1:4])
@@ -78,7 +78,7 @@ Analyse_CRT <- function(trial,
     beta_d <- log(eta_d_bound/(1-eta_d_bound))
     d <- ((min_beta_d-beta_d)/min_beta_d) #other extreme is that cont is at max_d => d = 0 or 2
     initialTheta <- c(0,log((1-eta)/eta)/log(d) - 2)
-    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateExpectP02,initialTheta)
+    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateLinearPredictor02,initialTheta)
     if(requireBootstrap){
       es = unlist(PointEstimates[1:4])
       ml02 <- c(logit(es[2]),logit(es[1]) - logit(es[2]),es[4])
@@ -95,7 +95,7 @@ Analyse_CRT <- function(trial,
     #an03: sigmoid_function
     initialTheta <- log((1-eta)/eta)/qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4,4)
     #note: this is equivalent to qlogis(0.95,scale = 1/qnorm(1-eta,sd = sqrt(2*sd^2)))
-    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateExpectP03,initialTheta)
+    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateLinearPredictor03,initialTheta)
     if(requireBootstrap){
       es = unlist(PointEstimates[1:4])
       ml03 <- c(logit(es[2]),logit(es[1]) - logit(es[2]),es[4])
@@ -138,7 +138,7 @@ Analyse_CRT <- function(trial,
     if (method=='MCMC01'){
       # mildly informative prior
       initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
-      datajags_an01<-with(trial,list(interven=as.numeric(trial$arm)-1,cluster=cluster,num=num,denom=denom,x=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
+      datajags_an01<-with(trial,list(interven=as.numeric(trial$arm)-1,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
 
       jagsout = jagsUI::autojags(data=datajags_an01, inits=NULL,
                          parameters.to.save=c("Es","beta3"), model.file=textConnection(get_model_an01()),
@@ -252,7 +252,7 @@ get_description = function(trial){
   return(description)}
 
 # Log Likelihood to be maximized
-pseudoLogLikelihood <- function(par, FUN=CalculateExpectP,trial) {
+pseudoLogLikelihood <- function(par, FUN=FUN ,trial) {
   logitexpectP <- FUN(par,trial)
   transf <- 1/(1+exp(-logitexpectP)) #inverse logit transformation
 
@@ -277,8 +277,6 @@ EstimateEffectiveness <- function(trial, FUN,initialTheta){
   GA <- GA::ga("real-valued", fitness = pseudoLogLikelihood, FUN, trial,
                lower = c(-10,-10,initialTheta[1]), upper = c(10,10,initialTheta[2]),
                maxiter = 500, run = 50, optim = TRUE,monitor = FALSE)
-  #summary(GA)
-  #plot(GA)
 
   # transform the parameters into interpretable functions
   pIhat <- 1/(1+exp(-GA@solution[1]))
@@ -296,49 +294,39 @@ EstimateEffectiveness <- function(trial, FUN,initialTheta){
 #  Different functions to estimate effectiveness
 ##############################################################################
 
-# piecewise linear model
-CalculateExpectP01 <- function(par,trial){
+# piecewise linear model (on the logit scale) for contamination function
 
-  pIhat <- par[1]
-  tau <- par[2]
+CalculateLinearPredictor01 <- function(par,trial){
+
   theta <- par[3]
 
-  expectP <- pIhat + (tau/(2*theta))*(theta - trial$nearestDiscord)
-  expectP <- ifelse((trial$nearestDiscord < -theta),tau+pIhat,expectP)
-  expectP <- ifelse((trial$nearestDiscord > theta),pIhat,expectP)
-  return(expectP)
+  lp <- par[1] + (par[2]/(2*theta))*(theta - trial$nearestDiscord)
+  lp <- ifelse((trial$nearestDiscord < -theta),par[2]+par[1],lp)
+  lp <- ifelse((trial$nearestDiscord > theta),par[1],lp)
+  return(lp)
 }
 
 ##############################################################################
 
-# sigmoidal function based on logit distance
-CalculateExpectP02 <- function(par,trial){
+# sigmoidal function based on logit distance (on the logit scale) for contamination function
+CalculateLinearPredictor02 <- function(par,trial){
 
   max_d <- max(abs(trial$nearestDiscord)) + 1e-5
   prop_d <- (trial$nearestDiscord + max_d)/(2 * max_d)
   logit_d <- log(prop_d/(1-prop_d))
   d <- ((min(logit_d)- logit_d)/min(logit_d))
 
-  pIhat <- par[1]
-  tau <- par[2]
-  theta <- par[3]
-
-  expectP <- pIhat + tau/(1 + d^(theta+2))
-  return(expectP)
+  lp <- par[1] + par[2]/(1 + d^(par[3]+2))
+  return(lp)
 }
 
 ##############################################################################
 
-# sigmoid function model
-CalculateExpectP03 <- function(par,trial){
+# sigmoid function (on the logit scale) for contamination function
+CalculateLinearPredictor03 <- function(par,trial){
 
-  pIhat <- par[1]
-  tau <- par[2]
-  theta <- par[3]
-
-  expectP <- pIhat + (tau)/(1 + exp(theta*(trial$nearestDiscord)))
-
-  return(expectP)
+  lp <- par[1] + par[2]/(1 + exp(par[3]*(trial$nearestDiscord)))
+  return(lp)
 }
 
 ##############################################################################
@@ -414,9 +402,9 @@ rgen_an01<-function(data,mle){
   out<-data
 
   #simulate data for numerator num
-  modelp <- CalculateExpectP01(mle,out)
+  modelp <- CalculateLinearPredictor01(mle,out)
   transf <- 1/(1+exp(-modelp))
-  out$num <- rbinom(length(transf),out$denom,transf) #simulate from bernoulli distribution
+  out$num <- rbinom(length(transf),out$denom,transf) #simulate from binomial distribution
 
   return(out)
 }
@@ -425,9 +413,9 @@ rgen_an02<-function(data,mle){
   out<-data
 
   #simulate data for numerator num
-  modelp <- CalculateExpectP02(mle,out)
+  modelp <- CalculateLinearPredictor02(mle,out)
   transf <- 1/(1+exp(-modelp))
-  out$num <- rbinom(length(transf),out$denom,transf) #simulate from bernoulli distribution
+  out$num <- rbinom(length(transf),out$denom,transf) #simulate from binomial distribution
 
   return(out)
 }
@@ -436,9 +424,9 @@ rgen_an03<-function(data,mle){
   out<-data
 
   #simulate data for numerator num
-  modelp <- CalculateExpectP03(mle,out)
+  modelp <- CalculateLinearPredictor03(mle,out)
   transf <- 1/(1+exp(-modelp))
-  out$num <- rbinom(length(transf),out$denom,transf) #simulate from bernoulli distribution
+  out$num <- rbinom(length(transf),out$denom,transf) #simulate from binomial distribution
 
   return(out)
 }
@@ -447,7 +435,7 @@ BootSingleTrialAnalysis01 <- function(resampledData,eta=eta,sd=sd) {
 
   initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
 
-  an01 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateExpectP01,initialTheta)[1:4])
+  an01 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateLinearPredictor01,initialTheta)[1:4])
 
   an01[4] <- TransformPW(an01[4],eta)
 
@@ -466,7 +454,7 @@ BootSingleTrialAnalysis02 <- function(resampledData,eta=eta,sd=sd) {
 
   initialTheta <- c(0,log((1-eta)/eta)/log(d) - 2)
 
-  an02 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateExpectP02,initialTheta)[1:4])
+  an02 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateLinearPredictor02,initialTheta)[1:4])
 
   an02[4] <- TransformLogitDist(resampledData$nearestDiscord,an02[4],eta)
 
@@ -477,7 +465,7 @@ BootSingleTrialAnalysis03 <- function(resampledData,eta=eta,sd=sd) {
 
   initialTheta <- log((1-eta)/eta)/qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4,4)
 
-  an03 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateExpectP03,initialTheta)[1:4])
+  an03 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateLinearPredictor03,initialTheta)[1:4])
 
   an03[4] <- TransformSigm(an03[4],eta)
 
@@ -574,15 +562,14 @@ TransformSigm <- function(cont,eta){
 
 ##############################################################################
 #model formulations for MCMCan01, MCMCan02 and MCMCan03,
-#interven makes it much more stable
 
-# some reformulation st random effects can be assigned to part wout intervention
+# MCMC model with cluster random effect and piecewise linear model (on the logit scale) for contamination function
 get_model_an01 = function(){ textstr=
 "model{
   for(i in 1:N){
     num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
     p[i] <- 1/(1 + exp(-logitp[i])) #transformation of p
-    logitp[i] <- ifelse(x[i] < -beta3,beta1[cluster[i]],ifelse(x[i] > beta3,beta1[cluster[i]] + beta2,beta1[cluster[i]] + beta2*interven[i]*(beta3 + x[i])/(2*beta3)))
+    logitp[i] <- ifelse(d[i] < -beta3,beta1[cluster[i]],ifelse(d[i] > beta3,beta1[cluster[i]] + beta2,beta1[cluster[i]] + beta2*(beta3 + d[i])/(2*beta3)))
   }
 
   # intercepts and random effects
@@ -596,6 +583,8 @@ get_model_an01 = function(){ textstr=
   tau <- 1/(sigma*sigma) #precision
   sigma ~ dunif(0,3) #uniform prior for the standard deviation of the random effects
   beta3 ~ dunif(initialTheta[1],initialTheta[2])
+
+  # derived quantities
   pC <- 1/(1+exp(-intercept))
   pI <- 1/(1+exp(-intercept-beta2))
   Es <- 1 - pI/pC
@@ -604,13 +593,13 @@ return(textstr)}
 
 ##############################################################################
 
-# some reformulation st random effects can be assigned to part without intervention
+# MCMC model with cluster random effect and logistic transform for contamination function
 get_model_an02 = function(){ textstr=
 "model{
   for(i in 1:N){
     num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
     p[i] <- 1/(1 + exp(-logitp[i])) #transformation of p
-    logitp[i] <- beta1[cluster[i]] + beta2*interven[i]*(d[i]^(beta3 + 2)/(1 + d[i]^(beta3+2)))
+    logitp[i] <- beta1[cluster[i]] + beta2/(1 + d[i]^-((beta3+2))))
   }
 
   # intercepts and random effects
@@ -624,6 +613,8 @@ get_model_an02 = function(){ textstr=
   tau <- 1/(sigma*sigma) #precision
   sigma ~ dunif(0,3) #from Tom
   beta3 ~ dunif(initialTheta[1], initialTheta[2])
+
+  # derived quantities
   pC <- 1/(1+exp(-intercept))
   pI <- 1/(1+exp(-intercept-beta2))
   Es <- 1 - pI/pC
@@ -632,13 +623,13 @@ return(textstr)}
 
 ##############################################################################
 
-# some reformulation st random effects can be assigned to part wout intervention
+# MCMC model with cluster random effect and sigmoid function (on the logit scale) for contamination function
 get_model_an03 = function(){ textstr=
 "model{
   for(i in 1:N){
     num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
     p[i] <- 1/(1 + exp(-logitp[i])) #transformation of p
-    logitp[i] <- beta1[cluster[i]] + beta2*interven[i]*(1/(1 + exp(-beta3*x[i])))
+    logitp[i] <- beta1[cluster[i]] + beta2/(1 + exp(-beta3*x[i]))
   }
 
   # intercepts and random effects
@@ -652,6 +643,8 @@ get_model_an03 = function(){ textstr=
   tau <- 1/(sigma*sigma) #precision
   sigma ~ dunif(0,3) #from Tom
   beta3 ~ dunif(initialTheta[1],initialTheta[2])
+
+  # derived quantities
   pC <- 1/(1+exp(-intercept))
   pI <- 1/(1+exp(-intercept-beta2))
   Es <- 1 - pI/pC} "
