@@ -2,7 +2,7 @@
 #'
 #' \code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
 #' @param trial trial dataframe including locations, clusters, arms, and binary outcomes
-#' @param method statistical method used to analyse trial. Options are 'piecewise_linear','logit','sigmoid','empirical','GEE','MCMC01','MCMC02','MCMC03'
+#' @param method statistical method used to analyse trial. Options are 'L0','L1','L2','L3','GEE','M1','M2','M3'
 #' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
 #' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
 #' @param alpha confidence level for confidence intervals and credible intervals
@@ -26,7 +26,7 @@
 #' exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
 
 Analyse_CRT <- function(trial,
-                        method='sigmoid',
+                        method='L3',
                         excludeBuffer=FALSE,
                         requireBootstrap=FALSE,
                         alpha =0.05,
@@ -53,54 +53,49 @@ Analyse_CRT <- function(trial,
   sd = 0.5/(qnorm(1-eta)*sqrt(2)) #initial value used in bootstrap calculations
   trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
 
-  if(method=='piecewise_linear'){
+  if(method=='L1'){
     #an01: piecewise_linear
     initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
-    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateLinearPredictor01,initialTheta)
-    PointEstimates$contaminationRange <- TransformPW(PointEstimates$GAsolution3,eta)
+    FittedResults <- FittingResults(trial, FUN1=CalculateLinearPredictor01,initialTheta)
+    PointEstimates <- FittedResults$PointEstimates
     if(requireBootstrap){
-      es = unlist(PointEstimates[1:4])
-      ml01 <- c(logit(es[2]),logit(es[1]) - logit(es[2]),es[4])
+      ml01 = unlist(FittedResults$GAsolution)
       boot_an01 <- boot::boot(data=trial, statistic=BootSingleTrialAnalysis01,
-                        num=resamples, sim="parametric", ran.gen=rgen_an01, mle=ml01)
+                        R=resamples, sim="parametric", ran.gen=rgen_an01, mle=ml01)
       PointEstimates$bootstrapMean_efficacy = mean(boot_an01$t[,1])
       PointEstimates$bootstrapMean_contaminationRange = mean(boot_an01$t[,2])
       IntervalEstimates =
         addBootstrapIntervals(IntervalEstimates=IntervalEstimates,boot=boot_an01)
     }
   }
-  if(method=='logit'){
+  if(method=='L2'){
     #an02: logit_model
-    max_d <- max(abs(trial$nearestDiscord)) + 1e-5
-    eta_d <- (trial$nearestDiscord + max_d)/(2 * max_d)
-    min_beta_d <- min(log(eta_d/(1-eta_d)))
-    eta_d_bound <- (qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4) + max_d)/(2 * max_d)
-    beta_d <- log(eta_d_bound/(1-eta_d_bound))
-    d <- ((min_beta_d-beta_d)/min_beta_d) #other extreme is that cont is at max_d => d = 0 or 2
-    initialTheta <- c(0,log((1-eta)/eta)/log(d) - 2)
-    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateLinearPredictor02,initialTheta)
+    FUN0=SingleTrialAnalysis02
+    FUN1=CalculateLinearPredictor02
+    par = FUN0(trial=trial,eta=eta,sd=sd)
+    PointEstimates <- FittingResults(trial, par=par,FUN1=FUN1)
     if(requireBootstrap){
-      es = unlist(PointEstimates[1:4])
-      ml02 <- c(logit(es[2]),logit(es[1]) - logit(es[2]),es[4])
-      boot_an02 <- boot::boot(data=trial, statistic=BootSingleTrialAnalysis02,
-                        num=resamples, sim="parametric", ran.gen=rgen_an02, mle=ml02)
-      PointEstimates$bootstrapMean_efficacy = mean(boot_an02$t[,1])
-      PointEstimates$bootstrapMean_contaminationRange = mean(boot_an02$t[,2])
-      IntervalEstimates =
-        addBootstrapIntervals(IntervalEstimates=IntervalEstimates,boot=boot_an02)
+      mle=list(par=par,FUN1=FUN1)
+      boot_output <- boot::boot(data=trial, statistic=FUN0,
+                                R=resamples, sim="parametric", ran.gen=rgen,
+                                mle=mle, eta=eta, sd=sd)
+      boot_estimates=as.data.frame(t(matrix(data= unlist(apply(as.data.frame(boot_output$t), 1,
+                                                               FittingResults,trial=trial,
+                                                               FUN1=FUN1)),ncol=resamples,nrow=length(PointEstimates))))
+      colnames(boot_estimates) = names(PointEstimates)
+      IntervalEstimates =  computeIntervals(df=boot_estimates,eta=eta)
     }
-    PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
   }
-  if(method=='sigmoid'){
+  if(method=='L3'){
     #an03: sigmoid_function
     initialTheta <- log((1-eta)/eta)/qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4,4)
     #note: this is equivalent to qlogis(0.95,scale = 1/qnorm(1-eta,sd = sqrt(2*sd^2)))
-    PointEstimates <- EstimateEffectiveness(trial, FUN=CalculateLinearPredictor03,initialTheta)
+    FittedResults <- FittingResults(trial, FUN1=CalculateLinearPredictor03,initialTheta)
+    PointEstimates <- FittedResults$PointEstimates
     if(requireBootstrap){
-      es = unlist(PointEstimates[1:4])
-      ml03 <- c(logit(es[2]),logit(es[1]) - logit(es[2]),es[4])
+      ml03 = unlist(FittedResults$GAsolution)
       boot_an03 <- boot::boot(data=trial, statistic=BootSingleTrialAnalysis03,
-                        num=resamples, sim="parametric", ran.gen=rgen_an03, mle=ml03)
+                        R=resamples, sim="parametric", ran.gen=rgen_an03, mle=ml03)
       PointEstimates$bootstrapMean_efficacy = mean(boot_an03$t[,1])
       PointEstimates$bootstrapMean_contaminationRange = mean(boot_an03$t[,2])
       IntervalEstimates =
@@ -108,13 +103,13 @@ Analyse_CRT <- function(trial,
     }
     PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
   }
-  if(method=='empirical'){
+  if(method=='L0'){
     #an05: empirical analysis
     PointEstimates <- EmpiricalAnalysis(trial)
     if(requireBootstrap){
-      es = unlist(PointEstimates)
+      ml03 = unlist(FittedResults$GAsolution)
       boot_an05 <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
-                      num=resamples, sim="parametric", ran.gen=rgen_an05, mle=es[3])
+                      R=resamples, sim="parametric", ran.gen=rgen_an05, mle=es[3])
       PointEstimates$bootstrapMean_efficacy = mean(boot_an05$t)
       IntervalEstimates$efficacy <- namedCL(quantile(boot_an05$t,c(eta/2,1-eta/2)),eta=eta)
     }
@@ -134,8 +129,8 @@ Analyse_CRT <- function(trial,
       IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_an08$t,c(eta/2,1-eta/2)),eta=eta)
     }
   }
-  if (method %in% c('MCMC01','MCMC02','MCMC03')){
-    if (method=='MCMC01'){
+  if (method %in% c('M1','M2','M3')){
+    if (method=='M1'){
       # mildly informative prior
       initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
       datajags_an01<-with(trial,list(interven=as.numeric(trial$arm)-1,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
@@ -148,7 +143,7 @@ Analyse_CRT <- function(trial,
       es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
       cont <- TransformPW(c(jagsout$q2.5$beta3,jagsout$q50$beta3,jagsout$q97.5$beta3),eta)
     }
-    if (method=='MCMC02'){
+    if (method=='M2'){
       nD <- trial$nearestDiscord/max(abs(trial$nearestDiscord))
       max_d <- max(abs(nD)) + 1e-5
       prop_d <- (nD + max_d)/(2 * max_d)
@@ -171,7 +166,7 @@ Analyse_CRT <- function(trial,
       es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
       cont <- TransformPW(c(jagsout$q2.5$beta3,jagsout$q50$beta3,jagsout$q97.5$beta3),eta)
     }
-    if (method=='MCMC03'){
+    if (method=='M3'){
       #take a mildly informative prior (same as for models before)
       initialTheta <- qlogis(0.95)/qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4,4)
       datajags_an03<-with(trial,list(interven=as.numeric(trial$arm)-1,cluster=cluster,num=num,denom=denom,x=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
@@ -239,6 +234,9 @@ namedCL=function(limits,eta=eta){
   names(limits)=c(paste0(100*eta/2,'%'),paste0(100-100*eta/2,'%'))
   return(limits)}
 
+#logit transformation
+logit = function(p){return(log(p/(1-p)))}
+
 #inverse logit transformation
 ilogit = function(logitp){return(1/(1+exp(-logitp)))}
 
@@ -271,22 +269,30 @@ pseudoLogLikelihood <- function(par, FUN=FUN ,trial) {
 
 ##############################################################################
 
-EstimateEffectiveness <- function(trial, FUN,initialTheta){
+FittingResults <- function(trial, FUN1, par){
 
-  #initial range for Effectiveness: in [0,1]
-  GA <- GA::ga("real-valued", fitness = pseudoLogLikelihood, FUN, trial,
-               lower = c(-10,-10,initialTheta[1]), upper = c(10,10,initialTheta[2]),
-               maxiter = 500, run = 50, optim = TRUE,monitor = FALSE)
 
   # transform the parameters into interpretable functions
-  pIhat <- 1/(1+exp(-GA@solution[1]))
-  pChat <- 1/(1+exp(-(GA@solution[2] + GA@solution[1])))
+  pIhat <- 1/(1+exp(-par[1]))
+  pChat <- 1/(1+exp(-(par[2] + par[1])))
   Eshat <- (pChat - pIhat)/pChat
+
+  #estimate contamination range
+  trial$deltaP <- unlist(ifelse(trial$arm=='control', pChat - 1/(1+exp(-FUN1(trial=trial,par=par))),
+                   1/(1+exp(-FUN1(trial=trial,par=par)))- pIhat))
+  #the maximum contamination should be where the distance is zero.
+  max_deltaP <- max(trial$deltaP)
+  trial <- trial[order(trial$nearestDiscord),]
+  thetaL <- trial$nearestDiscord[which(trial$deltaP > 0.05*max_deltaP)[1]]
+  trial <- trial[order(-trial$nearestDiscord),]
+  thetaU <- trial$nearestDiscord[which(trial$deltaP > 0.05*max_deltaP)[1]]
+  #contamination range
+  theta <- thetaU - thetaL
+
   PointEstimates=list(controlP=pChat,
                       interventionP=pIhat,
                       efficacy=Eshat,
-                      GAsolution3=GA@solution[3],
-                      ModelObject=GA)
+                      contaminationRange = theta)
   return(PointEstimates)
 }
 
@@ -311,12 +317,15 @@ CalculateLinearPredictor01 <- function(par,trial){
 # sigmoidal function based on logit distance (on the logit scale) for contamination function
 CalculateLinearPredictor02 <- function(par,trial){
 
+  # add a small constant to the calculated maximum of d to avoid division by 0 at the limits
   max_d <- max(abs(trial$nearestDiscord)) + 1e-5
+  # prop_d is d as a proporton of the maximum in the dataset
   prop_d <- (trial$nearestDiscord + max_d)/(2 * max_d)
   logit_d <- log(prop_d/(1-prop_d))
-  d <- ((min(logit_d)- logit_d)/min(logit_d))
-
-  lp <- par[1] + par[2]/(1 + d^(par[3]+2))
+  # scale the logit by its minimum value to avoid taking powers of large numbers
+  scale_factor <- min(logit_d)
+  scaled_logit <- ((min(logit_d)- logit_d)/scale_factor)
+  lp <- par[1] + par[2]/(1 + scaled_logit^(par[3]+2))
   return(lp)
 }
 
@@ -409,11 +418,13 @@ rgen_an01<-function(data,mle){
   return(out)
 }
 
-rgen_an02<-function(data,mle){
+rgen<-function(data,mle){
+  par=mle$par
+  FUN1=mle$FUN1
   out<-data
 
   #simulate data for numerator num
-  modelp <- CalculateLinearPredictor02(mle,out)
+  modelp <- FUN1(par,out)
   transf <- 1/(1+exp(-modelp))
   out$num <- rbinom(length(transf),out$denom,transf) #simulate from binomial distribution
 
@@ -435,17 +446,17 @@ BootSingleTrialAnalysis01 <- function(resampledData,eta=eta,sd=sd) {
 
   initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
 
-  an01 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateLinearPredictor01,initialTheta)[1:4])
+  an01 <- unlist(Estimates(resampledData, FUN=CalculateLinearPredictor01,initialTheta)[1:4])
 
   an01[4] <- TransformPW(an01[4],eta)
 
   return(c(an01[c(3,4)]))
 }
 
-BootSingleTrialAnalysis02 <- function(resampledData,eta=eta,sd=sd) {
+SingleTrialAnalysis02 <- function(trial,eta=eta,sd=sd) {
 
-  max_d <- max(abs(resampledData$nearestDiscord)) + 1e-5
-  eta_d <- (resampledData$nearestDiscord + max_d)/(2 * max_d)
+  max_d <- max(abs(trial$nearestDiscord)) + 1e-5
+  eta_d <- (trial$nearestDiscord + max_d)/(2 * max_d)
   min_beta_d <- min(log(eta_d/(1-eta_d)))
 
   eta_d_bound <- (qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4) + max_d)/(2 * max_d)
@@ -453,19 +464,20 @@ BootSingleTrialAnalysis02 <- function(resampledData,eta=eta,sd=sd) {
   d <- ((min_beta_d-beta_d)/min_beta_d) #other extreme is that cont is at max_d => d = 0 or 2
 
   initialTheta <- c(0,log((1-eta)/eta)/log(d) - 2)
+  GA <- GA::ga("real-valued", fitness = pseudoLogLikelihood, FUN=CalculateLinearPredictor02,
+               trial=trial,
+               lower = c(-10,-10,initialTheta[1]), upper = c(10,10,initialTheta[2]),
+               maxiter = 500, run = 50, optim = TRUE,monitor = FALSE)
+  an02 <- GA@solution
 
-  an02 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateLinearPredictor02,initialTheta)[1:4])
-
-  an02[4] <- TransformLogitDist(resampledData$nearestDiscord,an02[4],eta)
-
-  return(c(an02[c(3,4)]))
+  return(an02)
 }
 
 BootSingleTrialAnalysis03 <- function(resampledData,eta=eta,sd=sd) {
 
   initialTheta <- log((1-eta)/eta)/qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4,4)
 
-  an03 <- unlist(EstimateEffectiveness(resampledData, FUN=CalculateLinearPredictor03,initialTheta)[1:4])
+  an03 <- unlist(FittingResults(resampledData, FUN1=CalculateLinearPredictor03,initialTheta)[1:4])
 
   an03[4] <- TransformSigm(an03[4],eta)
 
@@ -474,10 +486,14 @@ BootSingleTrialAnalysis03 <- function(resampledData,eta=eta,sd=sd) {
 
 
 
-addBootstrapIntervals = function(IntervalEstimates,boot){
-  IntervalEstimates$efficacy <- namedCL(quantile(boot$t[,1],c(eta/2,1-eta/2)),eta=eta)
-  IntervalEstimates$contaminationRange <- namedCL(quantile(boot$t[,2],c(eta/2,1-eta/2)),eta=eta)
-  return(IntervalEstimates)}
+computeIntervals = function(df,eta){
+  varnames= colnames(df)
+  IntervalEstimates = as.list(varnames)
+  for(i in 1:length(varnames)){
+    IntervalEstimates[[i]]=namedCL(quantile(df[,varnames[i]],c(eta/2,1-eta/2)),eta=eta)
+  }
+  names(IntervalEstimates)=varnames
+return(IntervalEstimates)}
 
 ##############################################################################
 #functions for an05

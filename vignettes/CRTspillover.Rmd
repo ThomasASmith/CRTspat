@@ -6,7 +6,7 @@ output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{CRTspillover}
+  %\VignetteIndexEntry{CRTspillover package}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -185,18 +185,24 @@ results6c=Analyse_CRT(trial=test6c,method='GEE')
 The `Analyse_CRT` function offers several different analyses of either simulated or real trial datasets. The different options are specified using the `method` argument of the function. 
 
 
-| Method | Description | Linear predictor| Allowance for Clustering | Allowance for Spillover | Reference | 
+| Option | Algorithm | Linear predictor| Allowance for Clustering | Reference | 
 |----------:|:---------------|---------------|:--------------------:|
-|'empirical' | Comparison of empirical
-event rates by arms |$\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$|NO | NO |[Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) |  
-|'piecewise_linear' | 
-|'logit' |
-|'sigmoid' |
-|'GEE' |
-|'MCMC01' |
-|'MCMC02' |
-|'MCMC03' |
+|'L0' | S ||NO | NO |[Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) |  
+|'L1' | ML | 
+|'L2' | ML | 
+|'L3' | ML |
+|'GEE' | GEE | 
+|'M1' | MCMC | 
+|'M2' | MCMC |
+|'M3' | MCMC |
 
+S: Sample proportions; ML: Maximum likelihood; GEE: Generalised estimating equations; MCMC: Bayesian Markov chain Monte Carlo.
+
+In each case the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$.
+
+$\hat{E}_{s} = 1- \frac{\hat{p}_{I}}{\hat{p}_{C}}$.
+$\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$.
+$\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$.
 
 Real field trials are likely to 
 Data analysts are invited to use the JAGS code provided for the  
