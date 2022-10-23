@@ -40,7 +40,7 @@ Analyse_CRT <- function(trial,
   {
     trial = trial[!trial$buffer,]
   }
-  #trial needs to be ordered for MCMC analyses and for bootstrap of an08
+  #trial needs to be ordered for MCMC analyses and for bootstrap of GEE
   trial <- trial[order(trial$cluster),]
 
   # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant coordinate
@@ -53,53 +53,69 @@ Analyse_CRT <- function(trial,
   sd = 0.5/(qnorm(1-eta)*sqrt(2)) #initial value used in bootstrap calculations
   trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
 
-  if(method %in% c('L1','L2','L3')){
-    i = which (method == c('L1','L2','L3'))
-    LPMethods = c('CalculateLinearPredictor01',
-                  'CalculateLinearPredictor02',
-                  'CalculateLinearPredictor03')
-    FUN2 <- FUN1 <- eval(parse(text=LPMethods[i]))
-    par = SingleTrialAnalysis(trial=trial,eta=eta,sd=sd,FUN2=FUN2)
-    PointEstimates <- FittingResults(trial, par=par,FUN1=FUN1)
-    if(requireBootstrap){
-      mle=list(par=par,FUN1=FUN1)
-      boot_output <- boot::boot(data=trial, statistic=SingleTrialAnalysis,
-                                R=resamples, sim="parametric", ran.gen=rgen,
-                                mle=mle, eta=eta, sd=sd, FUN2=FUN2)
-      boot_estimates=as.data.frame(t(matrix(data= unlist(apply(as.data.frame(boot_output$t), 1,
-                                                               FittingResults,trial=trial,
-                                                               FUN1=FUN1)),ncol=resamples,nrow=length(PointEstimates))))
-      colnames(boot_estimates) = names(PointEstimates)
-      IntervalEstimates =  computeIntervals(df=boot_estimates,eta=eta)
-    }
-  }
+############### Analyses that ignore contamination #################
+
   if(method=='L0'){
-    #an05: empirical analysis
+    # empirical analysis
     PointEstimates <- EmpiricalAnalysis(trial)
     if(requireBootstrap){
-      ml03 = unlist(FittedResults$GAsolution)
       boot_an05 <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
-                      R=resamples, sim="parametric", ran.gen=rgen_an05, mle=es[3])
+                              R=resamples, sim="parametric", ran.gen=rgen_an05, mle=PointEstimates)
       PointEstimates$bootstrapMean_efficacy = mean(boot_an05$t)
       IntervalEstimates$efficacy <- namedCL(quantile(boot_an05$t,c(eta/2,1-eta/2)),eta=eta)
     }
   }
+
   if(method=='GEE'){
-    #an08: GEE analysis
+    #GEE analysis with cluster effects
     GEEestimates <- GEEAnalysis(trial,eta=eta,resamples=resamples)
     PointEstimates <- GEEestimates$PointEstimates
     IntervalEstimates <- GEEestimates$IntervalEstimates
     if(requireBootstrap){
       ml <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
 
-      boot_an08 <- boot::boot(data=trial, statistic=BootGEEAnalysis,
-                        num=resamples, sim="parametric", ran.gen=rgen_an08, mle=ml)
+      boot_output <- boot::boot(data=trial, statistic=BootGEEAnalysis,
+                                R=resamples, sim="parametric", ran.gen=rgen_GEE, mle=ml)
 
-      PointEstimates$bootstrapMean_efficacy = mean(boot_an08$t)
-      IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_an08$t,c(eta/2,1-eta/2)),eta=eta)
+      PointEstimates$bootstrapMean_efficacy = mean(boot_output$t)
+      IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_output$t,c(eta/2,1-eta/2)),eta=eta)
     }
   }
-  if (method %in% c('M1','M2','M3')){
+
+############### ML Methods with contamination functions and logistic link #################
+  if(method %in% c('L1','L2','L3')){
+    i = which (method == c('L1','L2','L3'))
+    LPMethods = c('CalculateLinearPredictor01',
+                  'CalculateLinearPredictor02',
+                  'CalculateLinearPredictor03')
+    FUN2 <- FUN1 <- eval(parse(text=LPMethods[i]))
+    par = SingleTrialAnalysis(trial=trial,FUN2=FUN2)
+    PointEstimates <- FittingResults(trial, par=par,FUN1=FUN1)
+    if(requireBootstrap){
+      mle=list(par=par,FUN1=FUN1,link='logit')
+      boot_estimates = data.frame(V1=c(),V2=c(),V3=c(),V4=c())
+      # resampling can crash because of resamples containing data from only one arm
+      # to prevent this crashing the whole program, bootstrapping is done in batches
+      # of 5 resamples using 'try' to avoid crashing out
+      resamples1=5
+      while(nrow(boot_estimates) < resamples){
+        # sample a random value each time through the loop so the seed is change
+        boot_output <- try(expr= boot::boot(data=trial, statistic=SingleTrialAnalysis,
+                                            R=resamples1, sim="parametric", ran.gen=rgen,
+                                            mle=mle, FUN2=FUN2),silent=TRUE)
+        if(!substr(boot_output[1],1,5)=="Error"){
+          new_estimates=as.data.frame(t(matrix(data= unlist(apply(as.data.frame(boot_output$t), 1,
+                                                                  FittingResults,trial=trial,
+                                                                  FUN1=FUN1)),ncol=resamples1,nrow=length(PointEstimates))))
+          boot_estimates = rbind(boot_estimates,new_estimates)
+        }
+      }
+      colnames(boot_estimates) = names(PointEstimates)
+      IntervalEstimates =  computeIntervals(df=boot_estimates,eta=eta)
+    }
+  }
+
+    if (method %in% c('M1','M2','M3')){
     if (method=='M1'){
       # mildly informative prior
       initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
@@ -216,12 +232,6 @@ pseudoLogLikelihood <- function(par, FUN=FUN ,trial) {
   logitexpectP <- FUN(par,trial)
   transf <- 1/(1+exp(-logitexpectP)) #inverse logit transformation
 
-  # FOR BERNOULLI CASE
-  #pseudoLogLikelihood <- sum(log(ifelse(trial$num > 0 , transf,(1 - transf))))
-
-  #alternative:
-  #pseudoLogLikelihood <- sum(trial$num*logitexpectP - log(1+exp(logitexpectP)))
-
   # FOR BINOMIAL
   pseudoLogLikelihood <- sum(trial$num*log(transf) + trial$neg*log(1-transf))
 
@@ -304,17 +314,6 @@ CalculateLinearPredictor03 <- function(par,trial){
   return(lp)
 }
 
-##############################################################################
-
-# standard non-model based analyses
-EmpiricalAnalysis <- function(trial){
-  description <- get_description(trial)
-  PointEstimates=list(controlP=description$ratios[1],
-                      interventionP=description$ratios[2],
-                      efficacy=description$efficacy)
-
-  return(PointEstimates)
-}
 
 ##############################################################################
 
@@ -358,7 +357,7 @@ noLabels=function(x){
   xclean = as.matrix(x)
   dimnames(xclean) = NULL
   xclean = as.vector(xclean)
-  return(xclean)}
+return(xclean)}
 
 estimateCLEfficacy = function(mu, Sigma,eta=eta, resamples=resamples){
   # Use resampling approach to avoid need for complicated Taylor approximation
@@ -376,30 +375,22 @@ return(CL)}
 rgen<-function(data,mle){
   par=mle$par
   FUN1=mle$FUN1
-  out<-data
-
   #simulate data for numerator num
-  modelp <- FUN1(par=par,out)
-  transf <- 1/(1+exp(-modelp))
-  out$num <- rbinom(length(transf),out$denom,transf) #simulate from binomial distribution
-
-  return(out)
+  modelp <- FUN1(par=par,trial=data)
+  if(mle$link == 'logit') {
+    transf = ilogit(modelp)
+  } else {
+    transf = modelp
+  }
+  data$num <- rbinom(length(transf),data$denom,transf) #simulate from binomial distribution
+  return(data)
 }
 
-SingleTrialAnalysis <- function(trial,eta=eta,sd=sd,FUN2=FUN2) {
+SingleTrialAnalysis <- function(trial, FUN2=FUN2) {
 
-  max_d <- max(abs(trial$nearestDiscord)) + 1e-5
-  eta_d <- (trial$nearestDiscord + max_d)/(2 * max_d)
-  min_beta_d <- min(log(eta_d/(1-eta_d)))
-
-  eta_d_bound <- (qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4) + max_d)/(2 * max_d)
-  beta_d <- log(eta_d_bound/(1-eta_d_bound))
-  d <- ((min_beta_d-beta_d)/min_beta_d) #other extreme is that cont is at max_d => d = 0 or 2
-
-  initialTheta <- c(0,log((1-eta)/eta)/log(d) - 2)
   GA <- GA::ga("real-valued", fitness = pseudoLogLikelihood, FUN=FUN2,
                trial=trial,
-               lower = c(-10,-10,initialTheta[1]), upper = c(10,10,initialTheta[2]),
+               lower = c(-10,-10,-100), upper = c(10,10,100),
                maxiter = 500, run = 50, optim = TRUE,monitor = FALSE)
   result <- GA@solution
 
@@ -416,11 +407,22 @@ computeIntervals = function(df,eta){
 return(IntervalEstimates)}
 
 ##############################################################################
-#functions for an05
+#functions for Empirical Analysis
+
+# standard descriptive analyses
+EmpiricalAnalysis <- function(trial){
+  description <- get_description(trial)
+  PointEstimates=list(controlP=unname(description$ratios[1]),
+                      interventionP=unname(description$ratios[2]),
+                      efficacy=unname(description$efficacy),
+                      contaminationRange = NA)
+  return(PointEstimates)
+}
+
 
 rgen_an05 <- function(data,mle){
 
-  description <- describeBy(data$num/data$denom, group=data$arm)
+  description <- psych::describeBy(data$num/data$denom, group=data$arm)
   pChat <- description$control$mean
   pIhat <- description$intervention$mean
 
@@ -433,7 +435,7 @@ rgen_an05 <- function(data,mle){
 
 # standard non-model based analyses
 BootEmpiricalAnalysis <- function(resampledData){
-  description <- describeBy(resampledData$num/resampledData$denom, group=resampledData$arm)
+  description <- psych::describeBy(resampledData$num/resampledData$denom, group=resampledData$arm)
   #reports summary statistic by a grouping variable
   pChat <- description$control$mean
   pIhat <- description$intervention$mean
@@ -443,9 +445,9 @@ BootEmpiricalAnalysis <- function(resampledData){
 }
 
 ##############################################################################
-#functions for an08
+#functions for bootstrap resampling of GEE
 
-rgen_an08 <- function(data,mle){
+rgen_GEE <- function(data,mle){
   out<-data
   out$num <- unlist(simulate(mle))
   return(out)
