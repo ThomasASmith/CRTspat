@@ -119,15 +119,15 @@ Analyse_CRT <- function(trial,
     if (method=='M1'){
       # mildly informative prior
       initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
-      datajags_an01<-with(trial,list(interven=as.numeric(trial$arm)-1,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
+      datajags_an01<-with(trial,list(eta=eta,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
 
       jagsout = jagsUI::autojags(data=datajags_an01, inits=NULL,
-                         parameters.to.save=c("Es","beta3"), model.file=textConnection(get_model_an01()),
-                         n.chains= 4, n.adapt=NULL, iter.increment=1000, n.burnin=burnin, n.thin=1)
+                         parameters.to.save=c("Es","cont"), model.file=textConnection(get_model_an01()),
+                         n.chains= n.chains, n.adapt=NULL, iter.increment=200, n.burnin=burnin, n.thin=1)
 
       PointEstimates$ModelObject<-jagsout$sims.list
       es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
-      cont <- TransformPW(c(jagsout$q2.5$beta3,jagsout$q50$beta3,jagsout$q97.5$beta3),eta)
+      cont <- c(jagsout$q2.5$cont,jagsout$q50$cont,jagsout$q97.5$cont)
     }
     if (method=='M2'){
       d = get_scaled_logit(trial)
@@ -147,15 +147,15 @@ Analyse_CRT <- function(trial,
     if (method=='M3'){
       #take a mildly informative prior (same as for models before)
       initialTheta <- qlogis(0.95)/qnorm(1-eta,sd = sqrt(2*sd^2))*c(1/4,4)
-      datajags_an03<-with(trial,list(interven=as.numeric(trial$arm)-1,cluster=cluster,num=num,denom=denom,x=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
+      datajags_an03<-with(trial,list(eta=eta,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
 
       jagsout = jagsUI::autojags(data=datajags_an03, inits=NULL,
-                                 parameters.to.save=c("Es","beta3"), model.file=textConnection(get_model_an03()),
-                                 n.chains= 4, n.adapt=NULL, iter.increment=1000, n.burnin=burnin, n.thin=1)
+                                 parameters.to.save=c("Es","cont"), model.file=textConnection(get_model_an03()),
+                                 n.chains= n.chains, n.adapt=NULL, iter.increment=200, n.burnin=burnin, n.thin=1)
 
       PointEstimates$ModelObject<-jagsout$sims.list
       es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
-      cont <- TransformPW(c(jagsout$q2.5$beta3,jagsout$q50$beta3,jagsout$q97.5$beta3),eta)
+      cont <- c(jagsout$q2.5$cont,jagsout$q50$cont,jagsout$q97.5$cont)
     }
     PointEstimates$efficacy=es[2]
     IntervalEstimates$efficacy=namedCL(c(es[1],es[3]),eta=eta)
@@ -506,27 +506,28 @@ get_model_an01 = function(){ textstr=
 "model{
   for(i in 1:N){
     num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
-    p[i] <- 1/(1 + exp(-logitp[i])) #transformation of p
-    logitp[i] <- ifelse(d[i] < -beta3,beta1[cluster[i]],ifelse(d[i] > beta3,beta1[cluster[i]] + beta2,beta1[cluster[i]] + beta2*(beta3 + d[i])/(2*beta3)))
+    fixedp[i] <- ifelse(d[i] < -beta,pC,ifelse(d[i] > beta,pI,pI + (pC - pI) * (beta - d[i])/(2*beta)))
+    logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
+    p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
   }
 
-  # intercepts and random effects
-  for(ic in 1:ncluster) {
-    beta1[ic] ~ dnorm(intercept, tau)
-  }
+# random effects
+for(ic in 1:ncluster) {
+  alpha[ic] ~ dnorm(0, tau)
+}
 
-  # priors
-  beta2 ~ dnorm(0, 0.001)
-  intercept ~ dnorm(0, 0.001)
-  tau <- 1/(sigma*sigma) #precision
-  sigma ~ dunif(0,3) #uniform prior for the standard deviation of the random effects
-  beta3 ~ dunif(initialTheta[1],initialTheta[2])
+# priors
+pC ~ dunif(0,1)
+pI ~ dunif(0,1)
+tau <- 1/(sigma*sigma) #precision
+sigma ~ dunif(0,3)
+beta ~ dunif(initialTheta[1],initialTheta[2])
 
-  # derived quantities
-  pC <- 1/(1+exp(-intercept))
-  pI <- 1/(1+exp(-intercept-beta2))
-  Es <- 1 - pI/pC
-  } "
+# derived quantities
+Es <- 1 - pI/pC
+cont <- (1 - eta)*2*beta
+}
+"
 return(textstr)}
 
 ##############################################################################
@@ -549,7 +550,7 @@ get_model_an02 = function(){ textstr=
   beta2 ~ dnorm(0, 0.001)
   intercept ~ dnorm(0, 0.001)
   tau <- 1/(sigma*sigma) #precision
-  sigma ~ dunif(0,3) #from Tom
+  sigma ~ dunif(0,3)
   beta3 ~ dunif(initialTheta[1], initialTheta[2])
 
   # derived quantities
@@ -560,31 +561,31 @@ get_model_an02 = function(){ textstr=
 return(textstr)}
 
 ##############################################################################
-
-# MCMC model with cluster random effect and sigmoid function (on the logit scale) for contamination function
+# MCMC model with cluster random effect and sigmoid tablemodel for contamination function
 get_model_an03 = function(){ textstr=
-"model{
-  for(i in 1:N){
-    num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
-    p[i] <- 1/(1 + exp(-logitp[i])) #transformation of p
-    logitp[i] <- beta1[cluster[i]] + beta2/(1 + exp(-beta3*x[i]))
+  "model{
+    for(i in 1:N){
+      num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
+      fixedp[i] <- pI + (pC-pI)/(1 + exp(-beta*d[i]))  #model excluding random effect
+      logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
+      p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
+    }
+
+    # random effects
+    for(ic in 1:ncluster) {
+      alpha[ic] ~ dnorm(0, tau)
+    }
+
+    # priors
+    pC ~ dunif(0,1)
+    pI ~ dunif(0,1)
+    tau <- 1/(sigma*sigma) #precision
+    sigma ~ dunif(0,3)
+    beta ~ dunif(initialTheta[1],initialTheta[2])
+
+    # derived quantities
+    Es <- 1 - pI/pC
+    cont <- log((1-0.5*eta)/(0.5*eta))/beta
   }
-
-  # intercepts and random effects
-  for(ic in 1:ncluster) {
-    beta1[ic] ~ dnorm(intercept, tau)
-  }
-
-  # priors
-  beta2 ~ dnorm(0, 0.001)
-  intercept ~ dnorm(0, 0.001)
-  tau <- 1/(sigma*sigma) #precision
-  sigma ~ dunif(0,3) #from Tom
-  beta3 ~ dunif(initialTheta[1],initialTheta[2])
-
-  # derived quantities
-  pC <- 1/(1+exp(-intercept))
-  pI <- 1/(1+exp(-intercept-beta2))
-  Es <- 1 - pI/pC} "
+"
 return(textstr)}
-

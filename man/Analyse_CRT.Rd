@@ -6,7 +6,7 @@
 \usage{
 Analyse_CRT(
   trial,
-  method = "sigmoid",
+  method = "L3",
   excludeBuffer = FALSE,
   requireBootstrap = FALSE,
   alpha = 0.05,
@@ -17,7 +17,7 @@ Analyse_CRT(
 \arguments{
 \item{trial}{trial dataframe including locations, clusters, arms, and binary outcomes}
 
-\item{method}{statistical method used to analyse trial. Options are 'piecewise_linear','logit','sigmoid','empirical','GEE','MCMC01','MCMC02','MCMC03'}
+\item{method}{statistical method used to analyse trial. Options are 'L0','L1','L2','L3','GEE','M1','M2','M3'}
 
 \item{excludeBuffer}{exclude any buffer zone (records with buffer=TRUE) from the analysis}
 
