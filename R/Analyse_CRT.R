@@ -153,23 +153,23 @@ Analyse_CRT <- function(trial,
 
     #    contamination diameter depends on model
     text4a = text2 = switch(method,
-                            'M1' = "cont <- (1 - alpha)*2*beta \n}\n",
-                            'M2' = "cont <- 2 * qnorm(1 - 0.5*alpha,0,beta) \n}\n",
-                            'M3' = "cont <- 2* log((1-0.5*alpha)/(0.5*alpha))/beta \n}\n")
+                            'M1' = "theta <- (1 - alpha)*2*beta \n}\n",
+                            'M2' = "theta <- 2 * qnorm(1 - 0.5*alpha,0,beta) \n}\n",
+                            'M3' = "theta <- 2* log((1-0.5*alpha)/(0.5*alpha))/beta \n}\n")
     MCMCmodel = paste0(text1,text2a,text3,text4a)
 
     jagsout = jagsUI::autojags(data=datajags, inits=NULL,
-                       parameters.to.save=c("Es","cont"),
+                       parameters.to.save=c("Es","theta"),
                        model.file=textConnection(MCMCmodel),
                        n.chains= nchains, n.adapt=NULL, iter.increment=200, n.burnin=burnin, n.thin=1)
 
     PointEstimates$ModelObject<-jagsout$sims.list
     es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
-    cont <- c(jagsout$q2.5$cont,jagsout$q50$cont,jagsout$q97.5$cont)
+    cont <- c(jagsout$q2.5$theta,jagsout$q50$theta,jagsout$q97.5$theta)
     PointEstimates$efficacy=es[2]
     IntervalEstimates$efficacy=namedCL(c(es[1],es[3]),alpha=alpha)
-    PointEstimates$contaminationRange=cont[2]
-    IntervalEstimates$contaminationRange=namedCL(c(cont[1],cont[3]),alpha=alpha)
+    PointEstimates$contaminationRange=theta[2]
+    IntervalEstimates$contaminationRange=namedCL(c(theta[1],theta[3]),alpha=alpha)
   }
   description= get_description(trial)
 
