@@ -5,7 +5,7 @@
 #' @param method statistical method used to analyse trial. Options are 'L0','L1','L2','L3','GEE','M1','M2','M3'
 #' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
 #' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
-#' @param eta confidence level for confidence intervals and credible intervals
+#' @param alpha confidence level for confidence intervals and credible intervals
 #' @param resamples number of bootstrap samples
 #' @param nchains number of chains MCMC algorithm (for MCMC methods)
 #' @param burnin number of burnin interations of MCMC algorithm (for MCMC methods)
@@ -30,7 +30,7 @@ Analyse_CRT <- function(trial,
                         method='L3',
                         excludeBuffer=FALSE,
                         requireBootstrap=FALSE,
-                        eta =0.05,
+                        alpha = 0.05,
                         resamples=1000,
                         nchains=4,
                         burnin=200){
@@ -51,7 +51,7 @@ Analyse_CRT <- function(trial,
 
   PointEstimates=IntervalEstimates=list()
   ModelObject=NA
-  sd = 0.5/(qnorm(1-eta)*sqrt(2)) #initial value used in bootstrap calculations
+  sd = 0.5/(qnorm(1-alpha)*sqrt(2)) #initial value used in bootstrap calculations
   trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
 
 ############### Analyses that ignore contamination #################
@@ -63,13 +63,13 @@ Analyse_CRT <- function(trial,
       boot_an05 <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
                               R=resamples, sim="parametric", ran.gen=rgen_an05, mle=PointEstimates)
       PointEstimates$bootstrapMean_efficacy = mean(boot_an05$t)
-      IntervalEstimates$efficacy <- namedCL(quantile(boot_an05$t,c(eta/2,1-eta/2)),eta=eta)
+      IntervalEstimates$efficacy <- namedCL(quantile(boot_an05$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
   }
 
   if(method=='GEE'){
     #GEE analysis with cluster effects
-    GEEestimates <- GEEAnalysis(trial,eta=eta,resamples=resamples)
+    GEEestimates <- GEEAnalysis(trial,alpha=alpha,resamples=resamples)
     PointEstimates <- GEEestimates$PointEstimates
     IntervalEstimates <- GEEestimates$IntervalEstimates
     if(requireBootstrap){
@@ -79,7 +79,7 @@ Analyse_CRT <- function(trial,
                                 R=resamples, sim="parametric", ran.gen=rgen_GEE, mle=ml)
 
       PointEstimates$bootstrapMean_efficacy = mean(boot_output$t)
-      IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_output$t,c(eta/2,1-eta/2)),eta=eta)
+      IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_output$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
   }
 
@@ -112,14 +112,14 @@ Analyse_CRT <- function(trial,
         }
       }
       colnames(boot_estimates) = names(PointEstimates)
-      IntervalEstimates =  computeIntervals(df=boot_estimates,eta=eta)
+      IntervalEstimates =  computeIntervals(df=boot_estimates,alpha=alpha)
     }
   }
 
   if (method %in% c('M1','M2','M3')){
     # mildly informative prior
-    initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
-    datajags<-with(trial,list(eta=eta,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
+    initialTheta <- qnorm(1-alpha,sd = sqrt(2*sd^2))/(1-2*alpha)*c(1/4,4)
+    datajags<-with(trial,list(alpha=alpha,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
 
 # construct the rjags code by concatenating strings: text1 and text3 are model independent
 #
@@ -153,9 +153,9 @@ Analyse_CRT <- function(trial,
 
     #    contamination diameter depends on model
     text4a = text2 = switch(method,
-                            'M1' = "cont <- (1 - eta)*2*beta \n}\n",
-                            'M2' = "cont <- 2 * qnorm(1 - 0.5*eta,0,beta) \n}\n",
-                            'M3' = "cont <- 2* log((1-0.5*eta)/(0.5*eta))/beta \n}\n")
+                            'M1' = "cont <- (1 - alpha)*2*beta \n}\n",
+                            'M2' = "cont <- 2 * qnorm(1 - 0.5*alpha,0,beta) \n}\n",
+                            'M3' = "cont <- 2* log((1-0.5*alpha)/(0.5*alpha))/beta \n}\n")
     MCMCmodel = paste0(text1,text2a,text3,text4a)
 
     jagsout = jagsUI::autojags(data=datajags, inits=NULL,
@@ -167,9 +167,9 @@ Analyse_CRT <- function(trial,
     es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
     cont <- c(jagsout$q2.5$cont,jagsout$q50$cont,jagsout$q97.5$cont)
     PointEstimates$efficacy=es[2]
-    IntervalEstimates$efficacy=namedCL(c(es[1],es[3]),eta=eta)
+    IntervalEstimates$efficacy=namedCL(c(es[1],es[3]),alpha=alpha)
     PointEstimates$contaminationRange=cont[2]
-    IntervalEstimates$contaminationRange=namedCL(c(cont[1],cont[3]),eta=eta)
+    IntervalEstimates$contaminationRange=namedCL(c(cont[1],cont[3]),alpha=alpha)
   }
   description= get_description(trial)
 
@@ -217,8 +217,8 @@ return(ests)}
 
 
 #add labels to confidence limits
-namedCL=function(limits,eta=eta){
-  names(limits)=c(paste0(100*eta/2,'%'),paste0(100-100*eta/2,'%'))
+namedCL=function(limits,alpha=alpha){
+  names(limits)=c(paste0(100*alpha/2,'%'),paste0(100-100*alpha/2,'%'))
   return(limits)}
 
 #logit transformation
@@ -326,7 +326,7 @@ CalculateLinearPredictor03 <- function(par,trial){
 
 ##############################################################################
 
-GEEAnalysis <- function(trial,eta=eta, resamples=resamples){
+GEEAnalysis <- function(trial,alpha=alpha, resamples=resamples){
 
   fit <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
   summary_fit = summary(fit)
@@ -334,15 +334,15 @@ GEEAnalysis <- function(trial,eta=eta, resamples=resamples){
   logitpI = summary_fit$coefficients[1,1] + summary_fit$coefficients[2,1]
   se_logitpC = summary_fit$coefficients[1,2]
   se_logitpI = sqrt(fit$geese$vbeta[1,1] + fit$geese$vbeta[2,2] + 2*fit$geese$vbeta[1,2])
-  z=-qnorm(eta/2) #standard deviation score for calculating confidence intervals
-  CL_pC = namedCL(ilogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),eta=eta)
-  CL_pI = namedCL(ilogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),eta=eta)
-  CL_eff = estimateCLEfficacy(mu=summary_fit$coefficients[,1], Sigma=fit$geese$vbeta ,eta=eta, resamples=resamples)
+  z=-qnorm(alpha/2) #standard deviation score for calculating confidence intervals
+  CL_pC = namedCL(ilogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),alpha=alpha)
+  CL_pI = namedCL(ilogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
+  CL_eff = estimateCLEfficacy(mu=summary_fit$coefficients[,1], Sigma=fit$geese$vbeta ,alpha=alpha, resamples=resamples)
 
   # Intracluster correlation
   ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
   se_ICC = noLabels(summary_fit$corr[2])
-  CL_ICC = namedCL(noLabels(c(ICC-z*se_ICC,ICC+z*se_ICC)),eta=eta)
+  CL_ICC = namedCL(noLabels(c(ICC-z*se_ICC,ICC+z*se_ICC)),alpha=alpha)
 
   clusterSize = nrow(trial)/nlevels(as.factor(trial$cluster))
   DesignEffect = 1 + (clusterSize - 1)*ICC #Design Effect
@@ -368,7 +368,7 @@ noLabels=function(x){
   xclean = as.vector(xclean)
 return(xclean)}
 
-estimateCLEfficacy = function(mu, Sigma,eta=eta, resamples=resamples){
+estimateCLEfficacy = function(mu, Sigma,alpha=alpha, resamples=resamples){
   # Use resampling approach to avoid need for complicated Taylor approximation
   # use at least 10000 samples (this is very cheap)
   resamples1 = max(resamples,10000,na.rm = TRUE)
@@ -376,7 +376,7 @@ estimateCLEfficacy = function(mu, Sigma,eta=eta, resamples=resamples){
   pC = ilogit(samples[,1])
   pI = ilogit(samples[,1] + samples[,2])
   eff = 1 - pI/pC
-  CL = quantile(eff, probs = c(eta/2, 1-eta/2))
+  CL = quantile(eff, probs = c(alpha/2, 1-alpha/2))
 return(CL)}
 
 #functions for analysis of L1, L2, L3
@@ -406,11 +406,11 @@ SingleTrialAnalysis <- function(trial, FUN2=FUN2) {
   return(result)
 }
 
-computeIntervals = function(df,eta){
+computeIntervals = function(df,alpha){
   varnames= colnames(df)
   IntervalEstimates = as.list(varnames)
   for(i in 1:length(varnames)){
-    IntervalEstimates[[i]]=namedCL(quantile(df[,varnames[i]],c(eta/2,1-eta/2)),eta=eta)
+    IntervalEstimates[[i]]=namedCL(quantile(df[,varnames[i]],c(alpha/2,1-alpha/2)),alpha=alpha)
   }
   names(IntervalEstimates)=varnames
 return(IntervalEstimates)}
@@ -474,31 +474,8 @@ BootGEEAnalysis <- function(resampledData){
   return(Eshat)
 }
 
-##############################################################################
-#Backtransform for contamination range
 
-TransformLogitDist <- function(nearestDiscord,cont,eta){
 
-  #logit model
-  max_d <- max(abs(nearestDiscord)) + 1e-5
-  min_beta_d <- min(log((nearestDiscord + max_d)/(2 * max_d)/(1-(nearestDiscord + max_d)/(2 * max_d))))
-  if (sign(nearestDiscord[which.max(abs(nearestDiscord))]) < 0){
-    d <- exp(log((1-eta)/eta)/(cont+2)) #the sign changes
-  } else{
-    d <- exp(log(eta/(1-eta))/(cont+2))
-  }
-  beta_d <- (1-d)*min_beta_d
-  eta_d <- exp(beta_d)/(1+exp(beta_d))
 
-  ContTrans <- abs(2*max_d*eta_d - max_d)
-
-  return(ContTrans)
-}
-
-TransformSigm <- function(cont,eta){
-
-  ContTrans <- (log((1-eta)/eta))/cont
-  return(ContTrans)
-}
 
 

@@ -11,7 +11,8 @@ Analyse_CRT(
   requireBootstrap = FALSE,
   alpha = 0.05,
   resamples = 1000,
-  burnin = 500
+  nchains = 4,
+  burnin = 200
 )
 }
 \arguments{
@@ -26,6 +27,8 @@ Analyse_CRT(
 \item{alpha}{confidence level for confidence intervals and credible intervals}
 
 \item{resamples}{number of bootstrap samples}
+
+\item{nchains}{number of chains MCMC algorithm (for MCMC methods)}
 
 \item{burnin}{number of burnin interations of MCMC algorithm (for MCMC methods)}
 }
