@@ -131,15 +131,15 @@ Analyse_CRT <- function(trial,
 #      < text2: model excluding random effect is inserted here >
     text2 = switch(method,
                    'M1' = "fixedp[i] <- ifelse(d[i] < -beta,pC,ifelse(d[i] > beta,pI,pI + (pC - pI) * (beta - d[i])/(2*beta)))\n",
-                   'M2' = "fixedp[i] <- pI + (pC-pI)*pnorm(d[i],0,beta) \n",
-                   'M2' = "fixedp[i] <- pI + (pC-pI)/(1 + exp(-beta*d[i])) \n")
+                   'M2' = "fixedp[i] <- pI + (pC-pI)*pnorm(-d[i],0,beta) \n",
+                   'M3' = "fixedp[i] <- pI + (pC-pI)/(1 + exp(beta*d[i])) \n")
 
     #      logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
     #      p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
     #    }
     # random effects
     #    for(ic in 1:ncluster) {
-    #      alpha[ic] ~ dnorm(0, tau)
+    #      gamma[ic] ~ dnorm(0, tau)
     #    }
     # priors
     #    pC ~ dunif(0,1)
@@ -149,23 +149,34 @@ Analyse_CRT <- function(trial,
     #    beta ~ dunif(initialTheta[1],initialTheta[2])
     # derived quantities
     #    Es <- 1 - pI/pC
-    text3 = "logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] \n p[i] <- 1/(1 + exp(-logitp[i])) \n }\n for(ic in 1:ncluster) {\n alpha[ic] ~ dnorm(0, tau)\n}\n pC ~ dunif(0,1)\n pI ~ dunif(0,1)\n tau <- 1/(sigma*sigma) \n sigma ~ dunif(0,3)\n beta ~ dunif(initialTheta[1],initialTheta[2])\n Es <- 1 - pI/pC\n"
+    text3 = "logitp[i] <- logit(fixedp[i]) + gamma[cluster[i]] \n
+             p[i] <- 1/(1 + exp(-logitp[i])) \n
+           }\n
+           for(ic in 1:ncluster) {\n
+             gamma[ic] ~ dnorm(0, tau)\n
+           }\n
+           pC ~ dunif(0,1)\n
+           pI ~ dunif(0,1)\n
+           tau <- 1/(sigma*sigma) \n
+           sigma ~ dunif(0,3)\n
+           beta ~ dunif(initialTheta[1],initialTheta[2])\n
+           Es <- 1 - pI/pC\n"
 
     #    contamination diameter depends on model
-    text4a = text2 = switch(method,
-                            'M1' = "theta <- (1 - alpha)*2*beta \n}\n",
-                            'M2' = "theta <- 2 * qnorm(1 - 0.5*alpha,0,beta) \n}\n",
-                            'M3' = "theta <- 2* log((1-0.5*alpha)/(0.5*alpha))/beta \n}\n")
-    MCMCmodel = paste0(text1,text2a,text3,text4a)
+    text4 = switch(method,
+            'M1' = "theta <- (1 - alpha)*2*beta \n}\n",
+            'M2' = "theta <- 2 * qnorm(1 - 0.5*alpha,0,beta) \n}\n",
+            'M3' = "theta <- 2* log((1-0.5*alpha)/(0.5*alpha))/beta \n}\n")
+    MCMCmodel = paste0(text1,text2,text3,text4)
 
     jagsout = jagsUI::autojags(data=datajags, inits=NULL,
-                       parameters.to.save=c("Es","theta"),
+                       parameters.to.save=c("Es","theta","pC","pI","beta"),
                        model.file=textConnection(MCMCmodel),
                        n.chains= nchains, n.adapt=NULL, iter.increment=200, n.burnin=burnin, n.thin=1)
 
     PointEstimates$ModelObject<-jagsout$sims.list
     es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
-    cont <- c(jagsout$q2.5$theta,jagsout$q50$theta,jagsout$q97.5$theta)
+    theta <- c(jagsout$q2.5$theta,jagsout$q50$theta,jagsout$q97.5$theta)
     PointEstimates$efficacy=es[2]
     IntervalEstimates$efficacy=namedCL(c(es[1],es[3]),alpha=alpha)
     PointEstimates$contaminationRange=theta[2]
