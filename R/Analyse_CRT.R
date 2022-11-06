@@ -5,8 +5,9 @@
 #' @param method statistical method used to analyse trial. Options are 'L0','L1','L2','L3','GEE','M1','M2','M3'
 #' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
 #' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
-#' @param alpha confidence level for confidence intervals and credible intervals
+#' @param eta confidence level for confidence intervals and credible intervals
 #' @param resamples number of bootstrap samples
+#' @param nchains number of chains MCMC algorithm (for MCMC methods)
 #' @param burnin number of burnin interations of MCMC algorithm (for MCMC methods)
 #' @return list containing the following results of the analysis
 #' \itemize{
@@ -29,9 +30,10 @@ Analyse_CRT <- function(trial,
                         method='L3',
                         excludeBuffer=FALSE,
                         requireBootstrap=FALSE,
-                        alpha =0.05,
+                        eta =0.05,
                         resamples=1000,
-                        burnin=500){
+                        nchains=4,
+                        burnin=200){
 
   ##############################################################################
   # MAIN FUNCTION CODE STARTS HERE
@@ -49,7 +51,6 @@ Analyse_CRT <- function(trial,
 
   PointEstimates=IntervalEstimates=list()
   ModelObject=NA
-  eta = alpha
   sd = 0.5/(qnorm(1-eta)*sqrt(2)) #initial value used in bootstrap calculations
   trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
 
@@ -120,9 +121,47 @@ Analyse_CRT <- function(trial,
     initialTheta <- qnorm(1-eta,sd = sqrt(2*sd^2))/(1-2*eta)*c(1/4,4)
     datajags<-with(trial,list(eta=eta,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
 
+# construct the rjags code by concatenating strings: text1 and text3 are model independent
+#
+#  "model{
+#    for(i in 1:N){
+#      num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
+    text1 = "model{\n for(i in 1:N){\n num[i] ~ dbin(p[i],denom[i]) \n"
+
+#      < text2: model excluding random effect is inserted here >
+    text2 = switch(method,
+                   'M1' = "fixedp[i] <- ifelse(d[i] < -beta,pC,ifelse(d[i] > beta,pI,pI + (pC - pI) * (beta - d[i])/(2*beta)))\n",
+                   'M2' = "fixedp[i] <- pI + (pC-pI)*pnorm(d[i],0,beta) \n",
+                   'M2' = "fixedp[i] <- pI + (pC-pI)/(1 + exp(-beta*d[i])) \n")
+
+    #      logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
+    #      p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
+    #    }
+    # random effects
+    #    for(ic in 1:ncluster) {
+    #      alpha[ic] ~ dnorm(0, tau)
+    #    }
+    # priors
+    #    pC ~ dunif(0,1)
+    #    pI ~ dunif(0,1)
+    #    tau <- 1/(sigma*sigma) #precision
+    #    sigma ~ dunif(0,3)
+    #    beta ~ dunif(initialTheta[1],initialTheta[2])
+    # derived quantities
+    #    Es <- 1 - pI/pC
+    text3 = "logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] \n p[i] <- 1/(1 + exp(-logitp[i])) \n }\n for(ic in 1:ncluster) {\n alpha[ic] ~ dnorm(0, tau)\n}\n pC ~ dunif(0,1)\n pI ~ dunif(0,1)\n tau <- 1/(sigma*sigma) \n sigma ~ dunif(0,3)\n beta ~ dunif(initialTheta[1],initialTheta[2])\n Es <- 1 - pI/pC\n"
+
+    #    contamination diameter depends on model
+    text4a = text2 = switch(method,
+                            'M1' = "cont <- (1 - eta)*2*beta \n}\n",
+                            'M2' = "cont <- 2 * qnorm(1 - 0.5*eta,0,beta) \n}\n",
+                            'M3' = "cont <- 2* log((1-0.5*eta)/(0.5*eta))/beta \n}\n")
+    MCMCmodel = paste0(text1,text2a,text3,text4a)
+
     jagsout = jagsUI::autojags(data=datajags, inits=NULL,
-                       parameters.to.save=c("Es","cont"), model.file=textConnection(get_model_an02()),
-                       n.chains= n.chains, n.adapt=NULL, iter.increment=200, n.burnin=burnin, n.thin=1)
+                       parameters.to.save=c("Es","cont"),
+                       model.file=textConnection(MCMCmodel),
+                       n.chains= nchains, n.adapt=NULL, iter.increment=200, n.burnin=burnin, n.thin=1)
 
     PointEstimates$ModelObject<-jagsout$sims.list
     es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
@@ -463,95 +502,3 @@ TransformSigm <- function(cont,eta){
 }
 
 
-##############################################################################
-#model formulations for MCMCan01, MCMCan02 and MCMCan03,
-
-# MCMC model with cluster random effect and piecewise linear model (on the logit scale) for contamination function
-get_model_an01 = function(){ textstr=
-"model{
-  for(i in 1:N){
-    num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
-    fixedp[i] <- ifelse(d[i] < -beta,pC,ifelse(d[i] > beta,pI,pI + (pC - pI) * (beta - d[i])/(2*beta)))
-    logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
-    p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
-  }
-
-# random effects
-for(ic in 1:ncluster) {
-  alpha[ic] ~ dnorm(0, tau)
-}
-
-# priors
-pC ~ dunif(0,1)
-pI ~ dunif(0,1)
-tau <- 1/(sigma*sigma) #precision
-sigma ~ dunif(0,3)
-beta ~ dunif(initialTheta[1],initialTheta[2])
-
-# derived quantities
-Es <- 1 - pI/pC
-cont <- (1 - eta)*2*beta # beta is half-width of the contaminated zone
-}
-"
-return(textstr)}
-
-##############################################################################
-
-# MCMC model with cluster random effect and cumulative normal contamination function
-get_model_an02 = function(){ textstr=
-  "model{
-    for(i in 1:N){
-      num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
-      fixedp[i] <- pI + (pC-pI)*pnorm(d[i],0,beta)  #model excluding random effect
-      logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
-      p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
-    }
-
-    # random effects
-    for(ic in 1:ncluster) {
-      alpha[ic] ~ dnorm(0, tau)
-    }
-
-    # priors
-    pC ~ dunif(0,1)
-    pI ~ dunif(0,1)
-    tau <- 1/(sigma*sigma) #precision
-    sigma ~ dunif(0,3)
-    beta ~ dunif(initialTheta[1],initialTheta[2])
-
-    # derived quantities
-    Es <- 1 - pI/pC
-    cont <- 2 * qnorm(1 - 0.5*eta,0,beta) # beta is the precision of the contamination function
-  }
-"
-return(textstr)}
-
-##############################################################################
-# MCMC model with cluster random effect and sigmoid tablemodel for contamination function
-get_model_an03 = function(){ textstr=
-  "model{
-    for(i in 1:N){
-      num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
-      fixedp[i] <- pI + (pC-pI)/(1 + exp(-beta*d[i]))  #model excluding random effect
-      logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
-      p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
-    }
-
-    # random effects
-    for(ic in 1:ncluster) {
-      alpha[ic] ~ dnorm(0, tau)
-    }
-
-    # priors
-    pC ~ dunif(0,1)
-    pI ~ dunif(0,1)
-    tau <- 1/(sigma*sigma) #precision
-    sigma ~ dunif(0,3)
-    beta ~ dunif(initialTheta[1],initialTheta[2])
-
-    # derived quantities
-    Es <- 1 - pI/pC
-    cont <- 2* log((1-0.5*eta)/(0.5*eta))/beta #contamination diameter
-  }
-"
-return(textstr)}
