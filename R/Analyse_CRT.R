@@ -122,36 +122,19 @@ Analyse_CRT <- function(trial,
     datajags<-with(trial,list(alpha=alpha,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
 
 # construct the rjags code by concatenating strings: text1 and text3 are model independent
-#
-#  "model{
-#    for(i in 1:N){
-#      num[i] ~ dbin(p[i],denom[i]) #every datapoint is drawn from a Binomial distribution with probability p
-    text1 = "model{\n for(i in 1:N){\n num[i] ~ dbin(p[i],denom[i]) \n"
+    text1 = "model{\n
+              for(i in 1:N){\n
+                 num[i] ~ dbin(p[i],denom[i]) \n"
 
-#      < text2: model excluding random effect is inserted here >
+#   model for fixed effects
     text2 = switch(method,
                    'M1' = "fixedp[i] <- ifelse(d[i] < -beta,pC,ifelse(d[i] > beta,pI,pI + (pC - pI) * (beta - d[i])/(2*beta)))\n",
                    'M2' = "fixedp[i] <- pI + (pC-pI)*pnorm(-d[i],0,beta) \n",
                    'M3' = "fixedp[i] <- pI + (pC-pI)/(1 + exp(beta*d[i])) \n")
-
-    #      logitp[i] <- logit(fixedp[i]) + alpha[cluster[i]] #cluster random effect on logit scale
-    #      p[i] <- 1/(1 + exp(-logitp[i])) #back transformation to linear scale
-    #    }
-    # random effects
-    #    for(ic in 1:ncluster) {
-    #      gamma[ic] ~ dnorm(0, tau)
-    #    }
-    # priors
-    #    pC ~ dunif(0,1)
-    #    pI ~ dunif(0,1)
-    #    tau <- 1/(sigma*sigma) #precision
-    #    sigma ~ dunif(0,3)
-    #    beta ~ dunif(initialTheta[1],initialTheta[2])
-    # derived quantities
-    #    Es <- 1 - pI/pC
     text3 = "logitp[i] <- logit(fixedp[i]) + gamma[cluster[i]] \n
              p[i] <- 1/(1 + exp(-logitp[i])) \n
            }\n
+    # priors \n
            for(ic in 1:ncluster) {\n
              gamma[ic] ~ dnorm(0, tau)\n
            }\n
@@ -160,6 +143,7 @@ Analyse_CRT <- function(trial,
            tau <- 1/(sigma*sigma) \n
            sigma ~ dunif(0,3)\n
            beta ~ dunif(initialTheta[1],initialTheta[2])\n
+    # derived quantities \n
            Es <- 1 - pI/pC\n"
 
     #    contamination diameter depends on model
