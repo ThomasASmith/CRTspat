@@ -11,8 +11,7 @@ Analyse_CRT(
   requireBootstrap = FALSE,
   alpha = 0.05,
   resamples = 1000,
-  nchains = 4,
-  burnin = 200
+  inlaMesh = NULL
 )
 }
 \arguments{
@@ -28,9 +27,7 @@ Analyse_CRT(
 
 \item{resamples}{number of bootstrap samples}
 
-\item{nchains}{number of chains MCMC algorithm (for MCMC methods)}
-
-\item{burnin}{number of burnin interations of MCMC algorithm (for MCMC methods)}
+\item{inlaMesh}{name of pre-existing INLA input object created by CreateMesh()}
 }
 \value{
 list containing the following results of the analysis

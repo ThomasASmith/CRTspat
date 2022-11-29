@@ -228,7 +228,7 @@ test7c = Simulate_CRT(trial= test7b,
                     ICC_inp=ICC,
                     theta_inp=theta)
 
-results7=Analyse_CRT(trial=test7c,method='MCMC01')
+results7=Analyse_CRT(trial=test7c,method='L3')
 ```
 
 

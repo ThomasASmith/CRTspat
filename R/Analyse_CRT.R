@@ -7,8 +7,7 @@
 #' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
 #' @param alpha confidence level for confidence intervals and credible intervals
 #' @param resamples number of bootstrap samples
-#' @param nchains number of chains MCMC algorithm (for MCMC methods)
-#' @param burnin number of burnin interations of MCMC algorithm (for MCMC methods)
+#' @param inlaMesh name of pre-existing INLA input object created by CreateMesh()
 #' @return list containing the following results of the analysis
 #' \itemize{
 #' \item \code{description}: Description of the trial dataset
@@ -32,8 +31,7 @@ Analyse_CRT <- function(trial,
                         requireBootstrap=FALSE,
                         alpha = 0.05,
                         resamples=1000,
-                        nchains=4,
-                        burnin=200){
+                        inlaMesh=NULL){
 
   ##############################################################################
   # MAIN FUNCTION CODE STARTS HERE
@@ -42,7 +40,7 @@ Analyse_CRT <- function(trial,
   {
     trial = trial[!trial$buffer,]
   }
-  #trial needs to be ordered for MCMC analyses and for bootstrap of GEE
+  #trial needs to be ordered for some analyses
   trial <- trial[order(trial$cluster),]
 
   # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant coordinate
@@ -54,10 +52,9 @@ Analyse_CRT <- function(trial,
   sd = 0.5/(qnorm(1-alpha)*sqrt(2)) #initial value used in bootstrap calculations
   trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
 
-############### Analyses that ignore contamination #################
-
+  description= get_description(trial)
   if(method=='L0'){
-    # empirical analysis
+    # empirical analysis that ignores contamination
     PointEstimates <- EmpiricalAnalysis(trial)
     if(requireBootstrap){
       boot_an05 <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
@@ -65,9 +62,7 @@ Analyse_CRT <- function(trial,
       PointEstimates$bootstrapMean_efficacy = mean(boot_an05$t)
       IntervalEstimates$efficacy <- namedCL(quantile(boot_an05$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
-  }
-
-  if(method=='GEE'){
+  } else if(method=='GEE'){
     #GEE analysis with cluster effects
     GEEestimates <- GEEAnalysis(trial,alpha=alpha,resamples=resamples)
     PointEstimates <- GEEestimates$PointEstimates
@@ -81,10 +76,8 @@ Analyse_CRT <- function(trial,
       PointEstimates$bootstrapMean_efficacy = mean(boot_output$t)
       IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_output$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
-  }
-
-############### ML Methods with contamination functions and logistic link #################
-  if(method %in% c('L1','L2','L3')){
+  } else if(method %in% c('L1','L2','L3')){
+    ############### ML Methods with contamination functions and logistic link #################
     i = which (method == c('L1','L2','L3'))
     LPMethods = c('CalculateLinearPredictor01',
                   'CalculateLinearPredictor02',
@@ -114,71 +107,129 @@ Analyse_CRT <- function(trial,
       colnames(boot_estimates) = names(PointEstimates)
       IntervalEstimates =  computeIntervals(df=boot_estimates,alpha=alpha)
     }
+  } else if(method %in% c('LR','CRE','SPDE','SPCRE')){
+      results = inlaModel(trial=trial,transf='L',method=method,inlaMesh=inlaMesh)
+      results$description=description
   }
-
-  if (method %in% c('M1','M2','M3')){
-    # mildly informative prior
-    initialTheta <- qnorm(1-alpha,sd = sqrt(2*sd^2))/(1-2*alpha)*c(1/4,4)
-    datajags<-with(trial,list(alpha=alpha,cluster=cluster,num=num,denom=denom,d=nearestDiscord,N=nrow(trial),ncluster=max(cluster),initialTheta=initialTheta))
-
-# construct the rjags code by concatenating strings: text1 and text3 are model independent
-    text1 = "model{\n
-              for(i in 1:N){\n
-                 num[i] ~ dbin(p[i],denom[i]) \n"
-
-#   model for fixed effects
-    text2 = switch(method,
-                   'M1' = "fixedp[i] <- ifelse(d[i] < -beta,pC,ifelse(d[i] > beta,pI,pI + (pC - pI) * (beta - d[i])/(2*beta)))\n",
-                   'M2' = "fixedp[i] <- pI + (pC-pI)*pnorm(-d[i],0,beta) \n",
-                   'M3' = "fixedp[i] <- pI + (pC-pI)/(1 + exp(beta*d[i])) \n")
-    text3 = "logitp[i] <- logit(fixedp[i]) + gamma[cluster[i]] \n
-             p[i] <- 1/(1 + exp(-logitp[i])) \n
-           }\n
-    # priors \n
-           for(ic in 1:ncluster) {\n
-             gamma[ic] ~ dnorm(0, tau)\n
-           }\n
-           pC ~ dunif(0,1)\n
-           pI ~ dunif(0,1)\n
-           tau <- 1/(sigma*sigma) \n
-           sigma ~ dunif(0,3)\n
-           beta ~ dunif(initialTheta[1],initialTheta[2])\n
-    # derived quantities \n
-           Es <- 1 - pI/pC\n"
-
-    #    contamination diameter depends on model
-    text4 = switch(method,
-            'M1' = "theta <- (1 - alpha)*2*beta \n}\n",
-            'M2' = "theta <- 2 * qnorm(1 - 0.5*alpha,0,beta) \n}\n",
-            'M3' = "theta <- 2* log((1-0.5*alpha)/(0.5*alpha))/beta \n}\n")
-    MCMCmodel = paste0(text1,text2,text3,text4)
-
-    jagsout = jagsUI::autojags(data=datajags, inits=NULL,
-                       parameters.to.save=c("Es","theta","pC","pI","beta"),
-                       model.file=textConnection(MCMCmodel),
-                       n.chains= nchains, n.adapt=NULL, iter.increment=200, n.burnin=burnin, n.thin=1)
-
-    PointEstimates$ModelObject<-jagsout$sims.list
-    es <- c(jagsout$q2.5$Es,jagsout$q50$Es,jagsout$q97.5$Es)
-    theta <- c(jagsout$q2.5$theta,jagsout$q50$theta,jagsout$q97.5$theta)
-    PointEstimates$efficacy=es[2]
-    IntervalEstimates$efficacy=namedCL(c(es[1],es[3]),alpha=alpha)
-    PointEstimates$contaminationRange=theta[2]
-    IntervalEstimates$contaminationRange=namedCL(c(theta[1],theta[3]),alpha=alpha)
+  if(method %in% c('L0','L1','L2','L3','GEE')){
+    # tidy up and consolidate the list of results
+    ModelObject=PointEstimates$ModelObject
+    PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
+    PointEstimates <- PointEstimates[names(PointEstimates) != "ModelObject"]
+    results = list(description=description,
+                 method=method,
+                 PointEstimates=PointEstimates,
+                 IntervalEstimates=IntervalEstimates,
+                 ModelObject=ModelObject)
   }
-  description= get_description(trial)
-
-# tidy up and consolidate the list of results
-  ModelObject=PointEstimates$ModelObject
-  PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
-  PointEstimates <- PointEstimates[names(PointEstimates) != "ModelObject"]
-  results = list(description=description,
-               method=method,
-               PointEstimates=PointEstimates,
-               IntervalEstimates=IntervalEstimates,
-               ModelObject=ModelObject)
-
 return(results)}
+
+inlaModel = function(trial,transf='L',method,inlaMesh=NULL){
+    if(is.null(inlaMesh)){
+      inlaMesh = createMesh(trial=trial,
+                            offset = -0.1,
+                            max.edge = 0.25,
+                            alpha = 2,
+                            maskbuffer = 0.5,
+                            ncells= 50)
+    }
+    # specify functional form of sigmoid in distance from boundary
+    # 'L' inverse logit; 'N' cumulative normal
+    FUN = switch(transf, 'L' = "invlogit(x)", 'N' = "pnorm(x)")
+
+    # create model
+    if (method == 'LR'){
+      formula <- y ~ 0 + b0 + pvar
+
+    } else if(method == 'CRE'){
+      formula <- y ~ 0 + b0 + pvar + f(cluster, model = "iid")
+
+    } else if(method == 'SPDE'){
+      spde = inlaMesh$spde
+      formula <- y ~ 0 + b0 + pvar + f(s, model = spde)
+
+    } else if(method == 'SPCRE'){
+      spde = inlaMesh$spde
+      formula <- y ~ 0 + b0 + pvar + + f(cluster, model = "iid") + f(s, model = spde)
+
+    }
+    beta2 = optimize(f=estimateContamination,
+                     interval=c(0.1,10),
+                     trial=trial,
+                     FUN=FUN,
+                     inlaMesh=inlaMesh,
+                     formula=formula,
+                     tol = 0.01)$minimum
+
+    x = trial$nearestDiscord*beta2
+    trial$pvar = eval(parse(text = FUN))
+
+    # stack for estimation stk.e
+    stk.e <- inla.stack(
+      tag = "est",
+      data = list(y = trial$num, denom=trial$denom),
+      A = list(1, A=inlaMesh$A),
+      effects = list(data.frame(b0=rep(1, nrow(trial)),
+                                pvar = trial$pvar,
+                                cluster = trial$cluster),
+                     s = inlaMesh$indexs)
+    )
+
+    x = inlaMesh$prediction$nearestDiscord*beta2
+    inlaMesh$prediction$pvar = eval(parse(text = FUN))
+    # stack for prediction stk.p
+    stk.p <- inla.stack(
+      tag = "pred",
+      data = list(y = NA, denom = NA),
+      A = list(1, inlaMesh$Ap),
+      effects = list(data.frame(b0=rep(1, nrow(inlaMesh$prediction)),
+                                pvar = inlaMesh$prediction$pvar,
+                                cluster = inlaMesh$prediction$cluster),
+                     s = inlaMesh$indexs)
+    )
+
+    # stk.full comprises both stk.e and stk.p
+    stk.full <- inla.stack(stk.e, stk.p)
+    lc <- inla.make.lincomb(b0 = 1, pvar = 1)
+
+    inlaResult <- inla(formula,
+                   family = "binomial",
+                   Ntrials = denom,
+                   lincomb = lc,
+                   control.family = list(link = "logit"),
+                   data = inla.stack.data(stk.full),
+                   control.predictor = list(
+                     compute = TRUE,link = 1,
+                     A = inla.stack.A(stk.full)),
+                   control.compute = list(dic = TRUE),
+                   control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
+    )
+    # Augment the inla results list with application specific quantities
+
+    index <- inla.stack.index(stack = stk.full, tag = "pred")$data
+    inlaMesh$prediction$proportion <- invlogit(inlaResult$summary.linear.predictor[index,'0.5quant'])
+    results = list(modelObject=inlaResult)
+    results$inlaMesh = inlaMesh
+    results$PointEstimates = list()
+
+    results$method=method
+    results$PointEstimates$beta2=beta2
+
+    beta0= inlaResult$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]
+    beta1= inlaResult$summary.fixed['pvar',c("0.025quant","0.5quant","0.975quant")]
+    beta2= c(NA,inlaResult$beta2,NA)
+
+    results$PointEstimates$pC = unlist(invlogit(beta0))
+    results$PointEstimates$pI = unlist(invlogit(beta0 + beta1))
+    results$PointEstimates$Es = 1 - unlist(invlogit(-beta1))
+
+    # Estimate contamination range by inverting logistic function
+    q = c(0.025,0.975)
+    xL = with(results$PointEstimates,(-1/unlist(beta1[2]))*log(pC[2]/(pC[2]+q*(pI[2]-pC[2]))))
+    d = logit(xL)/beta2[2]
+    results$PointEstimates$theta=d[2]-d[1]
+return(results)}
+
 
 
 #' Simple description and estimation of intra-cluster correction (ICC) from baseline data
@@ -217,10 +268,10 @@ namedCL=function(limits,alpha=alpha){
   return(limits)}
 
 #logit transformation
-logit = function(p){return(log(p/(1-p)))}
+logit = function(p=p){return(log(p/(1-p)))}
 
 #inverse logit transformation
-ilogit = function(logitp){return(1/(1+exp(-logitp)))}
+invlogit = function(x=x){return(1/(1+exp(-x)))}
 
 # Minimal data description and crude efficacy estimate
 get_description = function(trial){
@@ -330,8 +381,8 @@ GEEAnalysis <- function(trial,alpha=alpha, resamples=resamples){
   se_logitpC = summary_fit$coefficients[1,2]
   se_logitpI = sqrt(fit$geese$vbeta[1,1] + fit$geese$vbeta[2,2] + 2*fit$geese$vbeta[1,2])
   z=-qnorm(alpha/2) #standard deviation score for calculating confidence intervals
-  CL_pC = namedCL(ilogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),alpha=alpha)
-  CL_pI = namedCL(ilogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
+  CL_pC = namedCL(invlogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),alpha=alpha)
+  CL_pI = namedCL(invlogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
   CL_eff = estimateCLEfficacy(mu=summary_fit$coefficients[,1], Sigma=fit$geese$vbeta ,alpha=alpha, resamples=resamples)
 
   # Intracluster correlation
@@ -343,9 +394,9 @@ GEEAnalysis <- function(trial,alpha=alpha, resamples=resamples){
   DesignEffect = 1 + (clusterSize - 1)*ICC #Design Effect
   CL_DesignEffect = 1 + (clusterSize - 1)*CL_ICC
 
-  PointEstimates=list(controlP=ilogit(logitpC),
-                      interventionP=ilogit(logitpI),
-                      efficacy=(1 - ilogit(logitpI)/ilogit(logitpC)),
+  PointEstimates=list(controlP=invlogit(logitpC),
+                      interventionP=invlogit(logitpI),
+                      efficacy=(1 - invlogit(logitpI)/invlogit(logitpC)),
                       ICC=ICC,
                       DesignEffect=DesignEffect,
                       ModelObject=fit)
@@ -368,8 +419,8 @@ estimateCLEfficacy = function(mu, Sigma,alpha=alpha, resamples=resamples){
   # use at least 10000 samples (this is very cheap)
   resamples1 = max(resamples,10000,na.rm = TRUE)
   samples = MASS::mvrnorm(n = resamples1,mu=mu,Sigma=Sigma)
-  pC = ilogit(samples[,1])
-  pI = ilogit(samples[,1] + samples[,2])
+  pC = invlogit(samples[,1])
+  pI = invlogit(samples[,1] + samples[,2])
   eff = 1 - pI/pC
   CL = quantile(eff, probs = c(alpha/2, 1-alpha/2))
 return(CL)}
@@ -382,7 +433,7 @@ rgen<-function(data,mle){
   #simulate data for numerator num
   modelp <- FUN1(par=par,trial=data)
   if(mle$link == 'logit') {
-    transf = ilogit(modelp)
+    transf = invlogit(modelp)
   } else {
     transf = modelp
   }
@@ -469,7 +520,132 @@ BootGEEAnalysis <- function(resampledData){
   return(Eshat)
 }
 
+########## FUNCTIONS FOR SPATIAL PARTIAL DIFFERENTIAL EQUATION MODEL IN INLA
 
+#' \code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.
+#' @param trial trial dataframe including locations, clusters, arms, and binary outcomes
+#' @param offset (see inla.mesh.2d documentation)
+#' @param max.edge (see inla.mesh.2d documentation)
+#' @param alpha parameter related to the smoothness
+#' @param maskbuffer (see inla.mesh.2d documentation)
+#' @param ncells resolution of mesh in terms of maximum of linear dimension in pixels
+#' @param inlaMesh name of pre-existing INLA input object created by CreateMesh()
+#' @return list containing the mesh
+#' \itemize{
+#' \item \code{prediction}: Data.table containing the prediction points and covariate values
+#' \item \code{A}: projection matrix from the observations to the mesh nodes.
+#' \item \code{Ap}: projection matrix from the prediction points to the mesh nodes.
+#' \item \code{indexs}:  index set for the SPDE model
+#' \item \code{spde}: SPDE model
+#' }
+#' @export
+#'
+#' @examples
+#' high resolution mesh for test dataset
+#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=200)
+createMesh = function(trial = trial,
+                      offset = -0.1,
+                      max.edge = 0.25,
+                      alpha = 2,
+                      maskbuffer = 0.5,
+                      ncells= 50){
+  # create buffer around area of points
+  trial.coords = matrix(c(trial$x,trial$y),ncol=2)
+  sptrial = SpatialPoints(trial.coords)
+  buf1 <- rgeos::gBuffer(sptrial, width=maskbuffer, byid=TRUE)
+  buffer <- rgeos::gUnaryUnion(buf1)
+
+  # estimation mesh construction
+
+  mesh <- inla.mesh.2d(
+    boundary = buffer, offset = offset,
+    cutoff = 0.05, max.edge = max.edge
+  )
+
+  # set up SPDE (Stochastic Partial Differential Equation) model
+  spde <- inla.spde2.matern(mesh = mesh, alpha = alpha, constr = TRUE)
+  indexs <- inla.spde.make.index("s", spde$n.spde)
+  A <- inla.spde.make.A(mesh = mesh, loc = trial.coords)
+
+  # 8.3.6 Prediction data from https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html
+  bb <- bbox(buffer)
+  x <- seq(bb[1, "min"] - 1, bb[1, "max"] + 1, length.out = ncells)
+  y <- seq(bb[2, "min"] - 1, bb[2, "max"] + 1, length.out = ncells)
+  pred.coords <- as.matrix(expand.grid(x, y))
+  buf.coords = buffer@polygons[[1]]@Polygons[[1]]@coords
+  ind <- point.in.polygon(
+    pred.coords[, 1], pred.coords[, 2],
+    buf.coords[, 1], buf.coords[, 2]
+  )
+  #prediction locations
+  pred.coords <- pred.coords[which(ind == 1), ]
+
+  #projection matrix for the prediction locations
+  Ap <- inla.spde.make.A(mesh = mesh, loc = pred.coords)
+
+  # Distance matrix calculations for the prediction stack
+  # Create all pairwise comparisons
+  pairs = crossing(row=seq(1:nrow(pred.coords)),col=seq(1:nrow(trial)))
+  # Calculate the distances
+  calcdistP = function(row, col) sqrt((trial$x[col] - pred.coords[row,1])^2 + (trial$y[col] - pred.coords[row,2])^2)
+  distP = apply(pairs, 1, function(y) calcdistP(y['row'],y['col']))
+  distM = matrix(distP,nrow=nrow(pred.coords),ncol=nrow(trial),byrow=TRUE)
+  nearestNeighbour = apply(distM,1,function(x)return(array(which.min(x))))
+  armP = trial$arm[nearestNeighbour]
+  clusterP = trial$cluster[nearestNeighbour]
+  prediction = data.frame(x=pred.coords[,1],
+                          y=pred.coords[,2],
+                          nearestNeighbour=nearestNeighbour,
+                          arm=armP,
+                          cluster=clusterP)
+  prediction <- with(prediction, prediction[order(y,x),])
+  prediction$shortestDistance= apply(distM,1,min)
+  calcNearestDiscord = function(x){
+    discords = (trial$arm != prediction$arm[x])
+    nearestDiscord = min(distM[x,discords])
+    return(nearestDiscord)
+  }
+  rows=seq(1:nrow(prediction))
+  prediction$nearestDiscord = sapply(rows,FUN=calcNearestDiscord)
+  prediction$nearestDiscord = with(prediction,ifelse(arm=='control',-nearestDiscord,nearestDiscord))
+  inlaMesh  = list(prediction=prediction,
+                   A=A,
+                   Ap=Ap,
+                   indexs=indexs,
+                   spde=spde)
+  return(inlaMesh)}
+
+# Use profiling to estimate beta2
+estimateContamination = function(beta2 = beta2,
+                                 trial=trial,
+                                 FUN=FUN,
+                                 inlaMesh=inlaMesh,
+                                 formula=formula){
+  x = trial$nearestDiscord*beta2
+  trial$pvar = eval(parse(text = FUN))
+  stk.e <- inla.stack(
+    tag = "est",
+    data = list(y = trial$num, denom=trial$denom),
+    A = list(1, A=inlaMesh$A),
+    effects = list(data.frame(b0=rep(1, nrow(trial)),
+                              pvar = trial$pvar,
+                              cluster = trial$cluster),
+                   s = inlaMesh$indexs)
+  )
+  # run the model with just the estimation stack (no predictions needed at this stage)
+  result.e <- inla(formula,
+                   family = "binomial", Ntrials = denom,
+                   control.family = list(link = "logit"),
+                   data = inla.stack.data(stk.e),
+                   control.predictor = list(
+                     compute = TRUE,link = 1,
+                     A = inla.stack.A(stk.e)),
+                   control.compute = list(dic = TRUE),
+                   control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
+  )
+  loss = result.e$dic$family.dic
+  print(paste(beta2,loss))
+  return(loss)}
 
 
 

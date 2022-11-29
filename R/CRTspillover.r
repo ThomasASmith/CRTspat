@@ -36,10 +36,11 @@
 #' @export
 #'
 #' @examples
-#'
+#' generate a simulated trial and analyse by GEE
+#' exampleAnalysis=CRTspillover()
 CRTspillover = function(alpha = 0.05, power = 0.8, effect = 0.4, ICC = 0.175,
   pC = 0.4, cont = 0.25, coordinates=AvecNet_coordinates, h = 80, algo = "kmeans",
-  reuseTSP=FALSE, sd = 0.4, method='MCMC03', excludeBuffer=FALSE, requireBootstrap=FALSE,
+  reuseTSP=FALSE, sd = 0.4, method='GEE', excludeBuffer=FALSE, requireBootstrap=FALSE,
   resamples=1000, iter=10000, burnin=5000){
 
   design =Design_CRT(alpha = alpha, power = power, effect = effect, ICC = ICC,

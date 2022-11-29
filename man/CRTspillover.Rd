@@ -16,7 +16,7 @@ CRTspillover(
   algo = "kmeans",
   reuseTSP = FALSE,
   sd = 0.4,
-  method = "MCMC03",
+  method = "GEE",
   excludeBuffer = FALSE,
   requireBootstrap = FALSE,
   resamples = 1000,
@@ -79,5 +79,6 @@ description of output from function \code{Analyse_CRT})
 The trial is simulated and the simulated data are analysed.
 }
 \examples{
-
+generate a simulated trial and analyse by GEE
+exampleAnalysis=CRTspillover()
 }
