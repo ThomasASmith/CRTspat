@@ -49,7 +49,7 @@ CRTspillover = function(alpha = 0.05, power = 0.8, effect = 0.4, ICC = 0.175,
   simulation = Simulate_CRT(trial=design$assignments, efficacy=effect, initialPrevalence=pC, sd=sd)
 
   analysis = Analyse_CRT(trial=simulation, method=method, excludeBuffer=excludeBuffer, requireBootstrap=requireBootstrap,
-              alpha=alpha, resamples=resamples, burnin=burnin)
+              alpha=alpha, resamples=resamples, inlaMesh=NULL)
 
   CRT=list(design=design,simulation=simulation,analysis=analysis)
 return(CRT)}
