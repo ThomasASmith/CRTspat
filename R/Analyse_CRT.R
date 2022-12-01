@@ -7,6 +7,7 @@
 #' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
 #' @param alpha confidence level for confidence intervals and credible intervals
 #' @param resamples number of bootstrap samples
+#' @param cont transformation defining the contamination function
 #' @param inlaMesh name of pre-existing INLA input object created by CreateMesh()
 #' @return list containing the following results of the analysis
 #' \itemize{
@@ -15,6 +16,7 @@
 #' \item \code{PointEstimates}: point estimates
 #' \item \code{IntervalEstimates}: interval estimates
 #' \item \code{ModelObject}: object returned by the fitting function
+#' \item \code{contamination}: function values and statistics describing the estimated contamination
 #' }
 #' @importFrom grDevices rainbow
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
@@ -26,11 +28,12 @@
 #' exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
 
 Analyse_CRT <- function(trial,
-                        method='L3',
+                        method='ML',
                         excludeBuffer=FALSE,
                         requireBootstrap=FALSE,
                         alpha = 0.05,
                         resamples=1000,
+                        cont='L',
                         inlaMesh=NULL){
 
   ##############################################################################
@@ -52,9 +55,19 @@ Analyse_CRT <- function(trial,
   trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
 
   description= get_description(trial)
-  if(method=='L0'){
+
+  # Specify the function used for calculating the linear predictor
+  if(method=='EMP' | method=='GEE') cont = 'X'
+  LPfunction = c('CalculateNoContaminationFunction',
+                 'CalculatePiecewiseLinearFunction',
+                 'CalculateLogisticFunction',
+                 'CalculateProbitFunction')[which (cont == c('X','S','L','P'))]
+  FUN2 <- FUN1 <- eval(parse(text=LPfunction))
+
+  if(method=='EMP'){
     # empirical analysis that ignores contamination
     PointEstimates <- EmpiricalAnalysis(trial)
+    PointEstimates$contaminationParameter = NA #contamination is not estimated
     if(requireBootstrap){
       boot_an05 <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
                               R=resamples, sim="parametric", ran.gen=rgen_an05, mle=PointEstimates)
@@ -65,6 +78,7 @@ Analyse_CRT <- function(trial,
     #GEE analysis with cluster effects
     ModelObject <- GEEAnalysis(trial,alpha=alpha,resamples=resamples)
     PointEstimates <- ModelObject$PointEstimates
+    PointEstimates$contaminationParameter = NA #contamination is not estimated
     IntervalEstimates <- ModelObject$IntervalEstimates
     if(requireBootstrap){
       ml <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
@@ -75,13 +89,9 @@ Analyse_CRT <- function(trial,
       PointEstimates$bootstrapMean_efficacy = mean(boot_output$t)
       IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_output$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
-  } else if(method %in% c('L1','L2','L3')){
+  } else if(method == 'ML'){
     ############### ML Methods with contamination functions and logistic link #################
-    i = which (method == c('L1','L2','L3'))
-    LPMethods = c('CalculateLinearPredictor01',
-                  'CalculateLinearPredictor02',
-                  'CalculateLinearPredictor03')
-    FUN2 <- FUN1 <- eval(parse(text=LPMethods[i]))
+
     par = SingleTrialAnalysis(trial=trial,FUN2=FUN2)
     PointEstimates <- FittingResults(trial, par=par,FUN1=FUN1)
     if(requireBootstrap){
@@ -107,23 +117,50 @@ Analyse_CRT <- function(trial,
       IntervalEstimates =  computeIntervals(df=boot_estimates,alpha=alpha)
     }
   } else if(method %in% c('LR','CRE','SPDE','SPCRE')){
-      results = inlaModel(trial=trial,transf='L',method=method,alpha=alpha,inlaMesh=inlaMesh)
+      results = inlaModel(trial=trial,cont='L',method=method,alpha=alpha,inlaMesh=inlaMesh)
       results$description=description
   }
-  if(method %in% c('L0','L1','L2','L3','GEE')){
+  if(method %in% c('EM','ML','GEE')){
     # tidy up and consolidate the list of results
     ModelObject=PointEstimates$ModelObject
-    #PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
-    #PointEstimates <- PointEstimates[names(PointEstimates) != "ModelObject"]
+    PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
+    PointEstimates <- PointEstimates[names(PointEstimates) != "ModelObject"]
     results = list(description=description,
                  method=method,
                  PointEstimates=PointEstimates,
                  IntervalEstimates=IntervalEstimates,
                  ModelObject=ModelObject)
   }
+  results$contamination = getContaminationCurve(trial=trial,
+                          PointEstimates=PointEstimates,
+                          FUN1=FUN1)
 return(results)}
 
-inlaModel = function(trial,transf='L',method,alpha=0.05,inlaMesh=NULL){
+getContaminationCurve = function(trial, PointEstimates, FUN1){
+
+  range_d = max(trial$nearestDiscord)-min(trial$nearestDiscord)
+  d = min(trial$nearestDiscord) + range_d*(seq(1:1001)-1)/1000
+  par = with(PointEstimates,c(logit(controlP),
+                               logit(interventionP)-logit(controlP),
+                               contaminationParameter))
+  curve = invlogit(FUN1(trial=data.frame(nearestDiscord=d),par=par))
+
+  #estimate contamination range
+  #The absolute value of deltaP is used so that a positive range is obtained even with negative efficacy
+  deltaP <- abs(PointEstimates$controlP - PointEstimates$interventionP)
+  thetaL <- d[which(abs(curve - PointEstimates$controlP) > 0.025*deltaP)][1]
+  thetaU <- d[which(abs(curve - PointEstimates$interventionP) < 0.025*deltaP)][1]
+  #contamination range
+  contaminatedInterval <- c(thetaL,thetaU)
+  contaminationRange = thetaU - thetaL
+returnList = list(FittedCurve=data.frame(d=d,contaminationFunction=curve),
+                  contaminationRange=contaminationRange,
+                  contaminatedInterval=contaminatedInterval)
+return(returnList)}
+
+
+
+inlaModel = function(trial,cont='L',method,alpha=0.05,inlaMesh=NULL){
     if(is.null(inlaMesh)){
       inlaMesh = createMesh(trial=trial,
                             offset = -0.1,
@@ -134,7 +171,7 @@ inlaModel = function(trial,transf='L',method,alpha=0.05,inlaMesh=NULL){
     }
     # specify functional form of sigmoid in distance from boundary
     # 'L' inverse logit; 'N' cumulative normal
-    FUN = switch(transf, 'L' = "invlogit(x)", 'N' = "pnorm(x)")
+    FUN = switch(cont, 'L' = "invlogit(x)", 'E' = "pnorm(x)")
 
     # create model
     if (method == 'LR'){
@@ -213,6 +250,7 @@ inlaModel = function(trial,transf='L',method,alpha=0.05,inlaMesh=NULL){
 
     beta0= inlaResult$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]
     beta1= inlaResult$summary.fixed['pvar',c("0.025quant","0.5quant","0.975quant")]
+
     pC = unlist(invlogit(beta0))
     pI = unlist(invlogit(beta0 + beta1))
     Es = 1 - unlist(invlogit(-beta1))
@@ -304,76 +342,61 @@ pseudoLogLikelihood <- function(par, FUN=FUN ,trial) {
 
 FittingResults <- function(trial, FUN1, par){
 
-
   # transform the parameters into interpretable functions
-  pIhat <- 1/(1+exp(-par[1]))
-  pChat <- 1/(1+exp(-(par[2] + par[1])))
-  Eshat <- (pChat - pIhat)/pChat
+  controlP <- 1/(1+exp(-par[1]))
+  interventionP <- 1/(1+exp(-(par[2] + par[1])))
+  efficacy <- (controlP - interventionP)/controlP
 
-  #estimate contamination range
-  #The absolute value of deltaP is used so that a positive range is obtained even with negative efficacy
-  trial$deltaP <- abs(unlist(ifelse(trial$arm=='control', pChat - 1/(1+exp(-FUN1(trial=trial,par=par))),
-                   1/(1+exp(-FUN1(trial=trial,par=par)))- pIhat)))
-  #the maximum contamination should be where the distance is zero.
-  max_deltaP <- max(trial$deltaP)
-  trial <- trial[order(trial$nearestDiscord),]
-  thetaL <- trial$nearestDiscord[which(trial$deltaP > 0.05*max_deltaP)[1]]
-  trial <- trial[order(-trial$nearestDiscord),]
-  thetaU <- trial$nearestDiscord[which(trial$deltaP > 0.05*max_deltaP)[1]]
-  #contamination range
-  theta <- thetaU - thetaL
-
-  PointEstimates=list(controlP=pChat,
-                      interventionP=pIhat,
-                      efficacy=Eshat,
-                      contaminationRange = theta)
+  PointEstimates=list(controlP=controlP,
+                      interventionP=interventionP,
+                      efficacy=efficacy,
+                      contaminationParameter=par[3])
   return(PointEstimates)
 }
 
 ##############################################################################
-#  Different functions to estimate effectiveness
+#  Different functions for the linear predictor
 ##############################################################################
+
+# step function for the case with no contamination
+
+CalculateNoContaminationFunction <- function(par,trial){
+  lp <- ifelse(trial$nearestDiscord < 0, par[1], par[1] + par[2])
+  return(lp)
+}
+
 
 # piecewise linear model (on the logit scale) for contamination function
 
-CalculateLinearPredictor01 <- function(par,trial){
+CalculatePiecewiseLinearFunction <- function(par,trial){
 
   theta <- par[3]
-
   lp <- par[1] + (par[2]/(2*theta))*(theta - trial$nearestDiscord)
   lp <- ifelse((trial$nearestDiscord < -theta),par[2]+par[1],lp)
   lp <- ifelse((trial$nearestDiscord > theta),par[1],lp)
   return(lp)
 }
 
-##############################################################################
-
-# sigmoidal function based on logit distance (on the logit scale) for contamination function
-CalculateLinearPredictor02 <- function(par,trial){
-  scaled_logit = get_scaled_logit(trial)
-  lp <- par[1] + par[2]/(1 +  exp(-scaled_logit*par[3]))
-  return(lp)
-}
-
-get_scaled_logit = function(trial){
-  # add a small constant to the calculated maximum of d to avoid division by 0 at the limits
-  max_d <- max(abs(trial$nearestDiscord)) + 1e-5
-  # prop_d is d as a proporton of the maximum in the dataset
-  prop_d <- (trial$nearestDiscord + max_d)/(2 * max_d)
-  logit_d <- -log(prop_d/(1-prop_d))
-  # scale the logit by its maximum value to avoid taking powers of large numbers
-  scale_factor <- max(abs(logit_d))
-  scaled_logit <- logit_d/scale_factor
-return(logit_d)}
 
 ##############################################################################
 
-# sigmoid function (on the logit scale) for contamination function
-CalculateLinearPredictor03 <- function(par,trial){
+# sigmoid (logit) function (on the logit scale) for contamination function
+CalculateLogisticFunction <- function(par,trial){
 
   lp <- par[1] + par[2]/(1 + exp(par[3]*(trial$nearestDiscord)))
   return(lp)
 }
+
+
+##############################################################################
+
+# inverse probit function (on the logit scale) for contamination function
+CalculateProbitFunction <- function(par,trial){
+
+  lp <- par[1] + par[2]*pnorm(-par[3]*(trial$nearestDiscord))
+  return(lp)
+}
+
 
 
 ##############################################################################
@@ -431,7 +454,7 @@ estimateCLEfficacy = function(mu, Sigma,alpha=alpha, resamples=resamples){
   CL = quantile(eff, probs = c(alpha/2, 1-alpha/2))
 return(CL)}
 
-#functions for analysis of L1, L2, L3
+#functions for analysis of Maximum Likelihood models
 
 rgen<-function(data,mle){
   par=mle$par

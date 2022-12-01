@@ -11,6 +11,7 @@ Analyse_CRT(
   requireBootstrap = FALSE,
   alpha = 0.05,
   resamples = 1000,
+  transf = "L",
   inlaMesh = NULL
 )
 }
@@ -26,6 +27,8 @@ Analyse_CRT(
 \item{alpha}{confidence level for confidence intervals and credible intervals}
 
 \item{resamples}{number of bootstrap samples}
+
+\item{transf}{transformation defining the contamination function}
 
 \item{inlaMesh}{name of pre-existing INLA input object created by CreateMesh()}
 }
