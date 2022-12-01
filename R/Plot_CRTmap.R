@@ -15,7 +15,7 @@
 #' @return graphics object produced by the ggplot2 package
 #' @importFrom magrittr %>%
 #' @importFrom dplyr distinct group_by summarize
-#' @importFrom ggplot2 geom_polygon aes
+#' @importFrom ggplot2 geom_polygon
 #' @export
 #'
 #' @examples
@@ -192,3 +192,28 @@ get_Polygon = function(polygon_type,i, totalClusters=totalClusters, d=d,x=long,y
   }
 return(polygon)
 }
+
+#' \code returns a plot of an estimated contamination function along with
+#' the grouped proportions of positives by distance from the arm boundary
+#' @param analysis analysis output by Analyse_CRT
+#' @return graphics object produced by the ggplot2 package
+#' @importFrom ggplot2 aes
+#' @export
+#'
+#' @examples
+#' #Plot locations only
+#' #Plot clusters in colour
+Plot_Contamination = function(analysis){
+  plot = ggplot2::ggplot(data=analysis$contamination$data,aes(x=d, y=p))+
+    ggplot2::theme_bw()+
+    ggplot2::geom_point(size=2)+
+    ggplot2::geom_errorbar(mapping=aes(x=d, ymin=upper, ymax=lower), linewidth=0.5, width=0.1)+
+    ggplot2::geom_line(data=analysis$contamination$FittedCurve,
+                aes(x=d, y=contaminationFunction),color='blue', size=1.5)+
+    ggplot2::geom_vline(xintercept = analysis$contamination$contaminatedInterval,
+               linewidth=1)+
+    ggplot2::geom_vline(xintercept = 0, linewidth=1, linetype='dashed')+
+    ggplot2::xlab('Distance from boundary')+
+    ggplot2::ylab('Proportion positive')
+return(plot)}
+

@@ -6,12 +6,12 @@
 \usage{
 Analyse_CRT(
   trial,
-  method = "L3",
+  method = "ML",
   excludeBuffer = FALSE,
   requireBootstrap = FALSE,
   alpha = 0.05,
   resamples = 1000,
-  transf = "L",
+  cont = "L",
   inlaMesh = NULL
 )
 }
@@ -28,7 +28,7 @@ Analyse_CRT(
 
 \item{resamples}{number of bootstrap samples}
 
-\item{transf}{transformation defining the contamination function}
+\item{cont}{transformation defining the contamination function}
 
 \item{inlaMesh}{name of pre-existing INLA input object created by CreateMesh()}
 }
@@ -40,6 +40,7 @@ list containing the following results of the analysis
 \item \code{PointEstimates}: point estimates
 \item \code{IntervalEstimates}: interval estimates
 \item \code{ModelObject}: object returned by the fitting function
+\item \code{contamination}: function values and statistics describing the estimated contamination
 }
 }
 \description{

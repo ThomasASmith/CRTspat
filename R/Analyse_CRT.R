@@ -120,7 +120,7 @@ Analyse_CRT <- function(trial,
       results = inlaModel(trial=trial,cont='L',method=method,alpha=alpha,inlaMesh=inlaMesh)
       results$description=description
   }
-  if(method %in% c('EM','ML','GEE')){
+  if(method %in% c('EMP','ML','GEE')){
     # tidy up and consolidate the list of results
     ModelObject=PointEstimates$ModelObject
     PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
@@ -132,7 +132,7 @@ Analyse_CRT <- function(trial,
                  ModelObject=ModelObject)
   }
   results$contamination = getContaminationCurve(trial=trial,
-                          PointEstimates=PointEstimates,
+                          PointEstimates=results$PointEstimates,
                           FUN1=FUN1)
 return(results)}
 
@@ -153,14 +153,25 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   #contamination range
   contaminatedInterval <- c(thetaL,thetaU)
   contaminationRange = thetaU - thetaL
-returnList = list(FittedCurve=data.frame(d=d,contaminationFunction=curve),
+  #categorisation of trial data for plotting
+  trial$cats<- cut(trial$nearestDiscord, breaks = c(-Inf,min(d)+seq(1:9)*range_d/10,Inf), labels = FALSE)
+  data = data.frame(trial %>%
+    group_by(cats) %>%
+    dplyr::summarize(positives = sum(num),
+                     total = sum(denom),
+                     d = median(nearestDiscord)))
+    # proportions and binomial confidence intervals by category
+    data$p = data$positives/data$total
+    data$upper = with(data, p + 1.96*(sqrt(p*(1-p)/total)))
+    data$lower = with(data, p - 1.96*(sqrt(p*(1-p)/total)))
+
+  returnList = list(FittedCurve=data.frame(d=d,contaminationFunction=curve),
                   contaminationRange=contaminationRange,
-                  contaminatedInterval=contaminatedInterval)
+                  contaminatedInterval=contaminatedInterval,
+                  data=data)
 return(returnList)}
 
-
-
-inlaModel = function(trial,cont='L',method,alpha=0.05,inlaMesh=NULL){
+inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     if(is.null(inlaMesh)){
       inlaMesh = createMesh(trial=trial,
                             offset = -0.1,
@@ -170,8 +181,8 @@ inlaModel = function(trial,cont='L',method,alpha=0.05,inlaMesh=NULL){
                             ncells= 50)
     }
     # specify functional form of sigmoid in distance from boundary
-    # 'L' inverse logit; 'N' cumulative normal
-    FUN = switch(cont, 'L' = "invlogit(x)", 'E' = "pnorm(x)")
+    # 'L' inverse logit; 'P' inverse probit
+    FUN = switch(cont, 'L' = "invlogit(-x)", 'P' = "pnorm(-x)")
 
     # create model
     if (method == 'LR'){
@@ -258,7 +269,7 @@ inlaModel = function(trial,cont='L',method,alpha=0.05,inlaMesh=NULL){
     results$PointEstimates$controlP = unname(pC[2])
     results$PointEstimates$interventionP = unname(pI[2])
     results$PointEstimates$efficacy = unname(Es[2])
-    results$PointEstimates$beta2=beta2
+    results$PointEstimates$contaminationParameter=beta2
 
     # Extract interval estimates 2.5%
     # these are 95% intervals irrespective of alpha
@@ -267,11 +278,6 @@ inlaModel = function(trial,cont='L',method,alpha=0.05,inlaMesh=NULL){
     results$IntervalEstimates$interventionP = setNames(c(pI[1],pI[3]),c('2.5%','97.5%'))
     results$IntervalEstimates$efficacy = setNames(c(Es[1],Es[3]),c('2.5%','97.5%'))
 
-    # Estimate contamination range by inverting contamination function
-    q = c(alpha/2,1-alpha/2)
-    xL = (-1/unlist(beta1[2]))*log(pC[2]/(pC[2]+q*(pI[2]-pC[2])))
-    d = logit(xL)/beta2
-    results$PointEstimates$contaminationRange=d[2]-d[1]
 return(results)}
 
 
@@ -378,8 +384,6 @@ CalculatePiecewiseLinearFunction <- function(par,trial){
 }
 
 
-##############################################################################
-
 # sigmoid (logit) function (on the logit scale) for contamination function
 CalculateLogisticFunction <- function(par,trial){
 
@@ -387,17 +391,12 @@ CalculateLogisticFunction <- function(par,trial){
   return(lp)
 }
 
-
-##############################################################################
-
 # inverse probit function (on the logit scale) for contamination function
 CalculateProbitFunction <- function(par,trial){
 
   lp <- par[1] + par[2]*pnorm(-par[3]*(trial$nearestDiscord))
   return(lp)
 }
-
-
 
 ##############################################################################
 
