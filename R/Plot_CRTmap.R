@@ -204,15 +204,16 @@ return(polygon)
 #' #Plot locations only
 #' #Plot clusters in colour
 Plot_Contamination = function(analysis){
+  interval = analysis$contamination$contaminatedInterval
   plot = ggplot2::ggplot(data=analysis$contamination$data,aes(x=d, y=p))+
     ggplot2::theme_bw()+
     ggplot2::geom_point(size=2)+
     ggplot2::geom_errorbar(mapping=aes(x=d, ymin=upper, ymax=lower), linewidth=0.5, width=0.1)+
     ggplot2::geom_line(data=analysis$contamination$FittedCurve,
-                aes(x=d, y=contaminationFunction),color='blue', size=1.5)+
-    ggplot2::geom_vline(xintercept = analysis$contamination$contaminatedInterval,
-               linewidth=1)+
+                aes(x=d, y=contaminationFunction),color='blue', linewidth=1.5)+
+    ggplot2::geom_vline(xintercept = interval, linewidth=1)+
     ggplot2::geom_vline(xintercept = 0, linewidth=1, linetype='dashed')+
+    ggplot2::geom_rect(aes(xmin = interval[1], xmax = interval[2], ymin = -Inf, ymax = Inf), fill = alpha("#2C77BF", .02))+
     ggplot2::xlab('Distance from boundary')+
     ggplot2::ylab('Proportion positive')
 return(plot)}
