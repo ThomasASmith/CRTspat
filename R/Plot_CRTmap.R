@@ -193,7 +193,7 @@ get_Polygon = function(polygon_type,i, totalClusters=totalClusters, d=d,x=long,y
 return(polygon)
 }
 
-#' \code returns a plot of an estimated contamination function along with
+#' \code{Plot_Contamination} returns a plot of an estimated contamination function along with
 #' the grouped proportions of positives by distance from the arm boundary
 #' @param analysis analysis output by Analyse_CRT
 #' @return graphics object produced by the ggplot2 package

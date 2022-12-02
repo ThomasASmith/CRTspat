@@ -262,14 +262,15 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     beta0= inlaResult$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]
     beta1= inlaResult$summary.fixed['pvar',c("0.025quant","0.5quant","0.975quant")]
 
-    pC = unlist(invlogit(beta0))
-    pI = unlist(invlogit(beta0 + beta1))
-    Es = 1 - unlist(invlogit(-beta1))
+    # This is a different parameterisation from that used for the ML models
+    pC = unlist(invlogit(beta0 + beta1))
+    pI = unlist(invlogit(beta0))
+    Es = 1 - pI/pC
 
     results$PointEstimates$controlP = unname(pC[2])
     results$PointEstimates$interventionP = unname(pI[2])
     results$PointEstimates$efficacy = unname(Es[2])
-    results$PointEstimates$contaminationParameter=beta2
+    results$PointEstimates$contaminationParameter=-beta2
 
     # Extract interval estimates 2.5%
     # these are 95% intervals irrespective of alpha
@@ -333,15 +334,15 @@ get_description = function(trial){
   return(description)}
 
 # Log Likelihood to be maximized
-pseudoLogLikelihood <- function(par, FUN=FUN ,trial) {
+LogLikelihood <- function(par, FUN=FUN ,trial) {
   logitexpectP <- FUN(par,trial)
   transf <- 1/(1+exp(-logitexpectP)) #inverse logit transformation
 
   # FOR BINOMIAL
-  pseudoLogLikelihood <- sum(trial$num*log(transf) + trial$neg*log(1-transf))
+  LogLikelihood <- sum(trial$num*log(transf) + trial$neg*log(1-transf))
 
 
-  return(pseudoLogLikelihood)
+  return(LogLikelihood)
 }
 
 ##############################################################################
@@ -471,7 +472,7 @@ rgen<-function(data,mle){
 
 SingleTrialAnalysis <- function(trial, FUN2=FUN2) {
 
-  GA <- GA::ga("real-valued", fitness = pseudoLogLikelihood, FUN=FUN2,
+  GA <- GA::ga("real-valued", fitness = LogLikelihood, FUN=FUN2,
                trial=trial,
                lower = c(-10,-10,-100), upper = c(10,10,100),
                maxiter = 500, run = 50, optim = TRUE,monitor = FALSE)
