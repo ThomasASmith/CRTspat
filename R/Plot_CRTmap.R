@@ -214,7 +214,38 @@ Plot_Contamination = function(analysis){
     ggplot2::geom_vline(xintercept = interval, linewidth=1)+
     ggplot2::geom_vline(xintercept = 0, linewidth=1, linetype='dashed')+
     ggplot2::geom_rect(aes(xmin = interval[1], xmax = interval[2], ymin = -Inf, ymax = Inf), fill = alpha("#2C77BF", .02))+
-    ggplot2::xlab('Distance from boundary')+
+    ggplot2::xlab('Distance from boundary (km)')+
     ggplot2::ylab('Proportion positive')
 return(plot)}
 
+
+#' \code{Plot_DataByDistance} returns a stacked bar chart of the grouped data
+#' the grouped proportions of positives by distance from the arm boundary
+#' @param trial a dataframe containing locations (x,y), cluster assignments, and arm assignments
+#' @param num name of numerator variable
+#' @param denom name of denominator variable
+#' @param cpalette colour palette (to use different colours for clusters must be at least as long as the number of clusters, defaults to rainbow())
+#' @return graphics object produced by the ggplot2 package
+#' @importFrom ggplot2 aes
+#' @export
+#'
+#' @examples
+#' #Plot locations only
+#' #Plot clusters in colour
+Plot_Contamination = function(trial=trial,num=num,denom=denom,
+                            cpalette=c("#D55E00", "#009E73", "#0072A7","#C879C8")){
+  analysis=Analyse_CRT(trial=trial,method='EMP')
+  analysis$contamination$data$negatives = with(analysis$contamination$data, total-positives)
+  analysis$contamination$data$dcat = with(analysis$contamination,
+          min(FittedCurve$d)+(data$cats-0.5)*(max(FittedCurve$d)-min(FittedCurve$d))/10)
+  data=tidyr::gather(analysis$contamination$data[,c('dcat','negatives','positives')],
+                     outcome, frequency, positives:negatives, factor_key=TRUE)
+  plot = ggplot2::ggplot(data=data,aes(x=dcat, y=frequency, fill=outcome))+
+    ggplot2::theme_bw()+
+    ggplot2::geom_bar(stat = "identity")+
+    ggplot2::scale_fill_manual(values=cpalette[c(1,3)],labels=c("Positive", "Negative"))+
+    ggplot2::geom_vline(xintercept = 0, linewidth=1, linetype='dashed')+
+    ggplot2::xlab('Distance from boundary (km)')+
+    ggplot2::ylab('Frequency')+
+    ggplot2::theme(legend.position="bottom")
+return(plot)}
