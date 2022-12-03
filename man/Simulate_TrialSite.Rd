@@ -22,6 +22,6 @@ data frame with co-ordinates of households
 \code{Simulate_TrialSite} Create a set of Cartesian co-ordinates using the Thomas algorithm to simulate a human settlement pattern
 }
 \examples{
-#Generate a simulated area with 10,000 households
+# Generate a simulated area with 10,000 households
 example_area = Simulate_TrialSite(scale = 2, households=10000, kappa=3, mu=40)
 }

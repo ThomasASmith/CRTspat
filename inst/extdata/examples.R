@@ -1,17 +1,16 @@
 test1 = read.csv(file='data-raw/BagamoyoTrial.csv')
 test2=Convert_LatLong(test1)
-test3=Anonymise_TrialSite(test2)
+test3=Anonymise_TrialSite(trial=test2)
 test4=Randomize_CRT(test2)
 test5=Simulate_CRT(trial=test4,efficacy=0.4,initialPrevalence=0.5,sd=0.4)
 GEEresults=Analyse_CRT(trial=test5,method='GEE')
 GEEresults$PointEstimates$efficacy
 GEEresults$IntervalEstimates$efficacy
 GEEresults$PointEstimates$ICC
-MCMCresults=Analyse_CRT(TD=test5,method='MCMC03')
-MCMCresults$PointEstimates$efficacy
-MCMCresults$IntervalEstimates$efficacy
-MCMCresults$PointEstimates$contaminationRange
-MCMCresults$IntervalEstimates$contaminationRange
+INLAresults=Analyse_CRT(trial=test5,method='LR')
+INLAresults$PointEstimates$efficacy
+INLAresults$IntervalEstimates$efficacy
+INLAresults$PointEstimates$contamination$contaminationRange
 
 test6=Specify_CRTbuffer(trial = test5, bufferWidth = 0.5)
 trial=test_Simulate_CRT
@@ -52,22 +51,4 @@ for(method in all_methods){
 names(estimates)=all_methods
 estimates
 
-
-library(ggplot2)
-ggplot2::ggplot(data=order_df(test4), aes(y=y, x=x, colour=cluster)) + geom_point()+
-  scale_color_gradientn(colours = rainbow(6))
-
-order_df= function(df){
-  #calculate squared distance to corner
-  #distmin = with(df,(x - min(x))^2 + (y - min(y))^2)
-  df= df[order(df$x),]
-  #df= df[order(distmin),]
-return(df)}
-
-junk <- test1[1:20,]
-
-ggplot(data=junk, aes(x=long, y=lat)) +
-  geom_point(size=4,color='white') +
-  geom_point(size=1,alpha=1) +
-theme(panel.background = element_rect(fill = "grey"))
 

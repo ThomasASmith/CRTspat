@@ -10,7 +10,7 @@
 #' @export
 #'
 #' @examples
-#' #Generate a simulated area with 10,000 households
+#' # Generate a simulated area with 10,000 households
 #' example_area = Simulate_TrialSite(scale = 2, households=10000, kappa=3, mu=40)
 Simulate_TrialSite <- function(
   scale = 0.25,
@@ -20,7 +20,7 @@ Simulate_TrialSite <- function(
 ){
   scaling = scale*20
   #Poisson point pattern with Thomas algorithm
-  p <- spatstat.core::rThomas(kappa,scale,mu,
+  p <- spatstat.random::rThomas(kappa,scale,mu,
         win = spatstat.geom::owin(c(0,scaling),c(0,scaling)))
   #expected number of points: kappa*mu*scaling^2
 

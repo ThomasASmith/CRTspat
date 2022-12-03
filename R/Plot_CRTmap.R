@@ -49,6 +49,8 @@ Plot_CRTmap = function(
   maskbuffer=0.5,
   labelsize=4){
 
+slot = cluster = x = y = long = lat = proportion = nearestDiscord = NULL
+
 # The voronoi functions requires input as a data.frame not a tibble
   trial = as.data.frame(trial)
 
@@ -207,7 +209,10 @@ return(g)}
 ##############################################################################
 # Create different layers for plotting
 get_Polygon = function(polygon_type,i, totalClusters=totalClusters, d=d,x=long,y=lat,cpalette=cpalette){
-  if(polygon_type == 'limits'){
+
+    lat = long = arm = NULL
+
+    if(polygon_type == 'limits'){
     # invisible cluster boundaries to constrain shape
     polygon <- ggplot2::geom_polygon(data=d[as.numeric(d$id)==i,],
                                      aes(x=long, y=lat), colour="white", fill="white")
@@ -236,6 +241,7 @@ return(polygon)
 #' #Plot locations only
 #' #Plot clusters in colour
 Plot_Contamination = function(analysis){
+  d=p=upper=lower=contaminationFunction=NULL
   interval = analysis$contamination$contaminatedInterval
   plot = ggplot2::ggplot(data=analysis$contamination$data,aes(x=d, y=p))+
     ggplot2::theme_bw()+
@@ -266,6 +272,7 @@ return(plot)}
 #' #Plot clusters in colour
 Plot_DataByDistance = function(trial=trial,num=num,denom=denom,
                             cpalette=c("#D55E00", "#009E73", "#0072A7","#C879C8")){
+  outcome=positives=negatives=dcat=NULL
   analysis=Analyse_CRT(trial=trial,method='EMP')
   analysis$contamination$data$negatives = with(analysis$contamination$data, total-positives)
   analysis$contamination$data$dcat = with(analysis$contamination,

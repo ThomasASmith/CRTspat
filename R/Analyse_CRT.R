@@ -2,12 +2,25 @@
 #'
 #' \code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
 #' @param trial trial dataframe including locations, clusters, arms, and binary outcomes
-#' @param method statistical method used to analyse trial. Options are 'L0','L1','L2','L3','GEE','M1','M2','M3'
+#' @param method statistical method used to analyse trial.
+#' options are:
+#' 'EMP'  : empirical,
+#' 'ML'   : maximum likelihood,
+#' 'GEE'  : generalised estimating equations
+#' 'LR'   : INLA model linear in contamination function.
+#' 'CRE'  : INLA model linear in contamination function with cluster random effects
+#' 'SPDE' : INLA model linear in contamination function with Matern spatial process
+#' 'SPCRE': INLA model linear in contamination function with cluster random effects and Matern spatial process
+#' @param cont transformation defining the contamination function
+#' options are:
+#' 'S': piecewise linear (slope),
+#' 'L': inverse logistic (sigmoid),
+#' 'P': inverse probit,
+#' 'X': not analysed#'
 #' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
 #' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
 #' @param alpha confidence level for confidence intervals and credible intervals
 #' @param resamples number of bootstrap samples
-#' @param cont transformation defining the contamination function
 #' @param inlaMesh name of pre-existing INLA input object created by CreateMesh()
 #' @return list containing the following results of the analysis
 #' \itemize{
@@ -29,15 +42,16 @@
 
 Analyse_CRT <- function(trial,
                         method='ML',
+                        cont='L',
                         excludeBuffer=FALSE,
                         requireBootstrap=FALSE,
                         alpha = 0.05,
                         resamples=1000,
-                        cont='L',
                         inlaMesh=NULL){
 
   ##############################################################################
   # MAIN FUNCTION CODE STARTS HERE
+  cluster=NULL
 
   if("buffer" %in% colnames(trial) & excludeBuffer)
   {
@@ -138,6 +152,8 @@ return(results)}
 
 getContaminationCurve = function(trial, PointEstimates, FUN1){
 
+  denom=num=cats=nearestDiscord=NULL
+
   range_d = max(trial$nearestDiscord)-min(trial$nearestDiscord)
   d = min(trial$nearestDiscord) + range_d*(seq(1:1001)-1)/1000
   par = with(PointEstimates,c(logit(controlP),
@@ -171,7 +187,7 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
                   data=data)
 return(returnList)}
 
-inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
+inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh){
     if(is.null(inlaMesh)){
       inlaMesh = createMesh(trial=trial,
                             offset = -0.1,
@@ -180,6 +196,8 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
                             maskbuffer = 0.5,
                             ncells= 50)
     }
+
+    denom=NULL
     # specify functional form of sigmoid in distance from boundary
     # 'L' inverse logit; 'P' inverse probit
     FUN = switch(cont, 'L' = "invlogit(-x)", 'P' = "pnorm(-x)")
@@ -297,6 +315,7 @@ Analyse_baseline = function(trial,
                             baselineDenominator='base_denom',
                             method='aovs',
                             ci.type='aov'){
+  cluster=y=NULL
   # If numerators are not provided, assign a value of 1 to all records
   if(is.null(trial[[baselineDenominator]])) { trial[[baselineDenominator]] = 1 }
   expand= do.call(rbind.data.frame, lapply(1:nrow(trial), function(i) {
@@ -403,6 +422,7 @@ CalculateProbitFunction <- function(par,trial){
 
 GEEAnalysis <- function(trial,alpha=alpha, resamples=resamples){
 
+  cluster=NULL
   fit <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
   summary_fit = summary(fit)
   logitpC = summary_fit$coefficients[1,1]
@@ -539,6 +559,7 @@ rgen_GEE <- function(data,mle){
 
 BootGEEAnalysis <- function(resampledData){
 
+  cluster=NULL
   resampledData <- resampledData[order(resampledData$cluster),]
   fit <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=resampledData, family=binomial(link="logit"))
 
@@ -558,7 +579,6 @@ BootGEEAnalysis <- function(resampledData){
 #' @param inla.alpha parameter related to the smoothness
 #' @param maskbuffer (see inla.mesh.2d documentation)
 #' @param ncells resolution of mesh in terms of maximum of linear dimension in pixels
-#' @param inlaMesh name of pre-existing INLA input object created by CreateMesh()
 #' @return list containing the mesh
 #' \itemize{
 #' \item \code{prediction}: Data.table containing the prediction points and covariate values
@@ -570,8 +590,8 @@ BootGEEAnalysis <- function(resampledData){
 #' @export
 #'
 #' @examples
-#' high resolution mesh for test dataset
-#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=200)
+#' # low resolution mesh for test dataset
+#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=20)
 createMesh = function(trial = trial,
                       offset = -0.1,
                       max.edge = 0.25,
@@ -580,7 +600,7 @@ createMesh = function(trial = trial,
                       ncells= 50){
   cat('Creating mesh for INLA analysis: resolution parameter= ',ncells)
   # create buffer around area of points
-  trial.coords = matrix(c(trial$x,trial$y),ncol=2)
+  trial.coords = base::matrix(c(trial$x,trial$y),ncol=2)
   sptrial = sp::SpatialPoints(trial.coords)
   buf1 <- rgeos::gBuffer(sptrial, width=maskbuffer, byid=TRUE)
   buffer <- rgeos::gUnaryUnion(buf1)
@@ -651,6 +671,7 @@ estimateContamination = function(beta2 = beta2,
                                  FUN=FUN,
                                  inlaMesh=inlaMesh,
                                  formula=formula){
+  denom=NULL
   x = trial$nearestDiscord*beta2
   trial$pvar = eval(parse(text = FUN))
   stk.e <- INLA::inla.stack(

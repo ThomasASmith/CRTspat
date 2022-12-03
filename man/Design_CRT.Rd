@@ -11,7 +11,7 @@ Design_CRT(
   ICC = 0.175,
   pC = 0.4,
   cont = 0.25,
-  coordinates = AvecNet_coordinates,
+  coordinates = CRTspillover::AvecNet_coordinates,
   h = 80,
   algo = "kmeans",
   reuseTSP = FALSE

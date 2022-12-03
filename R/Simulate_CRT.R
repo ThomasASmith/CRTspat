@@ -12,6 +12,7 @@
 #' @param ICC_inp Intra Cluster Correlation, provided as input when baseline data are to be simulated
 #' @param sd standard deviation of the normal kernel measuring spatial smoothing leading to contamination
 #' @param theta_inp input contamination range
+#' @param tol tolerance of output ICC
 #' @return A trial simulation object comprising a data frame containing the following numerical quantities:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
@@ -28,21 +29,22 @@
 #' @export
 #'
 #' @examples
-#'
-#' example_simulated_CRT =  Simulate_CRT(trial=testArms,
+#' example_simulated_CRT =  Simulate_CRT(trial=CRTspillover::testArms,
 #'                                      efficacy=0.25,
 #'                                      ICC_inp=0.05,
 #'                                      initialPrevalence=0.5,
-#'                                      sd=0.6)
-Simulate_CRT = function(trial=test_AvecNet$assignments,
-                        efficacy=0.2,
-                        initialPrevalence=0.4,
+#'                                      sd=0.6,
+#'                                      tol=0.05)
+Simulate_CRT = function(trial=CRTspillover::test_AvecNet$assignments,
+                        efficacy=NULL,
+                        initialPrevalence=NULL,
                         generateBaseline=TRUE,
                         baselineNumerator='base_num',
                         baselineDenominator='base_denom',
-                        ICC_inp=0.05,
+                        ICC_inp=NULL,
                         sd=NULL,
-                        theta_inp=1.2){
+                        theta_inp=NULL,
+                        tol=0.005){
 
   ##############################################################################
   #  Simulation of cluster randomized trial with contamination
@@ -67,7 +69,7 @@ Simulate_CRT = function(trial=test_AvecNet$assignments,
        trial$infectiousness_proxy = trial[[baselineNumerator]]/trial[[baselineDenominator]]
     } else {
         if(generateBaseline) {
-          trial=GenerateBaseline(trial=trial,initialPrevalence=initialPrevalence,ICC_inp=ICC_inp, sd=sd, tol=0.005)
+          trial=GenerateBaseline(trial=trial,initialPrevalence=initialPrevalence,ICC_inp=ICC_inp, sd=sd, tol=tol)
         }
     }
 
@@ -183,6 +185,7 @@ GenerateBaseline= function(trial,initialPrevalence,ICC_inp, sd, tol){
   iter = 0
   deviation = 999
   ICCs = c()
+  cat("Estimating the smoothing required to achieve the target ICC")
   while(abs(deviation) > tol){
     iter=iter+1
     #use a linear model fitted to log(bw) to estimate the required bandwidth

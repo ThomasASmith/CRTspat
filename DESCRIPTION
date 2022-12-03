@@ -11,38 +11,28 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.1
 VignetteBuilder: knitr 
 Imports:
-    TSP,
     ggplot2,
     stats,
-    methods,
     spatstat.geom,
-    spatstat.core,
-    mvtnorm,
     psych,
     utils,
     boot,
     geepack,
-    aod,
     MASS,
     GA,
-    lme4,
     INLA,
     tidyr,
-    gstat,
     sp,
-    rgdal,
     deldir,
     magrittr,
-    ggthemes,
-    maptools,
     ICCbin,
     rgeos,
     mgcv,
-    plyr,
     dplyr,
-    qpdf
+    spatstat.random
 Suggests: 
     knitr, rmarkdown,
+    TSP, aod, ggthemes, gstat, lme4, maptools, methods, mvtnorm, plyr, qpdf, rgdal, spatstat.core,
     testthat (>= 2.0.0)
 Config/testthat/edition: 2
 Depends: 

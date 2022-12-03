@@ -4,16 +4,27 @@
 \alias{Randomize_CRT}
 \title{Randomize a two-armed cluster randomized trial}
 \usage{
-Randomize_CRT(trial)
+Randomize_CRT(
+  trial,
+  matchedPair = FALSE,
+  baselineNumerator = "base_num",
+  baselineDenominator = "base_denom"
+)
 }
 \arguments{
 \item{trial}{dataframe containing locations and cluster assignments}
+
+\item{matchedPair}{logical: indicator of whether randomisation should use matched pairs}
+
+\item{baselineNumerator}{name of numerator variable for baseline data (if present)}
+
+\item{baselineDenominator}{name of denominator variable for baseline data (if present)}
 }
 \value{
 The input dataframe augmented with variable arm coded 'control' or 'intervention'
 }
 \description{
-\code{Randomize_CRT} carries out simple randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
+\code{Randomize_CRT} carries out randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
 }
 \examples{
 #Randomize the clusters in the example trial

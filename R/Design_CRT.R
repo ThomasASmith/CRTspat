@@ -46,17 +46,12 @@ Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
                         ICC = 0.175,  #Step D: ICC, obtained from other studies
                         pC = 0.4,     #Step E: baseline prevalence
                         cont = 0.25,  #Step F: contamination range in km, obtained from other studies
-                        coordinates=AvecNet_coordinates, # Step G		coordinates of households in study area
+                        coordinates=CRTspillover::AvecNet_coordinates, # Step G		coordinates of households in study area
                         h = 80,       #Step H: proposal for the number of households in each cluster
                         #algorithm for cluster boundaries, choose between
                         #"TSP": travelling salesman problem heuristic; "NN": nearest neighbor; "kmeans": kmeans algorithm
                         algo = "kmeans",
                         reuseTSP=FALSE){
-
-#  (Code originally tested on R version 4.0)
-#
-#  copyright Lea Multerer and Thomas Smith, 2020
-#  (lea.multerer@swisstph.ch, thomas-a.smith@swisstph.ch)
 
 # convert power and significance level to normal deviates
 Zsig = -qnorm(alpha/2)

@@ -4,18 +4,18 @@
 \alias{Anonymise_TrialSite}
 \title{Anonymise locations in a trial site}
 \usage{
-Anonymise_TrialSite(trial)
+Anonymise_TrialSite(trial = CRTspillover::test_site)
 }
 \arguments{
 \item{trial}{dataframe with Cartesian co-ordinates of households (columns x and y)}
 }
 \value{
-dataframe with modified co-ordinates of households (other columns remain unchanged)
+data.frame with modified co-ordinates of households (other columns remain unchanged)
 }
 \description{
 \code{Anonymise_TrialSite} carries out rotation of x,y coordinates a random angle about a random origin. Coordinates centred on the origin are returned.
 }
 \examples{
 #Rotate and reflect test site locations
-transformedTestlocations=Anonymise_TrialSite(test_site)
+transformedTestlocations=Anonymise_TrialSite()
 }

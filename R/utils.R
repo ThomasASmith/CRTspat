@@ -6,6 +6,7 @@
 #' @return A dataframe with unique locations in which the numerators and denominators are summed over the locations
 #' @export
 Aggregate_CRT = function(trial,auxiliaries=NULL){
+  x=y=NULL
   df= trial %>% distinct(x, y, .keep_all = TRUE)
   df=df[order(df$x,df$y),]
   if(!is.null(auxiliaries)){
@@ -23,9 +24,12 @@ Aggregate_CRT = function(trial,auxiliaries=NULL){
 
 #' Randomize a two-armed cluster randomized trial
 #'
-#' \code{Randomize_CRT} carries out simple randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
+#' \code{Randomize_CRT} carries out randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
 #'
 #' @param trial dataframe containing locations and cluster assignments
+#' @param matchedPair logical: indicator of whether randomisation should use matched pairs
+#' @param baselineNumerator name of numerator variable for baseline data (if present)
+#' @param baselineDenominator name of denominator variable for baseline data (if present)
 #' @return The input dataframe augmented with variable arm coded 'control' or 'intervention'
 #' @export
 #'
@@ -33,14 +37,33 @@ Aggregate_CRT = function(trial,auxiliaries=NULL){
 #' #Randomize the clusters in the example trial
 #' set.seed(352)
 #' exampletrial=Randomize_CRT(testClusters)
-Randomize_CRT = function(trial){
+Randomize_CRT = function(trial,
+    matchedPair = FALSE,
+    baselineNumerator='base_num',
+    baselineDenominator='base_denom'){
+
+  cluster=NULL
+
   # Randomization, assignment to arms
   nclusters=length(unique(trial$cluster))
   #uniformly distributed numbers, take mean and boolean of that
   rand_numbers <- runif(nclusters,0,1)
-  arm <- ifelse(rand_numbers > median(rand_numbers),1,0)
+  if (matchedPair){
+    cdf = data.frame(trial %>%
+              group_by(cluster) %>%
+              dplyr::summarize(positives = sum(baselineNumerator),
+                                         total = sum(baselineDenominator)))
+    cdf$p = cdf$positives/cdf$total
+    cdf = cdf[order[cdf$p]]
+    cdf$pair = rep(seq(1,nclusters/2),2)
+    cdf = cdf[order[c(cdf$pair,rand_numbers)]]
+    cdf$arm = rep(c(1,0),nclusters/2)
+    arm = cdf$arm[order(cdf$cluster)]
+  } else {
+    arm <- ifelse(rand_numbers > median(rand_numbers),1,0)
+  }
   trial$arm <- factor(arm[trial$cluster[]], levels= c(0,1),labels = c("control", "intervention"))
-  return(trial)}
+return(trial)}
 
 
 #' Specification of buffer zone in a cluster randomized trial
@@ -245,14 +268,14 @@ Convert_LatLong = function(df,latvar='lat',longvar='long'){
 #' \code{Anonymise_TrialSite} carries out rotation of x,y coordinates a random angle about a random origin. Coordinates centred on the origin are returned.
 #'
 #' @param trial dataframe with Cartesian co-ordinates of households (columns x and y)
-#' @return dataframe with modified co-ordinates of households (other columns remain unchanged)
+#' @return data.frame with modified co-ordinates of households (other columns remain unchanged)
 #' @export
 #'
 #' @examples
 #' #Rotate and reflect test site locations
-#' transformedTestlocations=Anonymise_TrialSite(test_site)
+#' transformedTestlocations=Anonymise_TrialSite()
 
-Anonymise_TrialSite = function(trial){
+Anonymise_TrialSite = function(trial=CRTspillover::test_site){
 
   # random rotation angle
   theta= 2 * pi * runif(n=1)

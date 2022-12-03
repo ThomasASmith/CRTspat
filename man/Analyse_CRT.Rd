@@ -7,18 +7,33 @@
 Analyse_CRT(
   trial,
   method = "ML",
+  cont = "L",
   excludeBuffer = FALSE,
   requireBootstrap = FALSE,
   alpha = 0.05,
   resamples = 1000,
-  cont = "L",
   inlaMesh = NULL
 )
 }
 \arguments{
 \item{trial}{trial dataframe including locations, clusters, arms, and binary outcomes}
 
-\item{method}{statistical method used to analyse trial. Options are 'L0','L1','L2','L3','GEE','M1','M2','M3'}
+\item{method}{statistical method used to analyse trial.
+options are:
+'EMP'  : empirical,
+'ML'   : maximum likelihood,
+'GEE'  : generalised estimating equations
+'LR'   : INLA model linear in contamination function.
+'CRE'  : INLA model linear in contamination function with cluster random effects
+'SPDE' : INLA model linear in contamination function with Matern spatial process
+'SPCRE': INLA model linear in contamination function with cluster random effects and Matern spatial process}
+
+\item{cont}{transformation defining the contamination function
+options are:
+'S': piecewise linear (slope),
+'L': inverse logistic (sigmoid),
+'P': inverse probit,
+'X': not analysed#'}
 
 \item{excludeBuffer}{exclude any buffer zone (records with buffer=TRUE) from the analysis}
 
@@ -27,8 +42,6 @@ Analyse_CRT(
 \item{alpha}{confidence level for confidence intervals and credible intervals}
 
 \item{resamples}{number of bootstrap samples}
-
-\item{cont}{transformation defining the contamination function}
 
 \item{inlaMesh}{name of pre-existing INLA input object created by CreateMesh()}
 }

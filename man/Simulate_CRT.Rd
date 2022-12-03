@@ -5,7 +5,7 @@
 \title{Simulation of cluster randomized trial with contamination}
 \usage{
 Simulate_CRT(
-  trial = test_AvecNet$assignments,
+  trial = CRTspillover::test_AvecNet$assignments,
   efficacy = 0.2,
   initialPrevalence = 0.4,
   generateBaseline = TRUE,
@@ -13,7 +13,8 @@ Simulate_CRT(
   baselineDenominator = "base_denom",
   ICC_inp = 0.05,
   sd = NULL,
-  theta_inp = 1.2
+  theta_inp = 1.2,
+  tol = 0.005
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ Simulate_CRT(
 \item{sd}{standard deviation of the normal kernel measuring spatial smoothing leading to contamination}
 
 \item{theta_inp}{input contamination range}
+
+\item{tol}{tolerance of output ICC}
 }
 \value{
 A trial simulation object comprising a data frame containing the following numerical quantities:
@@ -55,10 +58,10 @@ A trial simulation object comprising a data frame containing the following numer
 For details see Multerer (PhD thesis).
 }
 \examples{
-
-example_simulated_CRT =  Simulate_CRT(trial=testArms,
+example_simulated_CRT =  Simulate_CRT(trial=CRTspillover::testArms,
                                      efficacy=0.25,
                                      ICC_inp=0.05,
                                      initialPrevalence=0.5,
-                                     sd=0.6)
+                                     sd=0.6,
+                                     tol=0.05)
 }
