@@ -15,7 +15,7 @@ Plot_CRTmap(
   showDistance = FALSE,
   showProportion = FALSE,
   cpalette = NULL,
-  maskbuffer = 0.5,
+  maskbuffer = 0.2,
   labelsize = 4
 )
 }
@@ -54,13 +54,13 @@ Cartesian (x,y) coordinates are used. Units are expected to be km.
 \examples{
 #Plot locations only
 Plot_CRTmap(trial=testArms,showArms=FALSE,showClusterBoundaries=FALSE,
-           colourClusters=FALSE, maskbuffer=0.5)
+           colourClusters=FALSE, maskbuffer=0.2)
 
 #Plot clusters in colour
-Plot_CRTmap(trial=testArms, showArms=FALSE, colourClusters=TRUE, labelsize=2, maskbuffer=0.5)
+Plot_CRTmap(trial=testArms, showArms=FALSE, colourClusters=TRUE, labelsize=2, maskbuffer=0.2)
 
 #Plot arms
-Plot_CRTmap(trial=testArms, maskbuffer=0.5)
+Plot_CRTmap(trial=testArms, maskbuffer=0.2)
 
 #Plot distance to nearest discordant location
 

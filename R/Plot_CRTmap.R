@@ -24,13 +24,13 @@
 #' @examples
 #' #Plot locations only
 #' Plot_CRTmap(trial=testArms,showArms=FALSE,showClusterBoundaries=FALSE,
-#'            colourClusters=FALSE, maskbuffer=0.5)
+#'            colourClusters=FALSE, maskbuffer=0.2)
 #'
 #' #Plot clusters in colour
-#' Plot_CRTmap(trial=testArms, showArms=FALSE, colourClusters=TRUE, labelsize=2, maskbuffer=0.5)
+#' Plot_CRTmap(trial=testArms, showArms=FALSE, colourClusters=TRUE, labelsize=2, maskbuffer=0.2)
 #'
 #' #Plot arms
-#' Plot_CRTmap(trial=testArms, maskbuffer=0.5)
+#' Plot_CRTmap(trial=testArms, maskbuffer=0.2)
 #'
 #' #Plot distance to nearest discordant location
 #'
@@ -46,7 +46,7 @@ Plot_CRTmap = function(
   showDistance=FALSE,
   showProportion=FALSE,
   cpalette = NULL,
-  maskbuffer=0.5,
+  maskbuffer=0.2,
   labelsize=4){
 
 slot = cluster = x = y = long = lat = proportion = nearestDiscord = NULL
@@ -272,7 +272,7 @@ return(plot)}
 #' #Plot clusters in colour
 Plot_DataByDistance = function(trial=trial,num=num,denom=denom,
                             cpalette=c("#D55E00", "#009E73", "#0072A7","#C879C8")){
-  outcome=positives=negatives=dcat=NULL
+  outcome=positives=negatives=frequency=dcat=NULL
   analysis=Analyse_CRT(trial=trial,method='EMP')
   analysis$contamination$data$negatives = with(analysis$contamination$data, total-positives)
   analysis$contamination$data$dcat = with(analysis$contamination,

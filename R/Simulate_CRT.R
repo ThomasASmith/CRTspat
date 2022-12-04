@@ -101,7 +101,7 @@ Simulate_CRT = function(trial=NULL,
               #use a linear model fitted to log(bw) to estimate the required bandwidth
               if(iter > 5){
                 lp = ICCs - ICC_inp
-                logbw_i = min(2,lm(formula = log(bw) ~ lp)$coefficients[1]) #impose a maximum on bw
+                logbw_i = min(2,stats::lm(formula = log(bw) ~ lp)$coefficients[1]) #impose a maximum on bw
                 bw = c(bw, exp(logbw_i))
               }
               #assign initial pattern
@@ -178,7 +178,7 @@ add_noise = function(X, varXY){
   varY = (varXY - var(X))/(1 + var(X))
   mu = log(muY/sqrt(1+varY/muY))
   var = log(1 + varY/muY)
-  Y = rlnorm(length(XY), meanlog = mu, sdlog = sqrt(var))
+  Y = stats::rlnorm(length(XY), meanlog = mu, sdlog = sqrt(var))
   XY = X*Y
 return(XY)}
 

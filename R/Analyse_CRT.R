@@ -200,7 +200,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh){
     denom=NULL
     # specify functional form of sigmoid in distance from boundary
     # 'L' inverse logit; 'P' inverse probit
-    FUN = switch(cont, 'L' = "invlogit(-x)", 'P' = "pnorm(-x)")
+    FUN = switch(cont, 'L' = "invlogit(-x)", 'P' = "stats::pnorm(-x)")
 
     # create model
     if (method == 'LR'){
@@ -219,7 +219,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh){
 
     }
     cat('Estimating scale parameter for contamination range','\n')
-    beta2 = optimize(f=estimateContamination,
+    beta2 = stats::optimize(f=estimateContamination,
                      interval=c(0.1,10),
                      trial=trial,
                      FUN=FUN,
@@ -293,9 +293,9 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh){
     # Extract interval estimates 2.5%
     # these are 95% intervals irrespective of alpha
 
-    results$IntervalEstimates$controlP = setNames(c(pC[1],pC[3]),c('2.5%','97.5%'))
-    results$IntervalEstimates$interventionP = setNames(c(pI[1],pI[3]),c('2.5%','97.5%'))
-    results$IntervalEstimates$efficacy = setNames(c(Es[1],Es[3]),c('2.5%','97.5%'))
+    results$IntervalEstimates$controlP = stats::setNames(c(pC[1],pC[3]),c('2.5%','97.5%'))
+    results$IntervalEstimates$interventionP = stats::setNames(c(pI[1],pI[3]),c('2.5%','97.5%'))
+    results$IntervalEstimates$efficacy = stats::setNames(c(Es[1],Es[3]),c('2.5%','97.5%'))
 
 return(results)}
 
@@ -414,7 +414,7 @@ CalculateLogisticFunction <- function(par,trial){
 # inverse probit function (on the logit scale) for contamination function
 CalculateProbitFunction <- function(par,trial){
 
-  lp <- par[1] + par[2]*pnorm(-par[3]*(trial$nearestDiscord))
+  lp <- par[1] + par[2]*stats::pnorm(-par[3]*(trial$nearestDiscord))
   return(lp)
 }
 

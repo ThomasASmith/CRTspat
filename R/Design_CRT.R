@@ -11,7 +11,7 @@
 #' @param effect required effect size
 #' @param ICC Intra-Cluster Correlation obtained from other studies
 #' @param pC baseline prevalence
-#' @param cont contamination range in km, obtained from other studies
+#' @param postulatedContamination contamination range in km, obtained from other studies
 #' @param coordinates dataframe containing coordinates of households. Columns 'x' and 'y' should contain Cartesian (x,y) coordinates. Units are expected to be km.
 #' @param h  proposal for the number of coordinates in each cluster
 #' @param algo algorithm for cluster boundaries, choose between
@@ -28,7 +28,7 @@
 #' \item \code{ICC}: Intra-Cluster Correlation obtained from other studies
 #' \item \code{DE}: calculated Design Effect
 #' \item \code{pC}: baseline prevalence
-#' \item \code{cont}: contamination range in km, obtained from other studies
+#' \item \code{postulatedContamination}: contamination range in km, obtained from other studies
 #' \item \code{coordinates}: dataframe containing (x,y) coordinates of locations
 #' \item \code{h}: proposal for the number of households in each cluster
 #' \item \code{algo}: algorithm used for cluster boundaries
@@ -39,13 +39,14 @@
 #'
 #' @examples
 #'
-#' exampleDesign = Design_CRT(coordinates=test_site, ICC=0.10, effect=0.4, pC=0.35, cont=0.5, h=100)
+#' exampleDesign = Design_CRT(coordinates=CRTspillover::test_site,
+#'                 ICC=0.10, effect=0.4, pC=0.35, postulatedContamination=0.5, h=100)
 Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
                         power = 0.8,  #Step B: power
                         effect = 0.4, #Step C: Required effect size
                         ICC = 0.175,  #Step D: ICC, obtained from other studies
                         pC = 0.4,     #Step E: baseline prevalence
-                        cont = 0.25,  #Step F: contamination range in km, obtained from other studies
+                        postulatedContamination = 0.25,  #Step F: postulated contamination range in km, obtained from other studies
                         coordinates=CRTspillover::AvecNet_coordinates, # Step G		coordinates of households in study area
                         h = 80,       #Step H: proposal for the number of households in each cluster
                         #algorithm for cluster boundaries, choose between
@@ -86,14 +87,14 @@ arm=unique(trial[c("cluster", "arm")])[,2]
 trial <- Specify_CRTbuffer(trial=trial,bufferWidth=0)
 
 #proportion of coordinates in core
-core <- sum(abs(trial$nearestDiscord) >= cont)/dim(trial)[1]
+core <- sum(abs(trial$nearestDiscord) >= postulatedContamination)/dim(trial)[1]
 if (min_c > length(arm)){
   print(paste0('*** WARNING: ',length(arm),' clusters assigned, ',min_c,' clusters required to achieve desired power of ', 100*power, '%.***'))
 }
 
-output_trial = list(arm=arm, alpha = alpha, power = power,
-             effect = effect, ICC = ICC, DE = DE, pC = pC, cont = cont,
+output_trial = list(arm=arm, alpha = alpha, proproposedPower = power,
+             effect = effect, ICC = ICC, nominalDE = DE, pC = pC, postulatedContamination = postulatedContamination,
              coordinate_source=coordinates, h = h, algo = algo,
-             core = core, assignments=trial, min_c=min_c)
+             core = core, assignments=trial, requiredClusters = min_c, availableClusters = length(arm))
 return(output_trial)}
 

@@ -5,7 +5,7 @@
 \title{Simulation of cluster randomized trial with contamination}
 \usage{
 Simulate_CRT(
-  trial = CRTspillover::test_AvecNet$assignments,
+  trial = NULL,
   efficacy = NULL,
   initialPrevalence = NULL,
   generateBaseline = TRUE,

@@ -10,7 +10,7 @@ Design_CRT(
   effect = 0.4,
   ICC = 0.175,
   pC = 0.4,
-  cont = 0.25,
+  postulatedContamination = 0.25,
   coordinates = CRTspillover::AvecNet_coordinates,
   h = 80,
   algo = "kmeans",
@@ -28,7 +28,7 @@ Design_CRT(
 
 \item{pC}{baseline prevalence}
 
-\item{cont}{contamination range in km, obtained from other studies}
+\item{postulatedContamination}{contamination range in km, obtained from other studies}
 
 \item{coordinates}{dataframe containing coordinates of households. Columns 'x' and 'y' should contain Cartesian (x,y) coordinates. Units are expected to be km.}
 
@@ -51,7 +51,7 @@ A trial design object comprising a list with the following attributes:
 \item \code{ICC}: Intra-Cluster Correlation obtained from other studies
 \item \code{DE}: calculated Design Effect
 \item \code{pC}: baseline prevalence
-\item \code{cont}: contamination range in km, obtained from other studies
+\item \code{postulatedContamination}: contamination range in km, obtained from other studies
 \item \code{coordinates}: dataframe containing (x,y) coordinates of locations
 \item \code{h}: proposal for the number of households in each cluster
 \item \code{algo}: algorithm used for cluster boundaries
@@ -68,5 +68,6 @@ Outputs are:
 }
 \examples{
 
-exampleDesign = Design_CRT(coordinates=test_site, ICC=0.10, effect=0.4, pC=0.35, cont=0.5, h=100)
+exampleDesign = Design_CRT(coordinates=CRTspillover::test_site,
+                ICC=0.10, effect=0.4, pC=0.35, postulatedContamination=0.5, h=100)
 }
