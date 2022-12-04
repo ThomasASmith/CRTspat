@@ -35,7 +35,7 @@
 #'                                      initialPrevalence=0.5,
 #'                                      sd=0.6,
 #'                                      tol=0.05)
-Simulate_CRT = function(trial=CRTspillover::test_AvecNet$assignments,
+Simulate_CRT = function(trial=NULL,
                         efficacy=NULL,
                         initialPrevalence=NULL,
                         generateBaseline=TRUE,
@@ -69,7 +69,66 @@ Simulate_CRT = function(trial=CRTspillover::test_AvecNet$assignments,
        trial$infectiousness_proxy = trial[[baselineNumerator]]/trial[[baselineDenominator]]
     } else {
         if(generateBaseline) {
-          trial=GenerateBaseline(trial=trial,initialPrevalence=initialPrevalence,ICC_inp=ICC_inp, sd=sd, tol=tol)
+          ##############################################################################
+          # simulate baseline data with a specified ICC
+
+            # parameters of the spatial pattern of prevalence
+
+            initial_guess_bandwidth <- 0.0375/ICC_inp #bandwidth for KDE. The value of 0.0375 is from analysis of
+            # a sample of simulations based on Rusinga geography
+
+            # compute approximate diagonal of clusters
+            approx_diag = sqrt((max(trial$x)-min(trial$x))^2 + (max(trial$y)-min(trial$y))^2)/sqrt(length(unique(trial$cluster)))
+
+            # scale bandwidth by cluster diagonal
+            scaled_initial_guess = initial_guess_bandwidth/approx_diag
+
+            # number of positives required to match the specified prevalence
+            npositives = round(initialPrevalence*nrow(trial))
+
+            # For the smoothing step compute contributions to the relative effect size
+            # from other households as a function of distance to the other households
+
+            euclid <- distance_matrix(trial$x, trial$y)
+
+            bw = scaled_initial_guess*c(0.25,0.5,1,2,4)
+            iter = 0
+            deviation = 999
+            ICCs = c()
+            cat("Estimating the smoothing required to achieve the target ICC","\n")
+            while(abs(deviation) > tol){
+              iter=iter+1
+              #use a linear model fitted to log(bw) to estimate the required bandwidth
+              if(iter > 5){
+                lp = ICCs - ICC_inp
+                logbw_i = min(2,lm(formula = log(bw) ~ lp)$coefficients[1]) #impose a maximum on bw
+                bw = c(bw, exp(logbw_i))
+              }
+              #assign initial pattern
+              trial$infectiousness_proxy <- KDESmoother(trial$x,trial$y,kernnumber=200,bandwidth=bw[iter],low=0.0,high=1.0)
+
+              # Smooth the exposure proxy to allow for mosquito movement
+              # Note that the s.d. in each dimension of the 2 d gaussian is sd/sqrt(2)
+              # smoothedBaseline is the amount received by the each cluster from the contributions (infectiousness_proxy) of each source
+              smoothedBaseline <-  gauss(sd, euclid) %*% trial$infectiousness_proxy
+
+              # scale to input value of initial prevalence by assigning required number of infections with probabilities proportionate
+              # to infectiousness_proxy
+
+              positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=smoothedBaseline)
+              trial$base_denom=1
+              trial$base_num=0
+              trial$base_num[positives]=1
+              baseline_analysis = Analyse_baseline(trial=trial,
+                                                   baselineNumerator='base_num',
+                                                   baselineDenominator='base_denom',
+                                                   method='aovs',
+                                                   ci.type=NULL)
+              ICC = baseline_analysis$estimates$ICC
+              ICCs = c(ICCs,ICC)
+              cat("bandwidth: ",bw[iter]*approx_diag,"  ICC=",ICC,"\n")
+              deviation = ICC - ICC_inp
+            }
         }
     }
 
@@ -156,67 +215,4 @@ KDESmoother <- function(x,y,kernnumber,bandwidth,low,high){
   return(smoother)
 }
 
-##############################################################################
-# simulate baseline data with a specified ICC
-
-GenerateBaseline= function(trial,initialPrevalence,ICC_inp, sd, tol){
-  # tol is the tolerance for the ICC in the output dataset
-
-  # parameters of the spatial pattern of prevalence
-
-  initial_guess_bandwidth <- 0.0375/ICC_inp #bandwidth for KDE. The value of 0.0375 is from analysis of
-  # a sample of simulations based on Rusinga geography
-
-  # compute approximate diagonal of clusters
-  approx_diag = sqrt((max(trial$x)-min(trial$x))^2 + (max(trial$y)-min(trial$y))^2)/sqrt(length(unique(trial$cluster)))
-
-  # scale bandwidth by cluster diagonal
-  scaled_initial_guess = initial_guess_bandwidth/approx_diag
-
-  # number of positives required to match the specified prevalence
-  npositives = round(initialPrevalence*nrow(trial))
-
-  # For the smoothing step compute contributions to the relative effect size
-  # from other households as a function of distance to the other households
-
-  euclid <- distance_matrix(trial$x, trial$y)
-
-  bw = scaled_initial_guess*c(0.25,0.5,1,2,4)
-  iter = 0
-  deviation = 999
-  ICCs = c()
-  cat("Estimating the smoothing required to achieve the target ICC")
-  while(abs(deviation) > tol){
-    iter=iter+1
-    #use a linear model fitted to log(bw) to estimate the required bandwidth
-    if(iter > 5){
-      lp = ICCs - ICC_inp
-      logbw_i = min(2,lm(formula = log(bw) ~ lp)$coefficients[1]) #impose a maximum on bw
-      bw = c(bw, exp(logbw_i))
-    }
-    #assign initial pattern
-    trial$infectiousness_proxy <- KDESmoother(trial$x,trial$y,kernnumber=200,bandwidth=bw[iter],low=0.0,high=1.0)
-
-    # Smooth the exposure proxy to allow for mosquito movement
-    # Note that the s.d. in each dimension of the 2 d gaussian is sd/sqrt(2)
-    # smoothedBaseline is the amount received by the each cluster from the contributions (infectiousness_proxy) of each source
-    smoothedBaseline <-  gauss(sd, euclid) %*% trial$infectiousness_proxy
-
-    # scale to input value of initial prevalence by assigning required number of infections with probabilities proportionate
-    # to infectiousness_proxy
-    positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=smoothedBaseline)
-    trial$base_denom=1
-    trial$base_num=0
-    trial$base_num[positives]=1
-    baseline_analysis = Analyse_baseline(trial=trial,
-                                         baselineNumerator='base_num',
-                                         baselineDenominator='base_denom',
-                                         method='aovs',
-                                         ci.type=NULL)
-    ICC = baseline_analysis$estimates$ICC
-    ICCs = c(ICCs,ICC)
-    cat("bandwidth: ",bw[iter]*approx_diag,"  ICC=",ICC,"\n")
-    deviation = ICC - ICC_inp
-  }
-return(trial)}
 

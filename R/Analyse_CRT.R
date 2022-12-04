@@ -695,6 +695,7 @@ estimateContamination = function(beta2 = beta2,
                    INLA::control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
   )
   loss = result.e$dic$family.dic
+  cat("DIC: ",loss," Contamination parameter: ",beta2,"\n")
   return(loss)}
 
 

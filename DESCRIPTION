@@ -29,9 +29,9 @@ Imports:
     rgeos,
     mgcv,
     dplyr,
-    spatstat.random
+    spatstat.random,
 Suggests: 
-    knitr, rmarkdown,
+    knitr, rmarkdown, 
     TSP, aod, ggthemes, gstat, lme4, maptools, methods, mvtnorm, plyr, qpdf, rgdal, spatstat.core,
     testthat (>= 2.0.0)
 Config/testthat/edition: 2
