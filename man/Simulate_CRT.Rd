@@ -6,14 +6,14 @@
 \usage{
 Simulate_CRT(
   trial = CRTspillover::test_AvecNet$assignments,
-  efficacy = 0.2,
-  initialPrevalence = 0.4,
+  efficacy = NULL,
+  initialPrevalence = NULL,
   generateBaseline = TRUE,
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom",
-  ICC_inp = 0.05,
+  ICC_inp = NULL,
   sd = NULL,
-  theta_inp = 1.2,
+  theta_inp = NULL,
   tol = 0.005
 )
 }
