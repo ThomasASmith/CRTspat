@@ -19,7 +19,7 @@ devtools::install(build_vignettes = TRUE)
 
 The `CRTspillover` package is intended to support the design and analysis of cluster-randomized trials (CRTs) where there is geographical contamination between the arms. It can also be used in simulation of such CRTs to support development of improved methodology. An important set of applications is in field trials of vector-control interventions against malaria.
 
-The package can facilitate design of efficent trials by providing algorithms for: 
+The package can facilitate design of efficient trials by providing algorithms for: 
 + algorithmic assignment of clusters (and buffer zones) 
 + analysis of the effects of spill-over 
 + simulation of trials based on the geography of previously studied field sites and trials, and observed spatial patterns of outcomes, or on geographical information from novel sites.

@@ -7,7 +7,7 @@
 #' (iii) the proportion of households in the input geography falling within the core of the clusters (i.e. outside the contamination range of locations in the opposite arm)
 #'
 #' @param alpha confidence level
-#' @param power power
+#' @param desiredPower desired power
 #' @param effect required effect size
 #' @param ICC Intra-Cluster Correlation obtained from other studies
 #' @param pC baseline prevalence
@@ -23,13 +23,13 @@
 #' \itemize{
 #' \item \code{arm}: vector of assignments to trial arms
 #' \item \code{alpha}: confidence level
-#' \item \code{power}: power
+#' \item \code{desiredPower}: desired power
 #' \item \code{effect}: Required effect size
 #' \item \code{ICC}: Intra-Cluster Correlation obtained from other studies
-#' \item \code{DE}: calculated Design Effect
+#' \item \code{nominalDE}: calculated Design Effect
 #' \item \code{pC}: baseline prevalence
+#' \item \code{n_ind}: required individuals per arm in an individually randomized trial
 #' \item \code{postulatedContamination}: contamination range in km, obtained from other studies
-#' \item \code{coordinates}: dataframe containing (x,y) coordinates of locations
 #' \item \code{h}: proposal for the number of households in each cluster
 #' \item \code{algo}: algorithm used for cluster boundaries
 #' \item \code{assignments}: data frame containing locations, clusters and arm assignments
@@ -42,7 +42,7 @@
 #' exampleDesign = Design_CRT(coordinates=CRTspillover::test_site,
 #'                 ICC=0.10, effect=0.4, pC=0.35, postulatedContamination=0.5, h=100)
 Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
-                        power = 0.8,  #Step B: power
+                        desiredPower = 0.8,  #Step B: power
                         effect = 0.4, #Step C: Required effect size
                         ICC = 0.175,  #Step D: ICC, obtained from other studies
                         pC = 0.4,     #Step E: baseline prevalence
@@ -56,17 +56,23 @@ Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
 
 # convert power and significance level to normal deviates
 Zsig = -qnorm(alpha/2)
-Zpow = qnorm(power)
+Zpow = qnorm(desiredPower)
 
 ##############################################################################
-# Calculations
+# Calculations (see e.g. Hemming et al, 2011
+# https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102
+# )
 ##############################################################################
 # Step I: Calculations for the required minimum number of clusters for both arms
 
+# required number of individuals in an individual RCT
+pI = pC * (1- effect) # probability in intervened group
+d = pC -pI # difference between groups
+sigma2 = 1/2*(pI*(1-pI) + pC*(1-pC))
+n_ind <- 2*sigma2*((Zsig + Zpow)/d)^2
 
-n_ind <- (Zsig + Zpow)^2*(pC*(1-pC) + pC*(1-effect)*(1-pC*(1-effect)))/(pC*effect)^2
-DE <- 1 + (h-1)*ICC #design effect
-min_c <- ceiling((1 + n_ind*DE/h)*2)
+# see below for calculations of design effect and minimum numbers of clusters required
+
 
 ##############################################################################
 # Step J: specify or compute cluster boundaries
@@ -77,24 +83,73 @@ trial = DefineClusters(trial=coordinates, h=h, algo=algo, reuseTSP=reuseTSP)
 #Step K: Random assignment of clusters to arms
 trial = Randomize_CRT(trial)
 
-arm=unique(trial[c("cluster", "arm")])[,2]
-
-##############################################################################
-# Step L computation of characteristics of the randomization
-
 # augment the trial data frame with distance to nearest discordant coordinate
 # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
 trial <- Specify_CRTbuffer(trial=trial,bufferWidth=0)
 
+output = list(pC = pC,
+              alpha = alpha,
+              n_ind=n_ind,
+              desiredPower = desiredPower,
+              inputClusterSize = h,
+              algo = algo,
+              postulatedContaminationRange = postulatedContamination,
+              effect = effect,
+              ICC = ICC,
+              h = h,
+              assignments = trial)
+
+output$describeFullTrial = describeTrial(trial=trial,pC = pC, d = d, desiredPower = desiredPower,
+                                         n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
 #proportion of coordinates in core
-core <- sum(abs(trial$nearestDiscord) >= postulatedContamination)/dim(trial)[1]
-if (min_c > length(arm)){
-  print(paste0('*** WARNING: ',length(arm),' clusters assigned, ',min_c,' clusters required to achieve desired power of ', 100*power, '%.***'))
-}
+output$proportionInCore <- sum(abs(trial$nearestDiscord) >= postulatedContamination)/dim(trial)[1]
 
-output_trial = list(arm=arm, alpha = alpha, proproposedPower = power,
-             effect = effect, ICC = ICC, nominalDE = DE, pC = pC, postulatedContamination = postulatedContamination,
-             coordinate_source=coordinates, h = h, algo = algo,
-             core = core, assignments=trial, requiredClusters = min_c, availableClusters = length(arm))
-return(output_trial)}
+output$core_trial <- Specify_CRTbuffer(trial=trial,bufferWidth=postulatedContamination)
 
+output$descriptionCoreTrial =  describeTrial(trial=output$core_trial, pC = pC, d = d, desiredPower = desiredPower,
+                                             n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
+return(output)}
+
+# Characteristics of a trial design
+describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
+
+  arm=unique(trial[c("cluster", "arm")])[,2] #assignments
+
+  k = length(arm) # number of clusters assigned
+
+  ##############################################################################
+  # Step L computation of characteristics of the randomization
+
+  sd_distance = stats::sd(trial$nearestDiscord)
+
+  #mean number of locations randomised to each arm
+  mean_h = mean(table(trial$cluster))
+  #standard deviation of locations randomised to each arm
+  sd_h = stats::sd(table(trial$cluster))
+
+  # coefficient of variation of the cluster sizes
+  cv_h = sd_h/mean_h
+
+  # design effect (Variance Inflation Factor) allowing for varying cluster sizes
+  DE <- 1 + (cv_h^2 +1)*(mean_h-1)*ICC
+
+  # number of individuals required per arm in CRT
+  n_crt = n_ind * DE
+
+  # minimum numbers of clusters required allowing for varying cluster sizes
+  min_c <- ceiling(n_ind*DE/mean_h)
+
+  print(paste0(k,' clusters assigned, ',min_c,' clusters required to achieve desired power of ', 100*desiredPower, '%'))
+
+  power = 1 - stats::pnorm(sqrt(k/2*ICC)* d/sqrt(sigma2) - Zsig)   #Hemming eqn 28
+
+  CRT_description = list(assignments=trial,
+                         nominalDE = DE,
+                         sd_distance = sd_distance,
+                         mean_h = mean_h,
+                         sd_h = sd_h,
+                         requiredClusters = min_c,
+                         availableClusters = length(arm),
+                         power=power)
+
+return(CRT_description)}

@@ -6,7 +6,7 @@
 \usage{
 Design_CRT(
   alpha = 0.05,
-  power = 0.8,
+  desiredPower = 0.8,
   effect = 0.4,
   ICC = 0.175,
   pC = 0.4,
@@ -19,8 +19,6 @@ Design_CRT(
 }
 \arguments{
 \item{alpha}{confidence level}
-
-\item{power}{power}
 
 \item{effect}{required effect size}
 
@@ -40,19 +38,20 @@ Design_CRT(
 "kmeans": kmeans algorithm}
 
 \item{reuseTSP}{indicator of whether a pre-existing path should be used by the TSP algorithm}
+
+\item{proposedPower}{proposedPower}
 }
 \value{
 A trial design object comprising a list with the following attributes:
 \itemize{
 \item \code{arm}: vector of assignments to trial arms
 \item \code{alpha}: confidence level
-\item \code{power}: power
+\item \code{proposedPower}: power
 \item \code{effect}: Required effect size
 \item \code{ICC}: Intra-Cluster Correlation obtained from other studies
-\item \code{DE}: calculated Design Effect
+\item \code{nominalDE}: calculated Design Effect
 \item \code{pC}: baseline prevalence
 \item \code{postulatedContamination}: contamination range in km, obtained from other studies
-\item \code{coordinates}: dataframe containing (x,y) coordinates of locations
 \item \code{h}: proposal for the number of households in each cluster
 \item \code{algo}: algorithm used for cluster boundaries
 \item \code{assignments}: data frame containing locations, clusters and arm assignments
