@@ -11,7 +11,7 @@
 #' @param effect required effect size
 #' @param ICC Intra-Cluster Correlation obtained from other studies
 #' @param pC baseline prevalence
-#' @param postulatedContamination contamination range in km, obtained from other studies
+#' @param postulatedContaminationRange contamination range in km, obtained from other studies
 #' @param coordinates dataframe containing coordinates of households. Columns 'x' and 'y' should contain Cartesian (x,y) coordinates. Units are expected to be km.
 #' @param h  proposal for the number of coordinates in each cluster
 #' @param algo algorithm for cluster boundaries, choose between
@@ -29,7 +29,7 @@
 #' \item \code{nominalDE}: calculated Design Effect
 #' \item \code{pC}: baseline prevalence
 #' \item \code{n_ind}: required individuals per arm in an individually randomized trial
-#' \item \code{postulatedContamination}: contamination range in km, obtained from other studies
+#' \item \code{postulatedContaminationRange}: contamination range in km, obtained from other studies
 #' \item \code{h}: proposal for the number of households in each cluster
 #' \item \code{algo}: algorithm used for cluster boundaries
 #' \item \code{assignments}: data frame containing locations, clusters and arm assignments
@@ -40,15 +40,15 @@
 #' @examples
 #'
 #' exampleDesign = Design_CRT(coordinates=CRTspillover::test_site,
-#'                 ICC=0.10, effect=0.4, pC=0.35, postulatedContamination=0.5, h=100)
+#'                 ICC=0.10, effect=0.4, pC=0.35, postulatedContaminationRange=0.25, h=100)
 Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
                         desiredPower = 0.8,  #Step B: power
-                        effect = 0.4, #Step C: Required effect size
-                        ICC = 0.175,  #Step D: ICC, obtained from other studies
-                        pC = 0.4,     #Step E: baseline prevalence
-                        postulatedContamination = 0.25,  #Step F: postulated contamination range in km, obtained from other studies
-                        coordinates=CRTspillover::AvecNet_coordinates, # Step G		coordinates of households in study area
-                        h = 80,       #Step H: proposal for the number of households in each cluster
+                        effect, #Step C: Required effect size
+                        ICC,#Step D: ICC, obtained from other studies
+                        pC, #Step E: baseline prevalence
+                        postulatedContaminationRange = 0,  #Step F: postulated contamination range in km, obtained from other studies
+                        coordinates, # Step G		coordinates of households in study area
+                        h,  #Step H: proposal for the number of households in each cluster
                         #algorithm for cluster boundaries, choose between
                         #"TSP": travelling salesman problem heuristic; "NN": nearest neighbor; "kmeans": kmeans algorithm
                         algo = "kmeans",
@@ -85,7 +85,7 @@ trial = Randomize_CRT(trial)
 
 # augment the trial data frame with distance to nearest discordant coordinate
 # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
-trial <- Specify_CRTbuffer(trial=trial,bufferWidth=0)
+trial <- Specify_CRTbuffer(trial=trial,bufferWidth=postulatedContaminationRange)
 
 output = list(pC = pC,
               alpha = alpha,
@@ -93,21 +93,31 @@ output = list(pC = pC,
               desiredPower = desiredPower,
               inputClusterSize = h,
               algo = algo,
-              postulatedContaminationRange = postulatedContamination,
+              postulatedContaminationRange = postulatedContaminationRange,
               effect = effect,
               ICC = ICC,
               h = h,
               assignments = trial)
 
-output$describeFullTrial = describeTrial(trial=trial,pC = pC, d = d, desiredPower = desiredPower,
+cat('=====================CLUSTER RANDOMISED TRIAL DESIGN =================\n')
+cat('Significance level: ',alpha,'\n')
+cat('required effect size: ',effect,'\n')
+cat('assumed prevalence in absence of intervention ',pC,'\n')
+cat('pre-specified intra-cluster correlation: ',ICC,'\n\n')
+cat('=====================         FULL TRIAL AREA        =================\n')
+output$descriptionFullTrial = describeTrial(trial=trial,pC = pC, d = d, desiredPower = desiredPower,
                                          n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
-#proportion of coordinates in core
-output$proportionInCore <- sum(abs(trial$nearestDiscord) >= postulatedContamination)/dim(trial)[1]
+if(postulatedContaminationRange > 0){
 
-output$core_trial <- Specify_CRTbuffer(trial=trial,bufferWidth=postulatedContamination)
-
-output$descriptionCoreTrial =  describeTrial(trial=output$core_trial, pC = pC, d = d, desiredPower = desiredPower,
+  cat('\n=====================    EXCLUDING BUFFER ZONES        =================\n')
+  cat('buffer of width ',postulatedContaminationRange,' km.\n')
+  output$descriptionCoreTrial =  describeTrial(trial=trial[trial$buffer==FALSE,], pC = pC, d = d, desiredPower = desiredPower,
                                              n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
+  #proportion of coordinates in core
+  output$descriptionCoreTrial$proportionInCore <- sum(abs(trial$nearestDiscord) >= postulatedContaminationRange)/dim(trial)[1]
+  pbuff = sum(ifelse(trial$buffer,1,0))/nrow(trial)*100
+  cat(pbuff,'% of locations in buffer zone.\n')
+}
 return(output)}
 
 # Characteristics of a trial design
@@ -139,17 +149,20 @@ describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
   # minimum numbers of clusters required allowing for varying cluster sizes
   min_c <- ceiling(n_ind*DE/mean_h)
 
-  print(paste0(k,' clusters assigned, ',min_c,' clusters required to achieve desired power of ', 100*desiredPower, '%'))
-
   power = 1 - stats::pnorm(sqrt(k/2*ICC)* d/sqrt(sigma2) - Zsig)   #Hemming eqn 28
 
-  CRT_description = list(assignments=trial,
+  cat('calculated design effect: ',DE,'\n')
+  cat('Locations- total: ',nrow(trial),'. Per cluster mean: ',mean_h,'S.D.: ', sd_h,'\n')
+  cat('S.D. of distance to nearest discordant location (km): ',sd_distance,'\n')
+  cat('Minimum clusters needed to achieve power of ',desiredPower*100,'%: ',min_c,'. Available clusters: ',length(arm),'\n')
+
+  CRT_description = list(trial=trial,
                          nominalDE = DE,
                          sd_distance = sd_distance,
                          mean_h = mean_h,
                          sd_h = sd_h,
-                         requiredClusters = min_c,
-                         availableClusters = length(arm),
+                         clustersRequired = min_c,
+                         clustersAssigned = length(arm),
                          power=power)
 
 return(CRT_description)}

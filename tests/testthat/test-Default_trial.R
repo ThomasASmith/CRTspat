@@ -1,6 +1,14 @@
 set.seed(1234)
 test_that("Design_CRT() creates the default trial", {
-  expect_identical(Design_CRT(), test_AvecNet)
+  expect_identical(Design_CRT(alpha = 0.05,
+                              desiredPower = 0.8,
+                              effect = 0.6,
+                              ICC = 0.175,
+                              pC = 0.4,
+                              postulatedContaminationRange = 0.05,
+                              coordinates=CRTspillover::AvecNet_coordinates,
+                              h = 80)
+                            , test_AvecNet)
 })
 set.seed(1234)
 test_that("Simulate_TrialSite() creates the default site", {

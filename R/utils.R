@@ -104,10 +104,10 @@ Specify_CRTbuffer= function(trial=trial,bufferWidth=0){
         discord_distance =
           ifelse(abs(discord_distance) == width,Inf,discord_distance)
         nbuff=sum(ifelse(trial$buffer,1,0))
-        print(paste('Adding',nbuff-pbuff,'locations to buffer at distance',width))
+        cat('\rAdded',nbuff-pbuff,'locations to buffer (',width,'km)  ')
         pbuff=nbuff
       }
-      print(paste('Locations in buffer:',nbuff,'of',nrow(trial),'(',round(nbuff*100/nrow(trial),digits=1),'%)'))
+      cat('\rLocations in buffer:',nbuff,'of',nrow(trial),'(',round(nbuff*100/nrow(trial),digits=1),'%)\n\n')
     }
   return(trial)}
 

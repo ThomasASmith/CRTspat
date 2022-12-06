@@ -7,12 +7,12 @@
 Design_CRT(
   alpha = 0.05,
   desiredPower = 0.8,
-  effect = 0.4,
-  ICC = 0.175,
-  pC = 0.4,
-  postulatedContamination = 0.25,
-  coordinates = CRTspillover::AvecNet_coordinates,
-  h = 80,
+  effect,
+  ICC,
+  pC,
+  postulatedContaminationRange = 0,
+  coordinates,
+  h,
   algo = "kmeans",
   reuseTSP = FALSE
 )
@@ -20,13 +20,15 @@ Design_CRT(
 \arguments{
 \item{alpha}{confidence level}
 
+\item{desiredPower}{desired power}
+
 \item{effect}{required effect size}
 
 \item{ICC}{Intra-Cluster Correlation obtained from other studies}
 
 \item{pC}{baseline prevalence}
 
-\item{postulatedContamination}{contamination range in km, obtained from other studies}
+\item{postulatedContaminationRange}{contamination range in km, obtained from other studies}
 
 \item{coordinates}{dataframe containing coordinates of households. Columns 'x' and 'y' should contain Cartesian (x,y) coordinates. Units are expected to be km.}
 
@@ -38,20 +40,19 @@ Design_CRT(
 "kmeans": kmeans algorithm}
 
 \item{reuseTSP}{indicator of whether a pre-existing path should be used by the TSP algorithm}
-
-\item{proposedPower}{proposedPower}
 }
 \value{
 A trial design object comprising a list with the following attributes:
 \itemize{
 \item \code{arm}: vector of assignments to trial arms
 \item \code{alpha}: confidence level
-\item \code{proposedPower}: power
+\item \code{desiredPower}: desired power
 \item \code{effect}: Required effect size
 \item \code{ICC}: Intra-Cluster Correlation obtained from other studies
 \item \code{nominalDE}: calculated Design Effect
 \item \code{pC}: baseline prevalence
-\item \code{postulatedContamination}: contamination range in km, obtained from other studies
+\item \code{n_ind}: required individuals per arm in an individually randomized trial
+\item \code{postulatedContaminationRange}: contamination range in km, obtained from other studies
 \item \code{h}: proposal for the number of households in each cluster
 \item \code{algo}: algorithm used for cluster boundaries
 \item \code{assignments}: data frame containing locations, clusters and arm assignments
@@ -68,5 +69,5 @@ Outputs are:
 \examples{
 
 exampleDesign = Design_CRT(coordinates=CRTspillover::test_site,
-                ICC=0.10, effect=0.4, pC=0.35, postulatedContamination=0.5, h=100)
+                ICC=0.10, effect=0.4, pC=0.35, postulatedContaminationRange=0.25, h=100)
 }
