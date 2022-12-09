@@ -64,7 +64,8 @@ Analyse_CRT <- function(trial,
   # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
   if(is.null(trial$nearestDiscord)) {trial <- Specify_CRTbuffer(trial=trial,bufferWidth=0)}
 
-  PointEstimates=IntervalEstimates=ModelObject=list()
+  PointEstimates=ModelObject=list()
+  IntervalEstimates=list(controlP=NA,interventionP=NA,efficacy=NA)
   sd = 0.5/(qnorm(1-alpha)*sqrt(2)) #initial value used in bootstrap calculations
   trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
 
@@ -222,7 +223,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
                               'SPCRE' = 'f(s, model = spde) + f(cluster, model = "iid")'))
 
     # if (method == 'LR') the formula is unchanged
-    formula <- as.formula(paste(fterms, collapse = " + "))
+    formula <- stats::as.formula(paste(fterms, collapse = " + "))
 
     spde = inlaMesh$spde
     cat('Estimating scale parameter for contamination range','\n')
@@ -705,6 +706,8 @@ estimateContamination = function(beta2 = beta2,
                      compute = TRUE,link = 1,
                      A = INLA::inla.stack.A(stk.e)),
                    control.compute = list(dic = TRUE),
+                   control.results = list(return.marginals.random = FALSE,
+                                          return.marginals.predictor = FALSE),
                    INLA::control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
   )
   loss = result.e$dic$family.dic

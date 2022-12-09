@@ -3,9 +3,9 @@
 \docType{data}
 \name{testArms}
 \alias{testArms}
-\title{Trial dataframe containing arm assignments based on Rusinga locations}
+\title{Trial data.frame containing arm assignments based on Rusinga locations}
 \format{
-dataframe:
+data.frame:
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location
@@ -17,6 +17,6 @@ dataframe:
 testArms
 }
 \description{
-Trial dataframe containing arm assignments based on Rusinga locations
+Trial data.frame containing arm assignments based on Rusinga locations
 }
 \keyword{datasets}

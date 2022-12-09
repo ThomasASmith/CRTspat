@@ -1,9 +1,9 @@
 #' Coordinates from the Avecnet trial
-#' @format dataframe:
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
-#' }
+#' })
 "AvecNet_coordinates"
 
 #' Test dataset containing the results of running DesignCRT() with the default options on a cut-down subset of the AvecNet dataset
@@ -27,16 +27,8 @@
 #' }
 "test_AvecNet"
 
-#' Dummy
-#' @format dataframe:
-#' \itemize{
-#' \item \code{x}: x-coordinates of location
-#' \item \code{y}: y-coordinates of location
-#' }
-"test_result"
-
 #' Test dataset containing the results of running Simulate_TrialSite() with the default options
-#' @format dataframe:
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -55,7 +47,7 @@
 "test_Analyse_CRT"
 
 #' Test dataset containing the results of running Simulate_CRT() with the default options
-#' @format dataframe:
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -71,8 +63,8 @@
 #' }
 "test_Simulate_CRT"
 
-#' Trial dataframe containing cluster assignments based on Rusinga locations
-#' @format dataframe:
+#' Trial data.frame containing cluster assignments based on Rusinga locations
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -80,8 +72,8 @@
 #' }
 "testClusters"
 
-#' Trial dataframe containing arm assignments based on Rusinga locations
-#' @format dataframe:
+#' Trial data.frame containing arm assignments based on Rusinga locations
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -90,8 +82,8 @@
 #' }
 "testArms"
 
-#' Trial dataframe containing buffer assignment based on Rusinga locations
-#' @format dataframe:
+#' Trial data.frame containing buffer assignment based on Rusinga locations
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -103,8 +95,8 @@
 #' }
 "testBuffer"
 
-#' Trial dataframe including simulated outcomes based on Rusinga locations
-#' @format dataframe:
+#' Trial data.frame including simulated outcomes based on Rusinga locations
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -122,7 +114,7 @@
 "testOutcomes"
 
 #' Baseline RDT positivity data from the SolarMal trial
-#' @format dataframe:
+#' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -130,3 +122,16 @@
 #' \item \code{X}: row number
 #' }
 "Solarmal_baseline"
+
+#' Prediction mesh (created with ncells= 100) for INLA analysis of AvecNet geography
+#' @format list:
+#' \itemize{
+#' \item \code{prediction}: data.frame containing the prediction points and covariate values
+#' \item \code{A}: projection matrix from the observations to the mesh nodes.
+#' \item \code{Ap}: projection matrix from the prediction points to the mesh nodes.
+#' \item \code{indexs}:  index set for the SPDE model
+#' \item \code{spde}: SPDE model
+#' })
+"inlaMesh100"
+
+

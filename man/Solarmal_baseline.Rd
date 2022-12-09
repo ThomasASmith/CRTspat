@@ -5,7 +5,7 @@
 \alias{Solarmal_baseline}
 \title{Baseline RDT positivity data from the SolarMal trial}
 \format{
-dataframe:
+data.frame:
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location

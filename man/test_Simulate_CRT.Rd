@@ -5,7 +5,7 @@
 \alias{test_Simulate_CRT}
 \title{Test dataset containing the results of running Simulate_CRT() with the default options}
 \format{
-dataframe:
+data.frame:
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location

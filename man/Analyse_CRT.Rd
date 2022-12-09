@@ -33,7 +33,7 @@ options are:
 'S': piecewise linear (slope),
 'L': inverse logistic (sigmoid),
 'P': inverse probit,
-'X': not analysed#'}
+'X': contamination not modelled'}
 
 \item{excludeBuffer}{exclude any buffer zone (records with buffer=TRUE) from the analysis}
 

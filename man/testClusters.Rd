@@ -3,9 +3,9 @@
 \docType{data}
 \name{testClusters}
 \alias{testClusters}
-\title{Trial dataframe containing cluster assignments based on Rusinga locations}
+\title{Trial data.frame containing cluster assignments based on Rusinga locations}
 \format{
-dataframe:
+data.frame:
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location
@@ -16,6 +16,6 @@ dataframe:
 testClusters
 }
 \description{
-Trial dataframe containing cluster assignments based on Rusinga locations
+Trial data.frame containing cluster assignments based on Rusinga locations
 }
 \keyword{datasets}

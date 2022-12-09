@@ -3,9 +3,9 @@
 \docType{data}
 \name{testBuffer}
 \alias{testBuffer}
-\title{Trial dataframe containing buffer assignment based on Rusinga locations}
+\title{Trial data.frame containing buffer assignment based on Rusinga locations}
 \format{
-dataframe:
+data.frame:
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location
@@ -20,6 +20,6 @@ dataframe:
 testBuffer
 }
 \description{
-Trial dataframe containing buffer assignment based on Rusinga locations
+Trial data.frame containing buffer assignment based on Rusinga locations
 }
 \keyword{datasets}

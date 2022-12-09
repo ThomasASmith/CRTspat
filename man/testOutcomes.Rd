@@ -3,9 +3,9 @@
 \docType{data}
 \name{testOutcomes}
 \alias{testOutcomes}
-\title{Trial dataframe including simulated outcomes based on Rusinga locations}
+\title{Trial data.frame including simulated outcomes based on Rusinga locations}
 \format{
-dataframe:
+data.frame:
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location
@@ -25,6 +25,6 @@ dataframe:
 testOutcomes
 }
 \description{
-Trial dataframe including simulated outcomes based on Rusinga locations
+Trial data.frame including simulated outcomes based on Rusinga locations
 }
 \keyword{datasets}

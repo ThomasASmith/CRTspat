@@ -5,11 +5,11 @@
 \alias{AvecNet_coordinates}
 \title{Coordinates from the Avecnet trial}
 \format{
-dataframe:
+data.frame:
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location
-}
+})
 }
 \usage{
 AvecNet_coordinates
