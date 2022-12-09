@@ -16,7 +16,7 @@
 #' 'S': piecewise linear (slope),
 #' 'L': inverse logistic (sigmoid),
 #' 'P': inverse probit,
-#' 'X': not analysed#'
+#' 'X': contamination not modelled'
 #' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
 #' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
 #' @param alpha confidence level for confidence intervals and credible intervals
@@ -131,7 +131,7 @@ Analyse_CRT <- function(trial,
       IntervalEstimates =  computeIntervals(df=boot_estimates,alpha=alpha)
     }
   } else if(method %in% c('LR','CRE','SPDE','SPCRE')){
-      results = inlaModel(trial=trial,cont='L',method=method,alpha=alpha,inlaMesh=inlaMesh)
+      results = inlaModel(trial=trial,cont=cont,method=method,alpha=alpha,inlaMesh=inlaMesh)
       results$description=description
   }
   if(method %in% c('EMP','ML','GEE')){
@@ -145,6 +145,14 @@ Analyse_CRT <- function(trial,
                  IntervalEstimates=IntervalEstimates,
                  ModelObject=ModelObject)
   }
+  cat('\n=====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================\n')
+  cat('Analysis model: ',method,' Contamination option: ',cont,'\n')
+  cat('Estimated Proportions- Control: ',round(results$PointEstimates$controlP,digits=3),' (95% CL: ',
+      round(results$IntervalEstimates$controlP,digits=3),
+      ') - Intervention: ',round(results$PointEstimates$interventionP,digits=3),' (95% CL: ',
+      round(results$IntervalEstimates$interventionP,digits=3),')\n')
+  cat('Efficacy: ',round(results$PointEstimates$efficacy,digits=3),' (95% CL: ',
+      round(results$IntervalEstimates$efficacy,digits=3),')\n')
   results$contamination = getContaminationCurve(trial=trial,
                           PointEstimates=results$PointEstimates,
                           FUN1=FUN1)
@@ -169,6 +177,8 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   #contamination range
   contaminatedInterval <- c(thetaL,thetaU)
   contaminationRange = thetaU - thetaL
+  # To remove warnings from plotting ensure that contamination range is non-zero
+  if(!is.na(contaminationRange)){contaminatedInterval <- c(-0.0001,0.0001)}
   #categorisation of trial data for plotting
   trial$cats<- cut(trial$nearestDiscord, breaks = c(-Inf,min(d)+seq(1:9)*range_d/10,Inf), labels = FALSE)
   data = data.frame(trial %>%
@@ -180,6 +190,7 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
     data$p = data$positives/data$total
     data$upper = with(data, p + 1.96*(sqrt(p*(1-p)/total)))
     data$lower = with(data, p - 1.96*(sqrt(p*(1-p)/total)))
+  cat('Contamination Range',contaminationRange,'\n')
 
   returnList = list(FittedCurve=data.frame(d=d,contaminationFunction=curve),
                   contaminationRange=contaminationRange,
@@ -187,7 +198,7 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
                   data=data)
 return(returnList)}
 
-inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh){
+inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     if(is.null(inlaMesh)){
       inlaMesh = createMesh(trial=trial,
                             offset = -0.1,
@@ -199,64 +210,66 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh){
 
     denom=NULL
     # specify functional form of sigmoid in distance from boundary
-    # 'L' inverse logit; 'P' inverse probit
-    FUN = switch(cont, 'L' = "invlogit(-x)", 'P' = "stats::pnorm(-x)")
+    # 'L' inverse logit; 'P' inverse probit; 'X' do not model contamination
+    FUN = switch(cont, 'L' = "invlogit(-x)", 'P' = "stats::pnorm(-x)", 'X' = NULL)
 
-    # create model
-    if (method == 'LR'){
-      formula <- y ~ 0 + b0 + pvar
+    # create model formula
+    fterms = ifelse(cont == 'X', 'y ~ 0 + b0', 'y ~ 0 + b0 + pvar')
 
-    } else if(method == 'CRE'){
-      formula <- y ~ 0 + b0 + pvar + f(cluster, model = "iid")
+    fterms = c(fterms, switch(method,
+                              'CRE' = 'f(cluster, model = "iid")',
+                              'SPDE' = 'f(s, model = spde)',
+                              'SPCRE' = 'f(s, model = spde) + f(cluster, model = "iid")'))
 
-    } else if(method == 'SPDE'){
-      spde = inlaMesh$spde
-      formula <- y ~ 0 + b0 + pvar + f(s, model = spde)
+    # if (method == 'LR') the formula is unchanged
+    formula <- as.formula(paste(fterms, collapse = " + "))
 
-    } else if(method == 'SPCRE'){
-      spde = inlaMesh$spde
-      formula <- y ~ 0 + b0 + pvar + + f(cluster, model = "iid") + f(s, model = spde)
-
-    }
+    spde = inlaMesh$spde
     cat('Estimating scale parameter for contamination range','\n')
-    beta2 = stats::optimize(f=estimateContamination,
-                     interval=c(0.1,10),
-                     trial=trial,
-                     FUN=FUN,
-                     inlaMesh=inlaMesh,
-                     formula=formula,
-                     tol = 0.01)$minimum
-
-    x = trial$nearestDiscord*beta2
-    trial$pvar = eval(parse(text = FUN))
+    effectse = list(df=data.frame(b0=rep(1, nrow(trial)),
+                    cluster = trial$cluster),
+                    s = inlaMesh$indexs)
+    effectsp = list(df=data.frame(b0=rep(1, nrow(inlaMesh$prediction)),
+                    cluster = inlaMesh$prediction$cluster),
+                   s = inlaMesh$indexs)
+    lc=NULL
+    beta2=NA
+    if(cont != 'X'){
+      beta2 =  stats::optimize(f=estimateContamination,
+                       interval=c(0.1,10),
+                       trial=trial,
+                       FUN=FUN,
+                       inlaMesh=inlaMesh,
+                       formula=formula,
+                       tol = 0.01)$minimum
+      x = trial$nearestDiscord*beta2
+      trial$pvar = eval(parse(text = FUN))
+      effectse$df$pvar = trial$pvar
+      x = inlaMesh$prediction$nearestDiscord*beta2
+      inlaMesh$prediction$pvar = ifelse(cont == 'X', rep(NA,nrow(inlaMesh$prediction)), eval(parse(text = FUN)))
+      effectsp$df$pvar = inlaMesh$prediction$pvar
+      # set up linear contrasts (not required for cont='X')
+      lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1)
+    }
 
     # stack for estimation stk.e
     stk.e <- INLA::inla.stack(
       tag = "est",
       data = list(y = trial$num, denom=trial$denom),
       A = list(1, A=inlaMesh$A),
-      effects = list(data.frame(b0=rep(1, nrow(trial)),
-                                pvar = trial$pvar,
-                                cluster = trial$cluster),
-                     s = inlaMesh$indexs)
+      effects = effectse
     )
 
-    x = inlaMesh$prediction$nearestDiscord*beta2
-    inlaMesh$prediction$pvar = eval(parse(text = FUN))
     # stack for prediction stk.p
     stk.p <- INLA::inla.stack(
       tag = "pred",
       data = list(y = NA, denom = NA),
       A = list(1, inlaMesh$Ap),
-      effects = list(data.frame(b0=rep(1, nrow(inlaMesh$prediction)),
-                                pvar = inlaMesh$prediction$pvar,
-                                cluster = inlaMesh$prediction$cluster),
-                     s = inlaMesh$indexs)
+      effects = effectsp
     )
 
     # stk.full comprises both stk.e and stk.p
     stk.full <- INLA::inla.stack(stk.e, stk.p)
-    lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1)
     cat('Starting full INLA analysis','\n')
 
     inlaResult <- INLA::inla(formula,
@@ -278,7 +291,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh){
     results = list(modelObject=inlaResult,inlaMesh = inlaMesh,PointEstimates = list(),IntervalEstimates = list(),method=method)
 
     beta0= inlaResult$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]
-    beta1= inlaResult$summary.fixed['pvar',c("0.025quant","0.5quant","0.975quant")]
+    beta1= ifelse (cont != 'X', inlaResult$summary.fixed['pvar',c("0.025quant","0.5quant","0.975quant")],rep(0,3))
 
     # This is a different parameterisation from that used for the ML models
     pC = unlist(invlogit(beta0 + beta1))
