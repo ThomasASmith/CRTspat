@@ -173,13 +173,15 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   #estimate contamination range
   #The absolute value of deltaP is used so that a positive range is obtained even with negative efficacy
   deltaP <- abs(PointEstimates$controlP - PointEstimates$interventionP)
-  thetaL <- d[which(abs(curve - PointEstimates$controlP) > 0.025*deltaP)][1]
-  thetaU <- d[which(abs(curve - PointEstimates$interventionP) < 0.025*deltaP)][1]
+  thetaL <- d[min(which(abs(PointEstimates$controlP - curve) > (0.025*deltaP)))]
+  thetaU <- d[min(which(abs(PointEstimates$interventionP - curve) < (0.025*deltaP)))]
   #contamination range
-  contaminatedInterval <- c(thetaL,thetaU)
+  cat(deltaP,thetaU,thetaL,'\n')
+  contaminatedInterval = c(thetaL,thetaU)
+  if(thetaL > thetaU) contaminatedInterval= c(thetaU,thetaL)
   contaminationRange = thetaU - thetaL
   # To remove warnings from plotting ensure that contamination range is non-zero
-  if(!is.na(contaminationRange)){contaminatedInterval <- c(-0.0001,0.0001)}
+  if(is.na(contaminationRange) || contaminationRange == 0){contaminatedInterval <- c(-0.0001,0.0001)}
   #categorisation of trial data for plotting
   trial$cats<- cut(trial$nearestDiscord, breaks = c(-Inf,min(d)+seq(1:9)*range_d/10,Inf), labels = FALSE)
   data = data.frame(trial %>%
@@ -706,8 +708,6 @@ estimateContamination = function(beta2 = beta2,
                      compute = TRUE,link = 1,
                      A = INLA::inla.stack.A(stk.e)),
                    control.compute = list(dic = TRUE),
-                   control.results = list(return.marginals.random = FALSE,
-                                          return.marginals.predictor = FALSE),
                    INLA::control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
   )
   loss = result.e$dic$family.dic
