@@ -29,6 +29,5 @@ graphics object produced by the ggplot2 package
 the grouped proportions of positives by distance from the arm boundary
 }
 \examples{
-#Plot locations only
-#Plot clusters in colour
+Plot_DataByDistance(trial=test_Simulate_CRT)
 }

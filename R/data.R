@@ -1,12 +1,12 @@
-#' Coordinates from the Avecnet trial
+#' Sample of coordinates from an arbitrary site in West Africa
 #' @format data.frame:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
 #' })
-"AvecNet_coordinates"
+"test_coordinates"
 
-#' Test dataset containing the results of running DesignCRT() with the default options on a cut-down subset of the AvecNet dataset
+#' Test dataset containing the results of running DesignCRT() with the default options on the test_coordinates
 #' @format list object with the following attributes:
 #' \itemize{
 #' \item \code{arm}: vector of assignments to trial arms
@@ -25,7 +25,7 @@
 #' \item \code{assignments}: data frame containing locations and cluster assignments
 #' \item \code{min_c}: minimum number of clusters required
 #' }
-"test_AvecNet"
+"test_design"
 
 #' Test dataset containing the results of running Simulate_TrialSite() with the default options
 #' @format data.frame:

@@ -7,6 +7,7 @@
 #' @param efficacy simulated efficacy (defaults to 0)
 #' @param initialPrevalence prevalence in control arm (assumed equal to initial proportion)
 #' @param generateBaseline logical indicator of whether baseline data should be simulated
+#' @param matchedPair logical: indicator of whether pair-matching on the baseline data should be used in randomization
 #' @param baselineNumerator name of numerator variable for baseline data (if present)
 #' @param baselineDenominator name of denominator variable for baseline data (if present)
 #' @param ICC_inp Intra Cluster Correlation, provided as input when baseline data are to be simulated
@@ -33,12 +34,14 @@
 #'                                      efficacy=0.25,
 #'                                      ICC_inp=0.05,
 #'                                      initialPrevalence=0.5,
+#'                                      matchedPair = TRUE,
 #'                                      sd=0.6,
 #'                                      tol=0.05)
 Simulate_CRT = function(trial=NULL,
                         efficacy=0,
                         initialPrevalence=NULL,
                         generateBaseline=TRUE,
+                        matchedPair = TRUE,
                         baselineNumerator='base_num',
                         baselineDenominator='base_denom',
                         ICC_inp=NULL,

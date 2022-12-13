@@ -8,7 +8,7 @@ the grouped proportions of positives by distance from the arm boundary}
 Plot_Contamination(analysis)
 }
 \arguments{
-\item{analysis}{analysis output by Analyse_CRT}
+\item{analysis}{list of analysis output produced by Analyse_CRT}
 }
 \value{
 graphics object produced by the ggplot2 package
@@ -18,6 +18,5 @@ graphics object produced by the ggplot2 package
 the grouped proportions of positives by distance from the arm boundary
 }
 \examples{
-#Plot locations only
-#Plot clusters in colour
+Plot_Contamination(analysis=test_Analyse_CRT)
 }

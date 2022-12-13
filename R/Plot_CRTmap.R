@@ -253,7 +253,7 @@ return(polygon)
 #' @export
 #'
 #' @examples
-#' Plot_Contamination(trial=test_Analyse_CRT)
+#' Plot_Contamination(analysis=test_Analyse_CRT)
 Plot_Contamination = function(analysis){
   d=p=upper=lower=contaminationFunction=NULL
   interval = analysis$contamination$contaminatedInterval

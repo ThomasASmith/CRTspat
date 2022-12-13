@@ -6,7 +6,7 @@
 \usage{
 Randomize_CRT(
   trial,
-  matchedPair = FALSE,
+  matchedPair = TRUE,
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom"
 )
@@ -14,7 +14,7 @@ Randomize_CRT(
 \arguments{
 \item{trial}{dataframe containing locations and cluster assignments}
 
-\item{matchedPair}{logical: indicator of whether randomisation should use matched pairs}
+\item{matchedPair}{logical: indicator of whether pair-matching on the baseline data should be used in randomization}
 
 \item{baselineNumerator}{name of numerator variable for baseline data (if present)}
 

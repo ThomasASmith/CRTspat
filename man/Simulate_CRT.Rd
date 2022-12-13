@@ -6,9 +6,10 @@
 \usage{
 Simulate_CRT(
   trial = NULL,
-  efficacy = NULL,
+  efficacy = 0,
   initialPrevalence = NULL,
   generateBaseline = TRUE,
+  matchedPair = TRUE,
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom",
   ICC_inp = NULL,
@@ -25,6 +26,8 @@ Simulate_CRT(
 \item{initialPrevalence}{prevalence in control arm (assumed equal to initial proportion)}
 
 \item{generateBaseline}{logical indicator of whether baseline data should be simulated}
+
+\item{matchedPair}{logical: indicator of whether pair-matching on the baseline data should be used in randomization}
 
 \item{baselineNumerator}{name of numerator variable for baseline data (if present)}
 
@@ -62,6 +65,7 @@ example_simulated_CRT =  Simulate_CRT(trial=CRTspillover::testArms,
                                      efficacy=0.25,
                                      ICC_inp=0.05,
                                      initialPrevalence=0.5,
+                                     matchedPair = TRUE,
                                      sd=0.6,
                                      tol=0.05)
 }

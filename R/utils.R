@@ -27,7 +27,7 @@ Aggregate_CRT = function(trial,auxiliaries=NULL){
 #' \code{Randomize_CRT} carries out randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
 #'
 #' @param trial dataframe containing locations and cluster assignments
-#' @param matchedPair logical: indicator of whether randomisation should use matched pairs
+#' @param matchedPair logical: indicator of whether pair-matching on the baseline data should be used in randomization
 #' @param baselineNumerator name of numerator variable for baseline data (if present)
 #' @param baselineDenominator name of denominator variable for baseline data (if present)
 #' @return The input dataframe augmented with variable arm coded 'control' or 'intervention'
@@ -38,19 +38,19 @@ Aggregate_CRT = function(trial,auxiliaries=NULL){
 #' set.seed(352)
 #' exampletrial=Randomize_CRT(testClusters)
 Randomize_CRT = function(trial,
-    matchedPair = FALSE,
+    matchedPair = TRUE,
     baselineNumerator='base_num',
     baselineDenominator='base_denom'){
 
-  cluster=NULL
+  cluster= base_num= base_denom= NULL
   trial$cluster = as.factor(trial$cluster)
   # Randomization, assignment to arms
   nclusters=length(unique(trial$cluster))
   #uniformly distributed numbers, take mean and boolean of that
   rand_numbers <- runif(nclusters,0,1)
-  trial$base_num = trial[[baselineNumerator]]
-  trial$base_denom = trial[[baselineDenominator]]
-  if (matchedPair){
+  if(!is.null(trial[[baselineNumerator]]) & matchedPair){
+    trial$base_num = trial[[baselineNumerator]]
+    trial$base_denom = trial[[baselineDenominator]]
     cdf = data.frame(trial %>%
               group_by(cluster) %>%
               dplyr::summarize(positives = sum(base_num),

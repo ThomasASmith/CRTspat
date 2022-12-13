@@ -110,16 +110,13 @@ test2=with(test2,test2[,c('x','y','base_num')])
 test2$base_denom = 1
 test3 = Aggregate_CRT(trial=test2,auxiliaries=c('base_num','base_denom'))
 # Plot map of locations
-plot1 = Plot_CRTmap(test3,maskbuffer=0.5)
-plot1
+Plot_CRTmap(test3,maskbuffer=0.5)
 # Assign and plot clusters specified to include 50 households
 test4 = DefineClusters(trial=test3, h=50, algo='NN')
-plot2 = Plot_CRTmap(trial=test4,maskbuffer=0.5)
-plot2
+Plot_CRTmap(trial=test4,maskbuffer=0.5)
 # Assign and plot trial arms using matched pairs randomisation
 test5 = Randomize_CRT(trial=test4,matchedPair = TRUE)
-plot3 = Plot_CRTmap(trial=test5,maskbuffer=0.5)
-plot3
+Plot_CRTmap(trial=test5,maskbuffer=0.5)
 ```
 
 ### Use Case 2: Simulation of trials
@@ -136,14 +133,15 @@ set.seed(1234)
 #   use co-ordinates, cluster and arm assignments, and baseline data from `test5` 
 test6b = Simulate_CRT(trial= test5,
                     efficacy=0.4,
-                    initialPrevalence = 0.4,
+                    initialPrevalence = 0.5,
                     generateBaseline=FALSE,
                     baselineNumerator='base_num',
                     baselineDenominator='base_denom',
                     ICC_inp=NULL,
                     theta_inp=0.2)
 
-results6b=Analyse_CRT(trial=test6b,method='GEE')
+results6b=Analyse_CRT(trial=test6b,method='ML')
+Plot_Contamination(analysis=results6b)
 ```
 
 #### Example with infectiousness proxy surface generated externally
@@ -155,7 +153,7 @@ test5a = test5[ , !(names(test5) %in% c("base_num","base_denom"))]
 test5a$infectiousness_proxy = 0.5*test5a$x - min(test5a$x)+1
 test6a = Simulate_CRT(trial= test5a,
                     efficacy=0.4,
-                    initialPrevalence = 0.4,
+                    initialPrevalence = 0.5,
                     generateBaseline=FALSE,
                     baselineNumerator='base_num',
                     baselineDenominator='base_denom',
@@ -170,7 +168,7 @@ set.seed(1234)
 #   use co-ordinates, cluster and arm assignments, and baseline data from `test5`
 test6c = Simulate_CRT(trial= test5,
                     efficacy=0.4,
-                    initialPrevalence = 0.4,
+                    initialPrevalence = 0.6,
                     generateBaseline=TRUE,
                     baselineNumerator='base_num',
                     baselineDenominator='base_denom',

@@ -6,9 +6,9 @@ test_that("Design_CRT() creates the default trial", {
                               ICC = 0.175,
                               pC = 0.4,
                               postulatedContaminationRange = 0.05,
-                              coordinates=CRTspillover::AvecNet_coordinates,
+                              coordinates=CRTspillover::test_coordinates,
                               h = 80)
-                            , test_AvecNet)
+                            , test_design)
 })
 set.seed(1234)
 test_that("Simulate_TrialSite() creates the default site", {
@@ -16,7 +16,7 @@ test_that("Simulate_TrialSite() creates the default site", {
 })
 set.seed(1234)
 test_that("Simulate_CRT() creates the default simulation", {
-  expect_identical(Simulate_CRT(trial=CRTspillover::test_AvecNet$assignments,
+  expect_identical(Simulate_CRT(trial=CRTspillover::test_design$assignments,
                                 theta_inp=1.2,
                                 initialPrevalence=0.4,
                                 ICC_inp=0.05,efficacy=0.2),
@@ -34,11 +34,10 @@ get_test = function(){
   testLocationsxy=Convert_LatLong(testLocationsLatLong) #test_site is simulated
   testAnonymisedLocations=Anonymise_TrialSite(testLocationsxy)
   testClusters=DefineClusters(testAnonymisedLocations,h=50)
-  testArms=Randomize_CRT(testClusters)
+  testArms=Randomize_CRT(trial=testClusters,matchedPair = FALSE)
   testBuffer=Specify_CRTbuffer(trial = testArms, bufferWidth = 0.1)
   return(testBuffer)
 }
-test_that("Anonymisation, randomization, and creation of buffer produces expected trial",
-          {
+test_that("Anonymisation, randomization, and creation of buffer produces expected trial",      {
   expect_identical(get_test(), testBuffer)
 })

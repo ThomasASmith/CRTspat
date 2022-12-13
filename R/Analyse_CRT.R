@@ -37,7 +37,7 @@
 #' @export
 #'
 #' @examples
-#' # Standard GEE analysis of test dataset
+#' # Standard GEE analysis of test dataset ignoring contamination
 #' exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
 
 Analyse_CRT <- function(trial,
@@ -178,11 +178,11 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   if(is.na(thetaU)) thetaU=max(trial$nearestDiscord)
   if(is.na(thetaL)) thetaL=min(trial$nearestDiscord)
   #contamination range
-  cat(deltaP,thetaU,thetaL,'\n')
   contaminatedInterval = c(thetaL,thetaU)
   if(thetaL > thetaU) contaminatedInterval= c(thetaU,thetaL)
   contaminationRange = thetaU - thetaL
-  # To remove warnings from plotting ensure that contamination range is non-zero
+  if(deltaP == 0) contaminationRange = NA
+  # To remove warnings from plotting ensure that contamination interval is non-zero
   if(is.na(contaminationRange) || contaminationRange == 0){contaminatedInterval <- c(-0.0001,0.0001)}
   #categorisation of trial data for plotting
   trial$cats<- cut(trial$nearestDiscord, breaks = c(-Inf,min(d)+seq(1:9)*range_d/10,Inf), labels = FALSE)
@@ -413,11 +413,11 @@ CalculateNoContaminationFunction <- function(par,trial){
 # piecewise linear model (on the logit scale) for contamination function
 
 CalculatePiecewiseLinearFunction <- function(par,trial){
-
-  theta <- par[3]
-  lp <- par[1] + (par[2]/(2*theta))*(theta - trial$nearestDiscord)
-  lp <- ifelse((trial$nearestDiscord < -theta),par[2]+par[1],lp)
-  lp <- ifelse((trial$nearestDiscord > theta),par[1],lp)
+  # constrain the slope parameter to be positive (par[2] is positive if efficacy is negative)
+  theta <- exp(par[3])
+  lp <-ifelse(trial$nearestDiscord > -theta, par[1] +
+                par[2]*(theta + trial$nearestDiscord)/(2*theta), par[1])
+  lp <-ifelse(trial$nearestDiscord > theta, par[1] + par[2], lp)
   return(lp)
 }
 
