@@ -36,7 +36,7 @@
 #'                                      sd=0.6,
 #'                                      tol=0.05)
 Simulate_CRT = function(trial=NULL,
-                        efficacy=NULL,
+                        efficacy=0,
                         initialPrevalence=NULL,
                         generateBaseline=TRUE,
                         baselineNumerator='base_num',
@@ -124,7 +124,8 @@ Simulate_CRT = function(trial=NULL,
                                                    baselineDenominator='base_denom',
                                                    method='aovs',
                                                    ci.type=NULL)
-              ICC = baseline_analysis$estimates$ICC
+              # If the current ICC cannot be estimated (because it is negative) use zero
+              ICC = ifelse(is.numeric(baseline_analysis$estimates$ICC),baseline_analysis$estimates$ICC,0)
               ICCs = c(ICCs,ICC)
               cat("bandwidth: ",bw[iter]*approx_diag,"  ICC=",ICC,"\n")
               deviation = ICC - ICC_inp
@@ -135,25 +136,28 @@ Simulate_CRT = function(trial=NULL,
     # Assign expected proportions to each location assuming a fixed efficacy.
 
     # Indicator of whether the source is intervened is (as.numeric(trial$arm[i]) - 1
-    # smoothedIntervened is the value of infectiousness_proxy smoothed to allow for mosquito movement and decremented
-    # by the effect of intervention and smoothed to allow
+    # smoothedIntervened is the value of infectiousness_proxy decremented
+    # by the effect of intervention and smoothed to allow for mosquito movement
 
     euclid <- distance_matrix(trial$x, trial$y)
     smoothedIntervened <- gauss(sd, euclid) %*% (trial$infectiousness_proxy * (1 -efficacy*(as.numeric(trial$arm) - 1)))
 
     # distances to nearest discordant households
     discord <- outer(trial$arm, trial$arm, "!=") #returns true & false.
-    euclidd <- ifelse(discord,euclid,99999.9) #ifelse(test_expression,yes,no), yes returns the elements for where test_expression is true.
+    euclidd <- ifelse(discord,euclid,99999.9)
+
+    #for the control arm return the minimal distance with a minus sign
     trial$nearestDiscord <- ifelse(trial$arm == 'control', - apply(euclidd, MARGIN=2, min), apply(euclidd, MARGIN=2, min))
-    #for the households with intervention return the minimal distance with a minus sign
 
     # npositives is the total number of positives to be distributed among the households
-    npositives = round(initialPrevalence*nrow(trial) * (1 - 0.5 * efficacy))
+    if(!("denom" %in% colnames(trial))) trial$denom=1
+    npositives = round(initialPrevalence*sum(trial$denom) * (1 - 0.5 * efficacy))
 
     # scale to input value of initial prevalence by assigning required number of infections with probabilities proportionate
-    # to smoothedIntervened
-    positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=smoothedIntervened)
-    trial$denom=1
+    # to smoothedIntervened multiplied by the denominator
+    expected_allocation = smoothedIntervened*trial$denom/sum(smoothedIntervened*trial$denom)
+
+    positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=expected_allocation)
     trial$num=0
     trial$num[positives]=1
     return(trial)

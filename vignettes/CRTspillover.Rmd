@@ -114,11 +114,11 @@ plot1 = Plot_CRTmap(test3,maskbuffer=0.5)
 plot1
 # Assign and plot clusters specified to include 50 households
 test4 = DefineClusters(trial=test3, h=50, algo='NN')
-plot2 = Plot_CRTmap(test4,maskbuffer=0.5)
+plot2 = Plot_CRTmap(trial=test4,maskbuffer=0.5)
 plot2
-# Assign and plot trial arms
-test5 = Randomize_CRT(test4)
-plot3 = Plot_CRTmap(test5,maskbuffer=0.5)
+# Assign and plot trial arms using matched pairs randomisation
+test5 = Randomize_CRT(trial=test4,matchedPair = TRUE)
+plot3 = Plot_CRTmap(trial=test5,maskbuffer=0.5)
 plot3
 ```
 

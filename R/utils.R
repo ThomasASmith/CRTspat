@@ -43,20 +43,23 @@ Randomize_CRT = function(trial,
     baselineDenominator='base_denom'){
 
   cluster=NULL
-
+  trial$cluster = as.factor(trial$cluster)
   # Randomization, assignment to arms
   nclusters=length(unique(trial$cluster))
   #uniformly distributed numbers, take mean and boolean of that
   rand_numbers <- runif(nclusters,0,1)
+  trial$base_num = trial[[baselineNumerator]]
+  trial$base_denom = trial[[baselineDenominator]]
   if (matchedPair){
     cdf = data.frame(trial %>%
               group_by(cluster) %>%
-              dplyr::summarize(positives = sum(baselineNumerator),
-                                         total = sum(baselineDenominator)))
+              dplyr::summarize(positives = sum(base_num),
+                               total = sum(base_denom)))
     cdf$p = cdf$positives/cdf$total
-    cdf = cdf[order[cdf$p]]
+    cdf = cdf[order(cdf$p),]
     cdf$pair = rep(seq(1,nclusters/2),2)
-    cdf = cdf[order[c(cdf$pair,rand_numbers)]]
+    cdf$rand_numbers = rand_numbers
+    cdf = cdf[with(cdf,order(pair,rand_numbers)),]
     cdf$arm = rep(c(1,0),nclusters/2)
     arm = cdf$arm[order(cdf$cluster)]
   } else {

@@ -175,6 +175,8 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   deltaP <- abs(PointEstimates$controlP - PointEstimates$interventionP)
   thetaL <- d[min(which(abs(PointEstimates$controlP - curve) > (0.025*deltaP)))]
   thetaU <- d[min(which(abs(PointEstimates$interventionP - curve) < (0.025*deltaP)))]
+  if(is.na(thetaU)) thetaU=max(trial$nearestDiscord)
+  if(is.na(thetaL)) thetaL=min(trial$nearestDiscord)
   #contamination range
   cat(deltaP,thetaU,thetaL,'\n')
   contaminatedInterval = c(thetaL,thetaU)
