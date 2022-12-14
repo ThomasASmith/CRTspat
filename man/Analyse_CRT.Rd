@@ -60,6 +60,6 @@ list containing the following results of the analysis
 \code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
 }
 \examples{
-# Standard GEE analysis of test dataset
+# Standard GEE analysis of test dataset ignoring contamination
 exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
 }

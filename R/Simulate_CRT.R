@@ -30,7 +30,7 @@
 #' @export
 #'
 #' @examples
-#' example_simulated_CRT =  Simulate_CRT(trial=CRTspillover::testArms,
+#' example_simulated_CRT =  Simulate_CRT(trial=CRTspillover::testArms,,
 #'                                      efficacy=0.25,
 #'                                      ICC_inp=0.05,
 #'                                      initialPrevalence=0.5,

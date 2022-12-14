@@ -216,7 +216,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     denom=NULL
     # specify functional form of sigmoid in distance from boundary
     # 'L' inverse logit; 'P' inverse probit; 'X' do not model contamination
-    FUN = switch(cont, 'L' = "invlogit(-x)", 'P' = "stats::pnorm(-x)", 'X' = NULL)
+    FUN = switch(cont, 'L' = "invlogit(x)", 'P' = "stats::pnorm(x)", 'X' = NULL)
 
     # create model formula
     fterms = ifelse(cont == 'X', 'y ~ 0 + b0', 'y ~ 0 + b0 + pvar')
@@ -298,15 +298,14 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     beta0= inlaResult$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]
     beta1= ifelse (cont != 'X', inlaResult$summary.fixed['pvar',c("0.025quant","0.5quant","0.975quant")],rep(0,3))
 
-    # This is a different parameterisation from that used for the ML models
-    pC = unlist(invlogit(beta0 + beta1))
-    pI = unlist(invlogit(beta0))
+    pC = unlist(invlogit(beta0))
+    pI = unlist(invlogit(beta0 + beta1))
     Es = 1 - pI/pC
 
     results$PointEstimates$controlP = unname(pC[2])
     results$PointEstimates$interventionP = unname(pI[2])
     results$PointEstimates$efficacy = unname(Es[2])
-    results$PointEstimates$contaminationParameter=-beta2
+    results$PointEstimates$contaminationParameter=beta2
 
     # Extract interval estimates 2.5%
     # these are 95% intervals irrespective of alpha
@@ -387,8 +386,8 @@ LogLikelihood <- function(par, FUN=FUN ,trial) {
 FittingResults <- function(trial, FUN1, par){
 
   # transform the parameters into interpretable functions
-  controlP <- 1/(1+exp(-par[1]))
-  interventionP <- 1/(1+exp(-(par[2] + par[1])))
+  controlP <- invlogit(par[1])
+  interventionP <- invlogit(par[2] + par[1])
   efficacy <- (controlP - interventionP)/controlP
 
   PointEstimates=list(controlP=controlP,
@@ -425,14 +424,14 @@ CalculatePiecewiseLinearFunction <- function(par,trial){
 # sigmoid (logit) function (on the logit scale) for contamination function
 CalculateLogisticFunction <- function(par,trial){
 
-  lp <- par[1] + par[2]/(1 + exp(par[3]*(trial$nearestDiscord)))
+  lp <- par[1] + par[2]*invlogit(par[3]*trial$nearestDiscord)
   return(lp)
 }
 
 # inverse probit function (on the logit scale) for contamination function
 CalculateProbitFunction <- function(par,trial){
 
-  lp <- par[1] + par[2]*stats::pnorm(-par[3]*(trial$nearestDiscord))
+  lp <- par[1] + par[2]*stats::pnorm(par[3]*trial$nearestDiscord)
   return(lp)
 }
 

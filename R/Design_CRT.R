@@ -19,9 +19,9 @@
 #' "NN": nearest neighbor;
 #' "kmeans": kmeans algorithm
 #' @param reuseTSP indicator of whether a pre-existing path should be used by the TSP algorithm
-#' @return A trial design object comprising a list with the following attributes:
+#' @return A list comprising a list the following elements:
 #' \itemize{
-#' \item \code{arm}: vector of assignments to trial arms
+#' \item \code{arm}: vector of cluster assignments by numerical order of cluster to trial arms
 #' \item \code{alpha}: confidence level
 #' \item \code{desiredPower}: desired power
 #' \item \code{effect}: Required effect size
@@ -30,7 +30,7 @@
 #' \item \code{pC}: baseline prevalence
 #' \item \code{n_ind}: required individuals per arm in an individually randomized trial
 #' \item \code{postulatedContaminationRange}: contamination range in km, obtained from other studies
-#' \item \code{h}: proposal for the number of households in each cluster
+#' \item \code{h}: proposed number of households in each cluster
 #' \item \code{algo}: algorithm used for cluster boundaries
 #' \item \code{assignments}: data frame containing locations, clusters and arm assignments
 #' \item \code{min_c}: minimum number of clusters required
