@@ -32,7 +32,6 @@
 #' \item \code{postulatedContaminationRange}: contamination range in km, obtained from other studies
 #' \item \code{h}: proposed number of households in each cluster
 #' \item \code{algo}: algorithm used for cluster boundaries
-#' \item \code{assignments}: data frame containing locations, clusters and arm assignments
 #' \item \code{min_c}: minimum number of clusters required
 #' }
 #' @export
@@ -69,7 +68,7 @@ Zpow = qnorm(desiredPower)
 pI = pC * (1- effect) # probability in intervened group
 d = pC -pI # difference between groups
 sigma2 = 1/2*(pI*(1-pI) + pC*(1-pC))
-n_ind <- 2*sigma2*((Zsig + Zpow)/d)^2
+n_ind <- 2*sigma2*((Zsig + Zpow)/d)^2 #required individuals per arm in individually randomized trial
 
 # see below for calculations of design effect and minimum numbers of clusters required
 
@@ -96,8 +95,7 @@ output = list(pC = pC,
               postulatedContaminationRange = postulatedContaminationRange,
               effect = effect,
               ICC = ICC,
-              h = h,
-              assignments = trial)
+              h = h)
 
 cat('=====================CLUSTER RANDOMISED TRIAL DESIGN =================\n')
 cat('Significance level: ',alpha,'\n')
@@ -125,43 +123,45 @@ describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
 
   arm=unique(trial[c("cluster", "arm")])[,2] #assignments
 
-  k = length(arm) # number of clusters assigned
+  k = length(arm)/2 # number of clusters assigned to each arm
 
   ##############################################################################
   # Step L computation of characteristics of the randomization
 
   sd_distance = stats::sd(trial$nearestDiscord)
 
-  #mean number of locations randomised to each arm
+  #mean number of locations randomized to each arm
   mean_h = mean(table(trial$cluster))
-  #standard deviation of locations randomised to each arm
+
+  #standard deviation of locations randomized to each arm
   sd_h = stats::sd(table(trial$cluster))
 
   # coefficient of variation of the cluster sizes
   cv_h = sd_h/mean_h
 
-  # design effect (Variance Inflation Factor) allowing for varying cluster sizes
+  # design effect (Variance Inflation Factor) allowing for varying cluster sizes(Hemming eqn 6)
   DE <- 1 + (cv_h^2 +1)*(mean_h-1)*ICC
 
-  # number of individuals required per arm in CRT
+  # number of individuals required per arm in CRT with equal cluster sizes
   n_crt = n_ind * DE
 
-  # minimum numbers of clusters required allowing for varying cluster sizes
-  min_c <- ceiling(n_ind*DE/mean_h)
+  # minimum numbers of clusters required assuming varying cluster sizes per arm (Hemming eqn 8)
+  min_k = ceiling(n_ind*(1+((cv_h + 1)*mean_h - 1)*ICC)/mean_h)
 
-  power = 1 - stats::pnorm(sqrt(k/2*ICC)* d/sqrt(sigma2) - Zsig)   #Hemming eqn 28
+  # power with k clusters per arm
+  power = stats::pnorm(sqrt(k*mean_h/(2*(1+(mean_h-1)*ICC)))* d/sqrt(sigma2) - Zsig)   #Hemming eqn 27
 
   cat('calculated design effect: ',DE,'\n')
   cat('Locations- total: ',nrow(trial),'. Per cluster mean: ',mean_h,'S.D.: ', sd_h,'\n')
   cat('S.D. of distance to nearest discordant location (km): ',sd_distance,'\n')
-  cat('Minimum clusters needed to achieve power of ',desiredPower*100,'%: ',min_c,'. Available clusters: ',length(arm),'\n')
+  cat('Minimum clusters (total over both arms) for power of ',desiredPower*100,'%: ',min_k,'. Available clusters: ',length(arm),'\n')
 
   CRT_description = list(trial=trial,
                          nominalDE = DE,
                          sd_distance = sd_distance,
                          mean_h = mean_h,
                          sd_h = sd_h,
-                         clustersRequired = min_c,
+                         clustersRequired = 2*min_k,
                          clustersAssigned = length(arm),
                          power=power)
 

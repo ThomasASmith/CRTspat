@@ -52,6 +52,7 @@ Analyse_CRT <- function(trial,
   ##############################################################################
   # MAIN FUNCTION CODE STARTS HERE
   cluster=NULL
+  cat('\n=====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================\n')
 
   if("buffer" %in% colnames(trial) & excludeBuffer)
   {
@@ -146,7 +147,12 @@ Analyse_CRT <- function(trial,
                  IntervalEstimates=IntervalEstimates,
                  ModelObject=ModelObject)
   }
-  cat('\n=====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================\n')
+  results$contamination = getContaminationCurve(trial=trial,
+                                                PointEstimates=results$PointEstimates,
+                                                FUN1=FUN1)
+  results$PointEstimates$contaminationRange =
+      ifelse(cont=='X',NA,results$contamination$contaminationRange)
+  results$contamination$contaminationRange = NULL
   cat('Analysis model: ',method,' Contamination option: ',cont,'\n')
   cat('Estimated Proportions- Control: ',round(results$PointEstimates$controlP,digits=3),' (95% CL: ',
       round(results$IntervalEstimates$controlP,digits=3),
@@ -154,9 +160,7 @@ Analyse_CRT <- function(trial,
       round(results$IntervalEstimates$interventionP,digits=3),')\n')
   cat('Efficacy: ',round(results$PointEstimates$efficacy,digits=3),' (95% CL: ',
       round(results$IntervalEstimates$efficacy,digits=3),')\n')
-  results$contamination = getContaminationCurve(trial=trial,
-                          PointEstimates=results$PointEstimates,
-                          FUN1=FUN1)
+  cat('Contamination Range: ',results$PointEstimates$contaminationRange,'\n')
 return(results)}
 
 getContaminationCurve = function(trial, PointEstimates, FUN1){
@@ -195,7 +199,6 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
     data$p = data$positives/data$total
     data$upper = with(data, p + 1.96*(sqrt(p*(1-p)/total)))
     data$lower = with(data, p - 1.96*(sqrt(p*(1-p)/total)))
-  cat('Contamination Range',contaminationRange,'\n')
 
   returnList = list(FittedCurve=data.frame(d=d,contaminationFunction=curve),
                   contaminationRange=contaminationRange,
@@ -241,12 +244,12 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     beta2=NA
     if(cont != 'X'){
       beta2 =  stats::optimize(f=estimateContamination,
-                       interval=c(0.1,10),
+                       interval=c(0.1,50),
                        trial=trial,
                        FUN=FUN,
                        inlaMesh=inlaMesh,
                        formula=formula,
-                       tol = 0.01)$minimum
+                       tol = 0.1)$minimum
       x = trial$nearestDiscord*beta2
       trial$pvar = eval(parse(text = FUN))
       effectse$df$pvar = trial$pvar
@@ -327,6 +330,10 @@ return(results)}
 #' @param ci.type method for estimating confidence intervals for ICC (uses package 'ICCbin')
 #' @return list containing calculation of average proportion and output from package 'ICCbin'
 #' @export
+# For binary data the ICC is computed using the iccbin function.
+# https://cran.r-project.org/web/packages/ICCbin/ICCbin.pdf gives the list of possible
+# methods. The default is aovs which uses a modified analysis of variance technique (see Fleiss, 1981)
+# TODO: for continuous outcomes use the psych::ICC function
 Analyse_baseline = function(trial,
                             baselineNumerator='base_num',
                             baselineDenominator='base_denom',
@@ -343,9 +350,11 @@ Analyse_baseline = function(trial,
 
   ests = ICCbin::iccbin(cid=as.factor(cluster), y=y, data=expand,
                                 method=method, ci.type=ci.type, alpha = 0.05)
+
   ests$description = noquote(prettyNum(c(nrow(trial),sum(expand$y),length(expand$y),
                            round(mean(expand$y),digits=3))))
   names(ests$description) = c('locations','events','denominator','proportion')
+  ests$trial=trial
 return(ests)}
 
 
@@ -712,7 +721,7 @@ estimateContamination = function(beta2 = beta2,
                    INLA::control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
   )
   loss = result.e$dic$family.dic
-  cat("DIC: ",loss," Contamination parameter: ",beta2,"\n")
+  cat("DIC: ",loss," Contamination parameter: ",beta2,"  \r")
   return(loss)}
 
 

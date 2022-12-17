@@ -16,17 +16,15 @@ test_that("Simulate_TrialSite() creates the default site", {
 })
 set.seed(1234)
 test_that("Simulate_CRT() creates the default simulation", {
-  expect_identical(Simulate_CRT(trial=CRTspillover::test_design$assignments,
-                                theta_inp=1.2,
-                                initialPrevalence=0.4,
-                                ICC_inp=0.05,efficacy=0.2),
-                   test_Simulate_CRT)
+  expect_identical(Simulate_CRT(trial=CRTspillover::test_design$descriptionFullTrial$trial,
+                  theta_inp=1.2,initialPrevalence=0.4,
+                  ICC_inp=0.05,efficacy=0.2,tol=0.05),
+                  test_Simulate_CRT)
 })
 set.seed(1234)
 test_that("Toy GEE analysis creates correct output", {
   expect_equal(Analyse_CRT(trial=test_Simulate_CRT,method='GEE',excludeBuffer = FALSE,
-                               requireBootstrap=FALSE,
-                               alpha=0.2), test_Analyse_CRT)
+                  requireBootstrap=FALSE,alpha=0.2), test_Analyse_CRT)
 })
 set.seed(1234)
 get_test = function(){
