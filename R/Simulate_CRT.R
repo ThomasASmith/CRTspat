@@ -54,7 +54,8 @@ Simulate_CRT = function(trial=NULL,
   #  Written by Tom Smith, July 2017
   #  Adapted by Lea Multerer, September 2017
   ##############################################################################
-
+  cat('\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n')
+    bw=NULL
     # use contamination range if this is available
     if (!is.null(theta_inp)){
       sd = theta_inp/(sqrt(2)*qnorm(0.95))
@@ -90,12 +91,10 @@ Simulate_CRT = function(trial=NULL,
                                 euclid=euclid,npositives=npositives,tol = tol)$minimum
           # overprint the output that was recording progress
           cat("\r                                                         \n")
+          # create a baseline dataset using the optimized bandwidth
+          trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
         }
     }
-
-    # create a baseline dataset using the optimized bandwidth
-    trial = createSyntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)$trial
-
     # Assign expected proportions to each location assuming a fixed efficacy.
 
     # Indicator of whether the source is intervened is (as.numeric(trial$arm[i]) - 1
@@ -134,12 +133,18 @@ ICCdeviation = function(bw=bw,
                         sd=sd,
                         euclid=euclid,
                         npositives=npositives){
-  baseline_analysis = createSyntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
-  cat("\rbandwidth: ",bw*approx_diag,"  ICC=",baseline_analysis$estimates$ICC,"          ")
-  loss = abs(baseline_analysis$estimates$ICC - ICC_inp)
+  cluster=NULL
+  trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
+  trial$base_neg = trial$base_denom - trial$base_num
+  fit <- geepack::geeglm(cbind(base_num,base_neg) ~ 1, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
+  summary_fit = summary(fit)
+  # Intracluster correlation
+  ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
+  cat("\rbandwidth: ",bw*approx_diag,"  ICC=",ICC,"          ")
+  loss = abs(ICC - ICC_inp)
 return(loss)}
 
-createSyntheticBaseline = function(bw,trial,sd,euclid,npositives){
+syntheticBaseline = function(bw,trial,sd,euclid,npositives){
   #assign initial pattern
   trial$infectiousness_proxy <- KDESmoother(trial$x,trial$y,kernnumber=200,bandwidth=bw,low=0.0,high=1.0)
 
@@ -155,14 +160,7 @@ createSyntheticBaseline = function(bw,trial,sd,euclid,npositives){
   trial$base_denom=1
   trial$base_num=0
   trial$base_num[positives]=1
-  baseline_analysis = Analyse_baseline(trial=trial,
-                                       baselineNumerator='base_num',
-                                       baselineDenominator='base_denom',
-                                       method='stab',
-                                       ci.type=NULL)
-  # If the current ICC cannot be estimated (because it is negative) use zero. The 'stab' option is used to make this unlikely.
-  baseline_analysis$estimates$ICC = ifelse(is.numeric(baseline_analysis$estimates$ICC),baseline_analysis$estimates$ICC,0)
-  return(baseline_analysis)
+  return(trial)
 }
 
 

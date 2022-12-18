@@ -8,15 +8,20 @@ Analyse_CRT(
   trial,
   method = "ML",
   cont = "L",
+  numerator = "num",
+  denominator = "denom",
   excludeBuffer = FALSE,
-  requireBootstrap = FALSE,
   alpha = 0.05,
+  requireBootstrap = FALSE,
+  baselineOnly = FALSE,
+  baselineNumerator = "base_num",
+  baselineDenominator = "base_denom",
   resamples = 1000,
   inlaMesh = NULL
 )
 }
 \arguments{
-\item{trial}{trial dataframe including locations, clusters, arms, and binary outcomes}
+\item{trial}{trial dataframe including locations, clusters, arms, and outcomes}
 
 \item{method}{statistical method used to analyse trial.
 options are:
@@ -35,11 +40,21 @@ options are:
 'P': inverse probit,
 'X': contamination not modelled'}
 
+\item{numerator}{name of numerator variable for efficacy data (if present)}
+
+\item{denominator}{name of denominator variable for efficacy data (if present)}
+
 \item{excludeBuffer}{exclude any buffer zone (records with buffer=TRUE) from the analysis}
+
+\item{alpha}{confidence level for confidence intervals and credible intervals}
 
 \item{requireBootstrap}{logical indicator of whether bootstrap confidence intervals are required}
 
-\item{alpha}{confidence level for confidence intervals and credible intervals}
+\item{baselineOnly}{logical: indicator of whether required analysis is of efficacy or of baseline only}
+
+\item{baselineNumerator}{name of numerator variable for baseline data (if present)}
+
+\item{baselineDenominator}{name of denominator variable for baseline data (if present)}
 
 \item{resamples}{number of bootstrap samples}
 

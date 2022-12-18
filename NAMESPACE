@@ -2,7 +2,6 @@
 
 export(Aggregate_CRT)
 export(Analyse_CRT)
-export(Analyse_baseline)
 export(Anonymise_TrialSite)
 export(Convert_LatLong)
 export(DefineClusters)

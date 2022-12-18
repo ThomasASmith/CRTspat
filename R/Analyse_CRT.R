@@ -1,7 +1,7 @@
 #' Analysis of cluster randomized trial with contamination
 #'
 #' \code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
-#' @param trial trial dataframe including locations, clusters, arms, and binary outcomes
+#' @param trial trial dataframe including locations, clusters, arms, and outcomes
 #' @param method statistical method used to analyse trial.
 #' options are:
 #' 'EMP'  : empirical,
@@ -17,9 +17,14 @@
 #' 'L': inverse logistic (sigmoid),
 #' 'P': inverse probit,
 #' 'X': contamination not modelled'
+#' @param numerator name of numerator variable for efficacy data (if present)
+#' @param denominator name of denominator variable for efficacy data (if present)
 #' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
-#' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
 #' @param alpha confidence level for confidence intervals and credible intervals
+#' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
+#' @param baselineOnly logical: indicator of whether required analysis is of efficacy or of baseline only
+#' @param baselineNumerator name of numerator variable for baseline data (if present)
+#' @param baselineDenominator name of denominator variable for baseline data (if present)
 #' @param resamples number of bootstrap samples
 #' @param inlaMesh name of pre-existing INLA input object created by CreateMesh()
 #' @return list containing the following results of the analysis
@@ -43,9 +48,14 @@
 Analyse_CRT <- function(trial,
                         method='ML',
                         cont='L',
+                        numerator='num',
+                        denominator='denom',
                         excludeBuffer=FALSE,
-                        requireBootstrap=FALSE,
                         alpha = 0.05,
+                        requireBootstrap=FALSE,
+                        baselineOnly=FALSE,
+                        baselineNumerator='base_num',
+                        baselineDenominator='base_denom',
                         resamples=1000,
                         inlaMesh=NULL){
 
@@ -58,26 +68,44 @@ Analyse_CRT <- function(trial,
   {
     trial = trial[!trial$buffer,]
   }
+  #store the input trial so that any changes to this can be removed before output
+  input_trial = trial
+
   #trial needs to be ordered for some analyses
   trial <- trial[order(trial$cluster),]
 
-  # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant coordinate
-  # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
-  if(is.null(trial$nearestDiscord)) {trial <- Specify_CRTbuffer(trial=trial,bufferWidth=0)}
+  if(method=='EMP' | method=='GEE') cont = 'X'
+  if(baselineOnly){
+    if(method %in% c('EMP','ML','GEE')){
+      method='GEE'
+      cat('Analysis of baseline only, using method GEE\n')
+    } else if(method %in% c('LR','CRE','SPDE','SPCRE')) {
+      method='CRE'
+      cat('Analysis of baseline only, using method CRE\n')
+    }
+    # cont='Z' is used to remove the estimation of effect size from the model
+    cont= 'Z'
+    trial$neg=trial[[baselineDenominator]]-trial[[baselineNumerator]]
+    trial$denom=trial[[baselineDenominator]]
 
+  } else {
+    trial$neg=trial[[denominator]]-trial[[numerator]]
+    trial$denom=trial[[denominator]]
+
+    # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant coordinate
+    # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
+    if(is.null(trial$nearestDiscord)) {trial <- Specify_CRTbuffer(trial=trial,bufferWidth=0)}
+  }
   PointEstimates=ModelObject=list()
   IntervalEstimates=list(controlP=NA,interventionP=NA,efficacy=NA)
   sd = 0.5/(qnorm(1-alpha)*sqrt(2)) #initial value used in bootstrap calculations
-  trial$neg=trial$denom - trial$num  #count of negatives for use in geeglm formulae
-
   description= get_description(trial)
-
   # Specify the function used for calculating the linear predictor
-  if(method=='EMP' | method=='GEE') cont = 'X'
-  LPfunction = c('CalculateNoContaminationFunction',
+  LPfunction = c('CalculateNoEffect',
+                 'CalculateNoContaminationFunction',
                  'CalculatePiecewiseLinearFunction',
                  'CalculateLogisticFunction',
-                 'CalculateProbitFunction')[which (cont == c('X','S','L','P'))]
+                 'CalculateProbitFunction')[which (cont == c('Z','X','S','L','P'))]
   FUN2 <- FUN1 <- eval(parse(text=LPfunction))
 
   if(method=='EMP'){
@@ -90,8 +118,9 @@ Analyse_CRT <- function(trial,
       PointEstimates$bootstrapMean_efficacy = mean(boot_an05$t)
       IntervalEstimates$efficacy <- namedCL(quantile(boot_an05$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
-  } else if(method=='GEE'){
-    #GEE analysis with cluster effects
+  }
+  if(method=='GEE'){
+    #GEE analysis of cluster effects
     ModelObject <- GEEAnalysis(trial,alpha=alpha,resamples=resamples)
     PointEstimates <- ModelObject$PointEstimates
     PointEstimates$contaminationParameter = NA #contamination is not estimated
@@ -316,47 +345,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     results$IntervalEstimates$controlP = stats::setNames(c(pC[1],pC[3]),c('2.5%','97.5%'))
     results$IntervalEstimates$interventionP = stats::setNames(c(pI[1],pI[3]),c('2.5%','97.5%'))
     results$IntervalEstimates$efficacy = stats::setNames(c(Es[1],Es[3]),c('2.5%','97.5%'))
-
 return(results)}
-
-
-
-#' Simple description and estimation of intra-cluster correction (ICC) from baseline data
-#'
-#' @param trial trial dataframe containing cluster assignments (variable cluster), numerators (num), and denominators (denom)
-#' @param baselineNumerator name of numerator variable for baseline data (if present)
-#' @param baselineDenominator name of denominator variable for baseline data (if present)
-#' @param method method for estimating ICC (uses package 'ICCbin')
-#' @param ci.type method for estimating confidence intervals for ICC (uses package 'ICCbin')
-#' @return list containing calculation of average proportion and output from package 'ICCbin'
-#' @export
-# For binary data the ICC is computed using the iccbin function.
-# https://cran.r-project.org/web/packages/ICCbin/ICCbin.pdf gives the list of possible
-# methods. The default is aovs which uses a modified analysis of variance technique (see Fleiss, 1981)
-# TODO: for continuous outcomes use the psych::ICC function
-Analyse_baseline = function(trial,
-                            baselineNumerator='base_num',
-                            baselineDenominator='base_denom',
-                            method='aovs',
-                            ci.type='aov'){
-  cluster=y=NULL
-  # If numerators are not provided, assign a value of 1 to all records
-  if(is.null(trial[[baselineDenominator]])) { trial[[baselineDenominator]] = 1 }
-  expand= do.call(rbind.data.frame, lapply(1:nrow(trial), function(i) {
-    neg=trial[[baselineDenominator]][i]-trial[[baselineNumerator]][i]
-    df = rbind(data.frame(cluster = trial$cluster[i], y=1, z=0:trial[[baselineNumerator]][i]),
-               data.frame(cluster = trial$cluster[i], y=0, z=0:neg))
-    return(df[df$z > 0, c('cluster','y')])}))
-
-  ests = ICCbin::iccbin(cid=as.factor(cluster), y=y, data=expand,
-                                method=method, ci.type=ci.type, alpha = 0.05)
-
-  ests$description = noquote(prettyNum(c(nrow(trial),sum(expand$y),length(expand$y),
-                           round(mean(expand$y),digits=3))))
-  names(ests$description) = c('locations','events','denominator','proportion')
-  ests$trial=trial
-return(ests)}
-
 
 #add labels to confidence limits
 namedCL=function(limits,alpha=alpha){
@@ -409,6 +398,11 @@ FittingResults <- function(trial, FUN1, par){
 ##############################################################################
 #  Different functions for the linear predictor
 ##############################################################################
+
+CalculateNoEffect <- function(par,trial){
+  lp <- par[1]
+  return(lp)
+}
 
 # step function for the case with no contamination
 
