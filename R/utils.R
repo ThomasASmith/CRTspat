@@ -279,7 +279,7 @@ Convert_LatLong = function(df,latvar='lat',longvar='long'){
 #' transformedTestlocations=Anonymise_TrialSite()
 
 Anonymise_TrialSite = function(trial=CRTspillover::test_site){
-
+  # Local data from study area (ground survey and/or satellite images)
   # random rotation angle
   theta= 2 * pi * runif(n=1)
   x= trial$x
@@ -302,7 +302,4 @@ Anonymise_TrialSite = function(trial=CRTspillover::test_site){
   trial$y = recentred[2,]
 
   return(trial)}
-
-# Local data from study area (ground survey and/or satellite images)
-
 

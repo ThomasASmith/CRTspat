@@ -138,10 +138,11 @@ test6b = Simulate_CRT(trial= test5,
                     baselineNumerator='base_num',
                     baselineDenominator='base_denom',
                     ICC_inp=NULL,
-                    theta_inp=0.2)
+                    theta_inp=0.8)
 
-results6b=Analyse_CRT(trial=test6b,method='ML')
+results6b=Analyse_CRT(trial=test6b,method='SPDE',inlaMesh = inlaMeshTest)
 Plot_Contamination(analysis=results6b)
+Plot_CRTmap(analysis=results6b,trial=test6b,showProportion = TRUE)
 ```
 
 #### Example with infectiousness proxy surface generated externally
@@ -154,12 +155,11 @@ test5a$infectiousness_proxy = 0.5*test5a$x - min(test5a$x)+1
 test6a = Simulate_CRT(trial= test5a,
                     efficacy=0.4,
                     initialPrevalence = 0.5,
-                    generateBaseline=FALSE,
-                    baselineNumerator='base_num',
-                    baselineDenominator='base_denom',
+                    generateBaseline=TRUE,
                     ICC_inp=NULL,
-                    theta_inp=0.2)
-results6a = Analyse_CRT(trial=test6a,method='GEE')
+                    theta_inp=0.5)
+results6a = Analyse_CRT(trial=test6a,method='SPDE',inlaMesh = inlaMeshTest)
+Plot_CRTmap(trial=test6a,analysis=results6a,showProportion = TRUE)
 ```
 
 #### Example with baseline generated from user-provided values of the overall initial prevalence and ICC

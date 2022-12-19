@@ -61,15 +61,15 @@ Analyse_CRT <- function(trial,
 
   ##############################################################################
   # MAIN FUNCTION CODE STARTS HERE
-  cluster=NULL
   cat('\n=====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================\n')
+  #store the input trial so that any changes to this can be removed before output
+  input_trial = trial
+  cluster=NULL
 
   if("buffer" %in% colnames(trial) & excludeBuffer)
   {
     trial = trial[!trial$buffer,]
   }
-  #store the input trial so that any changes to this can be removed before output
-  input_trial = trial
 
   #trial needs to be ordered for some analyses
   trial <- trial[order(trial$cluster),]
@@ -85,8 +85,9 @@ Analyse_CRT <- function(trial,
     }
     # cont='Z' is used to remove the estimation of effect size from the model
     cont= 'Z'
-    trial$neg=trial[[baselineDenominator]]-trial[[baselineNumerator]]
-    trial$denom=trial[[baselineDenominator]]
+    trial$base_num=trial[[baselineNumerator]]
+    trial$base_neg=trial[[baselineDenominator]]-trial[[baselineNumerator]]
+    trial$base_denom=trial[[baselineDenominator]]
 
   } else {
     trial$neg=trial[[denominator]]-trial[[numerator]]
@@ -121,19 +122,50 @@ Analyse_CRT <- function(trial,
   }
   if(method=='GEE'){
     #GEE analysis of cluster effects
-    ModelObject <- GEEAnalysis(trial,alpha=alpha,resamples=resamples)
-    PointEstimates <- ModelObject$PointEstimates
-    PointEstimates$contaminationParameter = NA #contamination is not estimated
-    IntervalEstimates <- ModelObject$IntervalEstimates
-    if(requireBootstrap){
-      ml <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
+    # create model formula
+    fterms = ifelse(cont == 'Z', 'cbind(base_num,base_neg) ~ 1', 'cbind(num,neg) ~ arm')
+    formula <- stats::as.formula(paste(fterms, collapse = " + "))
 
-      boot_output <- boot::boot(data=trial, statistic=BootGEEAnalysis,
-                                R=resamples, sim="parametric", ran.gen=rgen_GEE, mle=ml)
+    fit <- geepack::geeglm(formula=formula, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
+    summary_fit = summary(fit)
 
-      PointEstimates$bootstrapMean_efficacy = mean(boot_output$t)
-      IntervalEstimates$bootstrapEfficacy <- namedCL(quantile(boot_output$t,c(alpha/2,1-alpha/2)),alpha=alpha)
+    z=-qnorm(alpha/2) #standard deviation score for calculating confidence intervals
+    logitpC = summary_fit$coefficients[1,1]
+    se_logitpC = summary_fit$coefficients[1,2]
+    CL_pC = namedCL(invlogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),alpha=alpha)
+
+    # Intracluster correlation
+    ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
+    se_ICC = noLabels(summary_fit$corr[2])
+    CL_ICC = namedCL(noLabels(c(ICC-z*se_ICC,ICC+z*se_ICC)),alpha=alpha)
+
+    clusterSize = nrow(trial)/nlevels(as.factor(trial$cluster))
+    DesignEffect = 1 + (clusterSize - 1)*ICC #Design Effect
+    CL_DesignEffect = 1 + (clusterSize - 1)*CL_ICC
+
+    PointEstimates=list(controlP=invlogit(logitpC),
+                        ICC=ICC,
+                        DesignEffect=DesignEffect,
+                        ModelObject=fit)
+    IntervalEstimates=list(controlP=CL_pC,
+                           ICC=CL_ICC,
+                           DesignEffect=CL_DesignEffect)
+
+    # Estimation of efficacy does not apply if analysis is of baseline only (cont='Z')
+    if(cont=='X'){
+      logitpI = summary_fit$coefficients[1,1] + summary_fit$coefficients[2,1]
+      se_logitpI = sqrt(fit$geese$vbeta[1,1] + fit$geese$vbeta[2,2] + 2*fit$geese$vbeta[1,2])
+
+      CL_pI = namedCL(invlogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
+      CL_eff = estimateCLEfficacy(mu=summary_fit$coefficients[,1], Sigma=fit$geese$vbeta ,alpha=alpha, resamples=resamples)
+
+      PointEstimates$interventionP=invlogit(logitpI)
+      PointEstimates$efficacy=(1 - invlogit(logitpI)/invlogit(logitpC))
+      IntervalEstimates$interventionP=CL_pI
+      IntervalEstimates$efficacy=CL_eff
     }
+    PointEstimates$contaminationParameter = NA #contamination is not estimated
+
   } else if(method == 'ML'){
     ############### ML Methods with contamination functions and logistic link #################
 
@@ -206,8 +238,13 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   #estimate contamination range
   #The absolute value of deltaP is used so that a positive range is obtained even with negative efficacy
   deltaP <- abs(PointEstimates$controlP - PointEstimates$interventionP)
-  thetaL <- d[min(which(abs(PointEstimates$controlP - curve) > (0.025*deltaP)))]
-  thetaU <- d[min(which(abs(PointEstimates$interventionP - curve) < (0.025*deltaP)))]
+  thetaL = thetaU = NA
+  if (abs(PointEstimates$controlP - curve[1000]) > (0.025*deltaP)) {
+    thetaL <- d[min(which(abs(PointEstimates$controlP - curve) > (0.025*deltaP)))]
+  }
+  if (abs(PointEstimates$interventionP - curve[1000]) < (0.025*deltaP)) {
+    thetaU <- d[min(which(abs(PointEstimates$interventionP - curve) < (0.025*deltaP)))]
+  }
   if(is.na(thetaU)) thetaU=max(trial$nearestDiscord)
   if(is.na(thetaL)) thetaL=min(trial$nearestDiscord)
   #contamination range
@@ -247,11 +284,15 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
 
     denom=NULL
     # specify functional form of sigmoid in distance from boundary
-    # 'L' inverse logit; 'P' inverse probit; 'X' do not model contamination
-    FUN = switch(cont, 'L' = "invlogit(x)", 'P' = "stats::pnorm(x)", 'X' = NULL)
+    # 'L' inverse logit; 'P' inverse probit; 'X' or 'Z' do not model contamination
+    FUN = switch(cont, 'L' = "invlogit(x)", 'P' = "stats::pnorm(x)", 'X' = NULL, 'Z' = NULL)
 
     # create model formula
-    fterms = ifelse(cont == 'X', 'y ~ 0 + b0', 'y ~ 0 + b0 + pvar')
+    fterms = switch(cont,
+                    'Z' = 'y ~ 1',
+                    'X' = 'y ~ 0 + b0',
+                    'L' ='y ~ 0 + b0 + pvar',
+                    'P' ='y ~ 0 + b0 + pvar')
 
     fterms = c(fterms, switch(method,
                               'CRE' = 'f(cluster, model = "iid")',
@@ -271,7 +312,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
                    s = inlaMesh$indexs)
     lc=NULL
     beta2=NA
-    if(cont != 'X'){
+    if(cont %in% c('L','P')){
       beta2 =  stats::optimize(f=estimateContamination,
                        interval=c(0.1,50),
                        trial=trial,
@@ -307,7 +348,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
 
     # stk.full comprises both stk.e and stk.p
     stk.full <- INLA::inla.stack(stk.e, stk.p)
-    cat('Starting full INLA analysis','\n')
+    cat('Starting full INLA analysis                  \n')
 
     inlaResult <- INLA::inla(formula,
                    family = "binomial",
@@ -319,7 +360,6 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
                      compute = TRUE,link = 1,
                      A = INLA::inla.stack.A(stk.full)),
                    control.compute = list(dic = TRUE),
-                   INLA::control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
     )
     # Augment the inla results list with application specific quantities
 
@@ -439,43 +479,7 @@ CalculateProbitFunction <- function(par,trial){
 }
 
 ##############################################################################
-
-GEEAnalysis <- function(trial,alpha=alpha, resamples=resamples){
-
-  cluster=NULL
-  fit <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
-  summary_fit = summary(fit)
-  logitpC = summary_fit$coefficients[1,1]
-  logitpI = summary_fit$coefficients[1,1] + summary_fit$coefficients[2,1]
-  se_logitpC = summary_fit$coefficients[1,2]
-  se_logitpI = sqrt(fit$geese$vbeta[1,1] + fit$geese$vbeta[2,2] + 2*fit$geese$vbeta[1,2])
-  z=-qnorm(alpha/2) #standard deviation score for calculating confidence intervals
-  CL_pC = namedCL(invlogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),alpha=alpha)
-  CL_pI = namedCL(invlogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
-  CL_eff = estimateCLEfficacy(mu=summary_fit$coefficients[,1], Sigma=fit$geese$vbeta ,alpha=alpha, resamples=resamples)
-
-  # Intracluster correlation
-  ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
-  se_ICC = noLabels(summary_fit$corr[2])
-  CL_ICC = namedCL(noLabels(c(ICC-z*se_ICC,ICC+z*se_ICC)),alpha=alpha)
-
-  clusterSize = nrow(trial)/nlevels(as.factor(trial$cluster))
-  DesignEffect = 1 + (clusterSize - 1)*ICC #Design Effect
-  CL_DesignEffect = 1 + (clusterSize - 1)*CL_ICC
-
-  PointEstimates=list(controlP=invlogit(logitpC),
-                      interventionP=invlogit(logitpI),
-                      efficacy=(1 - invlogit(logitpI)/invlogit(logitpC)),
-                      ICC=ICC,
-                      DesignEffect=DesignEffect,
-                      ModelObject=fit)
-  IntervalEstimates=list(controlP=CL_pC,
-                         interventionP=CL_pI,
-                         efficacy=CL_eff,
-                         ICC=CL_ICC,
-                         DesignEffect=CL_DesignEffect)
-  estimates=list(PointEstimates=PointEstimates,IntervalEstimates=IntervalEstimates)
-  return(estimates)}
+# Functions for GEE analysis
 
 noLabels=function(x){
   xclean = as.matrix(x)
@@ -494,6 +498,7 @@ estimateCLEfficacy = function(mu, Sigma,alpha=alpha, resamples=resamples){
   CL = quantile(eff, probs = c(alpha/2, 1-alpha/2))
 return(CL)}
 
+##############################################################################
 #functions for analysis of Maximum Likelihood models
 
 rgen<-function(data,mle){
@@ -564,28 +569,6 @@ BootEmpiricalAnalysis <- function(resampledData){
   pChat <- description$control$mean
   pIhat <- description$intervention$mean
   Eshat <- 1 -  pIhat/pChat
-
-  return(Eshat)
-}
-
-##############################################################################
-#functions for bootstrap resampling of GEE
-
-rgen_GEE <- function(data,mle){
-  out<-data
-  out$num <- unlist(simulate(mle))
-  return(out)
-}
-
-BootGEEAnalysis <- function(resampledData){
-
-  cluster=NULL
-  resampledData <- resampledData[order(resampledData$cluster),]
-  fit <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=resampledData, family=binomial(link="logit"))
-
-  pChat <- exp(fit$coefficients[1])/(1+exp(fit$coefficients[1]))
-  pIhat <- exp(sum(fit$coefficients))/(1+exp(sum(fit$coefficients)))
-  Eshat <- 1 - pIhat/pChat
 
   return(Eshat)
 }
@@ -711,9 +694,7 @@ estimateContamination = function(beta2 = beta2,
                    control.predictor = list(
                      compute = TRUE,link = 1,
                      A = INLA::inla.stack.A(stk.e)),
-                   control.compute = list(dic = TRUE),
-                   INLA::control.inla(strategy = 'simplified.laplace', huge = TRUE) #this is to make it run faster
-  )
+                   control.compute = list(dic = TRUE))
   loss = result.e$dic$family.dic
   cat("DIC: ",loss," Contamination parameter: ",beta2,"  \r")
   return(loss)}

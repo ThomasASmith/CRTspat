@@ -66,34 +66,39 @@ Simulate_CRT = function(trial=NULL,
       return(trial)
     }
 
+    # For the smoothing step compute contributions to the relative effect size
+    # from other households as a function of distance to the other households
+
+    euclid <- distance_matrix(trial$x, trial$y)
+
     # generate baseline data if required and exposure proxy if this is not provided
+
     if(!"infectiousness_proxy" %in% colnames(trial) &
-       baselineNumerator %in% colnames(trial) &
-       baselineDenominator %in% colnames(trial)) {
-       trial$infectiousness_proxy = trial[[baselineNumerator]]/trial[[baselineDenominator]]
-    } else {
-        if(generateBaseline) {
-          # simulate baseline data with a specified ICC
+       baselineNumerator %in% colnames(trial) & baselineDenominator %in% colnames(trial)){
+        trial$infectiousness_proxy = trial[[baselineNumerator]]/trial[[baselineDenominator]]
+    } else if("infectiousness_proxy" %in% colnames(trial)){
+      # create a baseline dataset using a pre-existing exposure proxy
+      npositives = round(initialPrevalence*nrow(trial))
+      trial = syntheticBaseline(bw=NULL,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
+    } else if(generateBaseline){
+        # determine the required smoothing bandwidth by fitting to the pre-specified ICC
 
-          # compute approximate diagonal of clusters
-          approx_diag = sqrt((max(trial$x)-min(trial$x))^2 + (max(trial$y)-min(trial$y))^2)/sqrt(length(unique(trial$cluster)))
+        # compute approximate diagonal of clusters
+        approx_diag = sqrt((max(trial$x)-min(trial$x))^2 + (max(trial$y)-min(trial$y))^2)/sqrt(length(unique(trial$cluster)))
 
-          # number of positives required to match the specified prevalence
-          npositives = round(initialPrevalence*nrow(trial))
+        # number of positives required to match the specified prevalence
+        npositives = round(initialPrevalence*nrow(trial))
 
-          # For the smoothing step compute contributions to the relative effect size
-          # from other households as a function of distance to the other households
 
-          euclid <- distance_matrix(trial$x, trial$y)
-          cat("Estimating the smoothing required to achieve the target ICC of",ICC_inp,"\n")
-          bw =  stats::optimize(f=ICCdeviation,interval=c(0.1,10),
-                                trial=trial,ICC_inp=ICC_inp,approx_diag=approx_diag,sd=sd,
-                                euclid=euclid,npositives=npositives,tol = tol)$minimum
-          # overprint the output that was recording progress
-          cat("\r                                                         \n")
-          # create a baseline dataset using the optimized bandwidth
-          trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
-        }
+        cat("Estimating the smoothing required to achieve the target ICC of",ICC_inp,"\n")
+        bw =  stats::optimize(f=ICCdeviation,interval=c(0.1,10),
+                              trial=trial,ICC_inp=ICC_inp,approx_diag=approx_diag,sd=sd,
+                              euclid=euclid,npositives=npositives,tol = tol)$minimum
+        # overprint the output that was recording progress
+        cat("\r                                                         \n")
+
+        # create a baseline dataset using a pre-existing exposure proxy or optimized bandwidth
+        trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
     }
     # Assign expected proportions to each location assuming a fixed efficacy.
 
@@ -101,7 +106,6 @@ Simulate_CRT = function(trial=NULL,
     # smoothedIntervened is the value of infectiousness_proxy decremented
     # by the effect of intervention and smoothed to allow for mosquito movement
 
-    euclid <- distance_matrix(trial$x, trial$y)
     smoothedIntervened <- gauss(sd, euclid) %*% (trial$infectiousness_proxy * (1 -efficacy*(as.numeric(trial$arm) - 1)))
 
     # distances to nearest discordant households
@@ -145,9 +149,10 @@ ICCdeviation = function(bw=bw,
 return(loss)}
 
 syntheticBaseline = function(bw,trial,sd,euclid,npositives){
-  #assign initial pattern
-  trial$infectiousness_proxy <- KDESmoother(trial$x,trial$y,kernnumber=200,bandwidth=bw,low=0.0,high=1.0)
-
+  #assign initial pattern if it does not exist
+  if(!is.null(bw)){
+    trial$infectiousness_proxy <- KDESmoother(trial$x,trial$y,kernnumber=200,bandwidth=bw,low=0.0,high=1.0)
+  }
   # Smooth the exposure proxy to allow for mosquito movement
   # Note that the s.d. in each dimension of the 2 d gaussian is sd/sqrt(2)
   # smoothedBaseline is the amount received by the each cluster from the contributions (infectiousness_proxy) of each source
