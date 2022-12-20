@@ -56,9 +56,8 @@ The package functions are as follows:
 |_Simulate_CRT()_|simulation of outcomes|cluster and arm assignments|simulated proportions by record|
 |_Specify_CRTbuffer_|specification of buffer zones |assignment of arms (column 'arm')|assignment of buffer (column 'buffer')|
 |_Aggregate_CRT()_|aggregation of records by location |outcome (proportion) by record|proportions by unique location|
-|_Plot_CRTmap()_|mapping of locations, clusters, arms|unique locations|maps of locations and assignments|
-|_Analyse_baseline()_|description of baseline data and estimation of ICC|outcome (proportion) by record|statistical analysis|
-|_Analyse_CRT()_|standard analyses of efficacy and range of contamination|outcome (proportion) by record; cluster and arm assignments|statistical analysis, outputs depend on choice of method|
+|_Plot_CRTmap()_|mapping of locations, clusters, arms, outcomes|unique locations|maps of locations and assignments|
+|_Analyse_CRT()_|standard analyses of efficacy (or baseline data) of ICC, or of contamination range|outcome (proportion) by record; cluster and arm assignments|statistical analysis, outputs depend on choice of method|
 
 For details of the additional parameters required on input and of the outputs, see the documentation under each function. The term 'record' refers to the rows in the dataframe, which often, but not always, correspond to unique locations.
 
