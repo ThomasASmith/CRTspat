@@ -1,7 +1,7 @@
 ---
 title: "CRTspillover package"
 author: "Tom Smith, Lea Multerer"
-date: "`r Sys.Date()`"
+date: "2022-12-20"
 output:
   rmarkdown::html_vignette:
   toc: true
@@ -12,40 +12,40 @@ vignette: >
 ---
 
 <!--To build the vignette first Knit and then use:
-rmarkdown.html_vignette.check_title = FALSE 
+rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
---> 
+-->
 ## Summary
 
 The `CRTspillover` package is intended to support the design and analysis of cluster-randomized trials (CRTs) where there is geographical contamination between the arms. It can also be used in simulation of such CRTs to support development of improved methodology. An important set of applications is in field trials of vector-control interventions against malaria.
 
-The package can facilitate design of efficient trials by providing algorithms for: 
-+ algorithmic assignment of clusters (and buffer zones) 
-+ analysis of the effects of spill-over 
+The package can facilitate design of efficient trials by providing algorithms for:
++ algorithmic assignment of clusters (and buffer zones)
++ analysis of the effects of spill-over
 + simulation of trials based on the geography of previously studied field sites and trials, and observed spatial patterns of outcomes, or on geographical information from novel sites.
 
-The methods are described in the papers [Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).  
+The methods are described in the papers [Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
 
-##  Anticipated use cases 
+##  Anticipated use cases
 
 + Algorithmic definition of clusters and of buffer zones (if required)
 + Simulation of trials (for evaluating power and testing methods)
 + Analysis of trials allowing for spillover effects
-+ Determination of optimal cluster size 
-+ Determining the effects of different sizes of buffer zones 
-+ Estimation of intracluster correlations (ICC), contamination ranges and efficacy  
++ Determination of optimal cluster size
++ Determining the effects of different sizes of buffer zones
++ Estimation of intracluster correlations (ICC), contamination ranges and efficacy
 + Power and sample size calculations allowing for contamination
 + Anonymising input locations (if required for sharing reference datasets).
 
-##  Package functions 
+##  Package functions
 
 The package functions are as follows:
 
 | Function name | Purpose | Pre-requirements | Outputs |
 |-------------------:|:---------------|---------------|:--------------------:|
 |_Simulate_TrialSite()_|creation of simulated locations|no pre-existing trial|locations in x,y format (columns 'x','y')|
-|_Convert_LatLong_|conversion of latlong geolocations to cartesian coordinates|geolocations in lat-long |locations in x,y format (columns 'x','y')| 
-|_Anonymise_TrialSite()_|anonymisation of locations (while preserving distances)|locations in x,y format (columns 'x','y') |locations in x,y format (columns 'x','y')| 
+|_Convert_LatLong_|conversion of latlong geolocations to cartesian coordinates|geolocations in lat-long |locations in x,y format (columns 'x','y')|
+|_Anonymise_TrialSite()_|anonymisation of locations (while preserving distances)|locations in x,y format (columns 'x','y') |locations in x,y format (columns 'x','y')|
 |_Design_CRT()_|determination of required number of clusters|locations in x,y format (columns 'x','y') | Estimated minimum number of clusters; Cluster assignments|
 |_DefineClusters()_|algorithmic assignment of clusters|locations in x,y format (columns 'x','y') |assignment of clusters (column 'cluster')|
 |_Randomize_CRT()_|randomization|assignment of clusters (column 'cluster')|assignment of arms (column 'arm')|
@@ -60,20 +60,14 @@ For details of the additional parameters required on input and of the outputs, s
 
 ## General Workflow
 
-The use of the package starts with selection of a set of locations.  These may be derived from a field site, or if the objective is a generic evaluation of methods, simulated locations can be used, most straightforwardly by generating them using `Simulate_TrialSite()`. The dataframe containing the locations is then incrementally augmented with clusters, arms, and trial outcomes (working through Figure 1 from top to bottom, see below). At each stage the augmentation can use either existing data from field trials or pre-determined values (blue boxes in Figure 1), or can be automated using the package functions (green boxes in Figure 1). The analysis routines in the package can be used to inform the choice of parameters, by quantifying degree of contamination between arms, required numbers of clusters, statistical power etc.. 
+The use of the package starts with selection of a set of locations.  These may be derived from a field site, or if the objective is a generic evaluation of methods, simulated locations can be used, most straightforwardly by generating them using `Simulate_TrialSite()`. The dataframe containing the locations is then incrementally augmented with clusters, arms, and trial outcomes (working through Figure 1 from top to bottom, see below). At each stage the augmentation can use either existing data from field trials or pre-determined values (blue boxes in Figure 1), or can be automated using the package functions (green boxes in Figure 1). The analysis routines in the package can be used to inform the choice of parameters, by quantifying degree of contamination between arms, required numbers of clusters, statistical power etc..
 
 _Figure 1. Workflow_
 
-![image info](./figures/workflow.svg){ width=100% }
+![image info](./vignettes/workflow.svg){ width=100% }
 (functions in brackets represent optional steps)
 
-<!--You can also embed plots, for example:
-
-```{r pressure, fig.path=('figures/'),echo=FALSE}
-plot(pressure)
-```
-
-<!--Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot--> 
+<!--Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot-->
 
 ### Use Case 1: Algorithmic definition of clusters and of buffer zones
 
@@ -84,53 +78,67 @@ The package requires as input the co-ordinates for the spatial units that are to
 + The `Plot_CRTmap` function outputs a map of:
   + the assignment to arms, if this has been defined;
   + the clusters if they have been defined;
-  + and of the locations only if no clusters have been defined. 
+  + and of the locations only if no clusters have been defined.
 The `maskbuffer` parameter specifies the width (in km) of the coloured area drawn around the households.
 
 + The `DefineClusters` function carries out algorithmic assignment of clusters and outputs a `trial` data frame augmented with the cluster assignments. One of three different algorithms must be selected:
   + `algo="NN"` implements a [nearest neighbour algorithm](https://en.wikipedia.org/wiki/Nearest-neighbor_chain_algorithm) which takes a collection of points as input, and creates clusters of points by repeatedly merging in points to form larger clusters. This is the default option.
   + `algo="TSP"` implements the "repetitive_nn" option of the `TSP` package for solving the travelling salesman problem. This finds an efficient path through the study locations. Clusters are formed by grouping the required number of locations sequentially along the path. Note that this is not guaranteed to give rise to congruent clusters.
   + `algo="kmeans"` implements a [k-means algorithm](https://en.wikipedia.org/wiki/K-means_clustering) that aims to partition the locations into the required number of clusters in which each observation belongs to the cluster with the nearest cluster centroid. k-means clustering minimizes within-cluster variances (squared Euclidean distances) but does not necessarily give equal-sized clusters.
-Irrespective of the algorithm, the target number of points allocated to each cluster is specified by the parameter `h`. 
+Irrespective of the algorithm, the target number of points allocated to each cluster is specified by the parameter `h`.
 + The `Randomize_CRT` function carries out a simple randomization of clusters to arms, and outputs a `trial` data frame augmented with the assignments.
 
 The example uses locations from Rusinga Island, Kenya.
 
 #### Example
-```{r example1.r, fig.path=('figures/'),echo=TRUE}
+
+```r
 library(CRTspillover)
-test1 = read.csv(file=system.file("extdata", "Solarmal_baseline.csv", 
+test1 = read.csv(file=system.file("extdata", "Solarmal_baseline.csv",
                                   package = "CRTspillover", mustWork = TRUE))
 test2  = Convert_LatLong(df=test1)
 # Aggregate data for multiple observations for the same location
 # Only the (x,y) co-ordinates and numerical auxiliary variables
-# 
+#
 test2$base_num = test2$RDT_test_result
 test2=with(test2,test2[,c('x','y','base_num')])
 test2$base_denom = 1
 test3 = Aggregate_CRT(trial=test2,auxiliaries=c('base_num','base_denom'))
 # Plot map of locations
 Plot_CRTmap(test3,maskbuffer=0.5)
+```
+
+![plot of chunk example1.r](/vignettes/example1.r-1.png)
+
+```r
 # Assign and plot clusters specified to include 50 households
 test4 = DefineClusters(trial=test3, h=50, algo='NN')
 Plot_CRTmap(trial=test4,maskbuffer=0.5)
+```
+
+![plot of chunk example1.r](/vignettes/example1.r-2.png)
+
+```r
 # Assign and plot trial arms using matched pairs randomisation
 test5 = Randomize_CRT(trial=test4,matchedPair = TRUE)
 Plot_CRTmap(trial=test5,maskbuffer=0.5)
 ```
 
+![plot of chunk example1.r](/vignettes/example1.r-3.png)
+
 ### Use Case 2: Simulation of trials
 
-Trials can be simulated using the `Simulate_CRT` function, which augments a `trial` data frame with simulated outcome data.  The input `trial` object can be one created externally or by using package functions. It should contain location information and both cluster and arm assignments as shown in Figure 1.  The degree of spillover is specified either as a contamination range with the `theta_inp` parameter, or as the standard deviation of the normal kernel assumed to describe mosquito movement, `sd`. Information about the underlying spatial pattern of exposure to malaria is also required in the form of the `infectiousness_proxy` variable which takes a positive real value for each location. This can be: 
+Trials can be simulated using the `Simulate_CRT` function, which augments a `trial` data frame with simulated outcome data.  The input `trial` object can be one created externally or by using package functions. It should contain location information and both cluster and arm assignments as shown in Figure 1.  The degree of spillover is specified either as a contamination range with the `theta_inp` parameter, or as the standard deviation of the normal kernel assumed to describe mosquito movement, `sd`. Information about the underlying spatial pattern of exposure to malaria is also required in the form of the `infectiousness_proxy` variable which takes a positive real value for each location. This can be:
 
-+ provided as an externally generated set of values, derived by the user either from field data, or as either a stochastic or deterministic function of the co-ordinates. 
++ provided as an externally generated set of values, derived by the user either from field data, or as either a stochastic or deterministic function of the co-ordinates.
 +	derived from baseline data in the form of proportions (specified by assigning the name of the numerator as `baselineNumerator` and of the denominator as `baselineDenominator` in the input to  `Simulate_CRT`). `infectiousness_proxy` is then generated by kernel smoothing of these proportions.
 + generated by `Simulate_CRT` making use of user provided values of the overall initial prevalence `initialPrevalence` and of the intracluster correlation coefficient, `ICC_inp`. Kernel smoothers are used to generate an inhomogeneous `infectiousness_proxy` surface. This surface is used to generate a simulated set of baseline proportions. The process is repeated with iterative adjustments to the bandwidth of the kernels until a surface with approximately the correct intracluster correlation coefficient is obtained.
 
 #### Example with baseline data provided as proportions
-```{r example2.r, fig.path=('figures/'),echo=TRUE}
+
+```r
 set.seed(1234)
-#   use co-ordinates, cluster and arm assignments, and baseline data from `test5` 
+#   use co-ordinates, cluster and arm assignments, and baseline data from `test5`
 test6b = Simulate_CRT(trial= test5,
                     efficacy=0.4,
                     initialPrevalence = 0.5,
@@ -139,18 +147,47 @@ test6b = Simulate_CRT(trial= test5,
                     baselineDenominator='base_denom',
                     ICC_inp=NULL,
                     theta_inp=0.8)
+```
 
+```
+## 
+## =====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================
+```
+
+```r
 results6b=Analyse_CRT(trial=test6b,method='SPDE',inlaMesh = inlaMeshTest)
+```
+
+```
+## 
+## =====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================
+## Estimating scale parameter for contamination range 
+## DIC:  1554.311  Contamination parameter:  19.1601   DIC:  1553.895  Contamination parameter:  30.9399   DIC:  1553.771  Contamination parameter:  38.22021   DIC:  1553.743  Contamination parameter:  43.32379   DIC:  1553.728  Contamination parameter:  43.74677   DIC:  1553.75  Contamination parameter:  46.13529   DIC:  1553.76  Contamination parameter:  44.6588   DIC:  1553.74  Contamination parameter:  43.7801   DIC:  1553.766  Contamination parameter:  43.55635   DIC:  1553.734  Contamination parameter:  43.67403   DIC:  1553.762  Contamination parameter:  43.71343   DIC:  1553.726  Contamination parameter:  43.74677   Starting full INLA analysis                  
+## Analysis model:  SPDE  Contamination option:  L 
+## Estimated Proportions- Control:  0.431  (95% CL:  0.38 0.481 ) - Intervention:  0.288  (95% CL:  0.247 0.332 )
+## Efficacy:  0.331  (95% CL:  0.35 0.31 )
+## Contamination Range:  0.1642673
+```
+
+```r
 Plot_Contamination(analysis=results6b)
+```
+
+![plot of chunk example2.r](/vignettes/example2.r-1.png)
+
+```r
 Plot_CRTmap(analysis=results6b,trial=test6b,showProportion = TRUE)
 ```
 
+![plot of chunk example2.r](/vignettes/example2.r-2.png)
+
 #### Example with infectiousness proxy surface generated externally
-```{r example3.r, fig.path=('figures/'),echo=TRUE}
+
+```r
 set.seed(1234)
 #   use co-ordinates, cluster and arm assignments from `test5` but ignore pre-existing baseline
 test5a = test5[ , !(names(test5) %in% c("base_num","base_denom"))]
-#   infectiousness proxy surface generated as an arbitrary linear function of x co-ordinate   
+#   infectiousness proxy surface generated as an arbitrary linear function of x co-ordinate
 test5a$infectiousness_proxy = 0.5*test5a$x - min(test5a$x)+1
 test6a = Simulate_CRT(trial= test5a,
                     efficacy=0.4,
@@ -158,12 +195,37 @@ test6a = Simulate_CRT(trial= test5a,
                     generateBaseline=TRUE,
                     ICC_inp=NULL,
                     theta_inp=0.5)
+```
+
+```
+## 
+## =====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================
+```
+
+```r
 results6a = Analyse_CRT(trial=test6a,method='SPDE',inlaMesh = inlaMeshTest)
+```
+
+```
+## 
+## =====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================
+## Estimating scale parameter for contamination range 
+## DIC:  1558.49  Contamination parameter:  19.1601   DIC:  1559.369  Contamination parameter:  30.9399   DIC:  1558.002  Contamination parameter:  11.87979   DIC:  1558.319  Contamination parameter:  7.380312   DIC:  1558.011  Contamination parameter:  12.64858   DIC:  1557.979  Contamination parameter:  11.84646   DIC:  1557.967  Contamination parameter:  10.14054   DIC:  1557.961  Contamination parameter:  10.98491   DIC:  1557.964  Contamination parameter:  10.76625   DIC:  1557.966  Contamination parameter:  11.31399   DIC:  1557.986  Contamination parameter:  11.01824   DIC:  1557.986  Contamination parameter:  10.95157   DIC:  1557.962  Contamination parameter:  10.98491   Starting full INLA analysis                  
+## Analysis model:  SPDE  Contamination option:  L 
+## Estimated Proportions- Control:  0.455  (95% CL:  0.409 0.501 ) - Intervention:  0.282  (95% CL:  0.246 0.321 )
+## Efficacy:  0.381  (95% CL:  0.4 0.36 )
+## Contamination Range:  0.6620471
+```
+
+```r
 Plot_CRTmap(trial=test6a,analysis=results6a,showProportion = TRUE)
 ```
 
+![plot of chunk example3.r](/vignettes/example3.r-1.png)
+
 #### Example with baseline generated from user-provided values of the overall initial prevalence and ICC
-```{r example4.r, fig.path=('figures/'),echo=TRUE}
+
+```r
 set.seed(1234)
 #   use co-ordinates, cluster and arm assignments, and baseline data from `test5`
 test6c = Simulate_CRT(trial= test5,
@@ -174,23 +236,39 @@ test6c = Simulate_CRT(trial= test5,
                     baselineDenominator='base_denom',
                     ICC_inp=0.08,
                     theta_inp=0.2)
+```
 
+```
+## 
+## =====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================
+```
+
+```r
 results6c=Analyse_CRT(trial=test6c,method='GEE')
+```
+
+```
+## 
+## =====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================
+## Analysis model:  GEE  Contamination option:  X 
+## Estimated Proportions- Control:  0.578  (95% CL:  0.491 0.661 ) - Intervention:  0.372  (95% CL:  0.302 0.448 )
+## Efficacy:  0.357  (95% CL:  0.179 0.496 )
+## Contamination Range:  NA
 ```
 
 ### Use Case 3: Analysis of trials allowing for spillover effects
 
-The `Analyse_CRT` function offers several different analyses of either simulated or real trial datasets. The different options are specified using the `method` argument of the function. 
+The `Analyse_CRT` function offers several different analyses of either simulated or real trial datasets. The different options are specified using the `method` argument of the function.
 
 
-| Option | Algorithm | Linear predictor| Allowance for Clustering | Reference | 
+| Option | Algorithm | Linear predictor| Allowance for Clustering | Reference |
 |----------:|:---------------|---------------|:--------------------:|
-|'L0' | S ||NO | NO |[Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) |  
-|'L1' | ML | 
-|'L2' | ML | 
+|'L0' | S ||NO | NO |[Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) |
+|'L1' | ML |
+|'L2' | ML |
 |'L3' | ML |
-|'GEE' | GEE | 
-|'M1' | MCMC | 
+|'GEE' | GEE |
+|'M1' | MCMC |
 |'M2' | MCMC |
 |'M3' | MCMC |
 
@@ -202,16 +280,17 @@ $\hat{E}_{s} = 1- \frac{\hat{p}_{I}}{\hat{p}_{C}}$.
 $\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$.
 $\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$.
 
-Real field trials are likely to 
-Data analysts are invited to use the JAGS code provided for the  
+Real field trials are likely to
+Data analysts are invited to use the JAGS code provided for the
 
 ### Use Case 4: Estimation of optimal cluster size
 
-Using a fixed set of locations, a set of trials is simulated (using the `Simulate_CRT` function, see Use Case 2), with different candidate values used for the cluster size, and hence the number of clusters. Where input values are uncertain (in particular values of the ICC or the contamination range) these are generated by sampling from prior distributions. 
+Using a fixed set of locations, a set of trials is simulated (using the `Simulate_CRT` function, see Use Case 2), with different candidate values used for the cluster size, and hence the number of clusters. Where input values are uncertain (in particular values of the ICC or the contamination range) these are generated by sampling from prior distributions.
 
-```{r example5.r, fig.path=('figures/'),echo=TRUE}
+
+```r
 set.seed(1234)
-#   use co-ordinates, and baseline data from `test5` 
+#   use co-ordinates, and baseline data from `test5`
 nclusters = 20
 ICC = 0.08
 theta = 0.2
@@ -225,14 +304,30 @@ test7c = Simulate_CRT(trial= test7b,
                     baselineDenominator='base_denom',
                     ICC_inp=ICC,
                     theta_inp=theta)
+```
 
+```
+## 
+## =====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================
+```
+
+```r
 results7=Analyse_CRT(trial=test7c,method='ML',cont='L')
 ```
 
+```
+## 
+## =====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================
+## Analysis model:  ML  Contamination option:  L 
+## Estimated Proportions- Control:  0.277  (95% CL:  NA ) - Intervention:  0.361  (95% CL:  NA )
+## Efficacy:  -0.303  (95% CL:  NA )
+## Contamination Range:  5.62132
+```
 
- 
-+ Determining the effects of different sizes of buffer zones 
-+ Estimation of intracluster correlations (ICC), contamination ranges and efficacy  
+
+
++ Determining the effects of different sizes of buffer zones
++ Estimation of intracluster correlations (ICC), contamination ranges and efficacy
 + Power and sample size calculations allowing for contamination
 + Anonymising input locations (if required for sharing reference datasets)
 
