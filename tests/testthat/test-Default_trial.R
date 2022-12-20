@@ -23,11 +23,16 @@ test_that("Simulate_CRT() creates the default simulation", {
 })
 set.seed(1234)
 test_that("Toy GEE analysis creates correct output", {
-  expect_equal(Analyse_CRT(trial=test_Simulate_CRT,method='GEE',excludeBuffer = FALSE,
-                  requireBootstrap=FALSE,alpha=0.2), test_Analyse_CRT)
+  get_test4 = function(){
+    testEstimates= Analyse_CRT(trial=test_Simulate_CRT,method='GEE',excludeBuffer = FALSE,
+                requireBootstrap=FALSE,alpha=0.2)
+    testEstimates$ModelObject=NULL
+    return(testEstimates)
+  }
+  expect_equal(get_test4(), test_Analyse_CRT)
 })
 set.seed(1234)
-get_test = function(){
+get_test5 = function(){
   testLocationsLatLong = Solarmal_baseline[, c('lat','long')]
   testLocationsxy=Convert_LatLong(testLocationsLatLong) #test_site is simulated
   testAnonymisedLocations=Anonymise_TrialSite(testLocationsxy)
@@ -37,5 +42,5 @@ get_test = function(){
   return(testBuffer)
 }
 test_that("Anonymisation, randomization, and creation of buffer produces expected trial",      {
-  expect_identical(get_test(), testBuffer)
+  expect_identical(get_test5(), testBuffer)
 })

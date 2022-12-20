@@ -1,0 +1,62 @@
+---
+title: "Use Case 1"
+output:
+  rmarkdown::html_vignette:
+  toc: true
+vignette: >
+  %\VignetteIndexEntry{Use Case 1: Algorithmic definition of clusters and of buffer zones}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+<!--To build the vignette
+# since the vignette takes a long time to run, it is not run with every build
+# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
+# to Knit this vignette without this time consuming step being part of the default build
+knitr::knit("vignettes/Usecase1.Rmd.orig", output = "vignettes/Usecase1.Rmd")
+rmarkdown.html_vignette.check_title = FALSE
+devtools::install(build_vignettes = TRUE)
+-->
+
+### Use Case 1: Algorithmic definition of clusters and of buffer zones
+
+The package requires as input the co-ordinates for the spatial units that are to be randomized. These should be provided as Cartesian point co-ordinates with centroid (0,0). The units to be randomized will usually be households, but the algorithms can be used to generate clusters with equal geographical areas by randomizing pixels. The `Convert_LatLong` function is available to convert co-ordinates provided as decimal degrees into Cartesian co-ordinates with units of km. (If the input co-ordinates are provided using a different projection then they must be converted externally to the package).
+
++ The `Aggregate_CRT` function is used to aggregate records with the same co-ordinates. If the input database contains outcome data (e.g. if it contains baseline survey results), these should be provided in the form of a numerator `num` and denominator ´denom´ for each record. These values will be summed by `Aggregate_CRT` over all records with the same co-ordinates.
+
++ The `Plot_CRTmap` function outputs a map of:
+  + the assignment to arms, if this has been defined;
+  + the clusters if they have been defined;
+  + and of the locations only if no clusters have been defined.
+The `maskbuffer` parameter specifies the width (in km) of the coloured area drawn around the households.
+
++ The `DefineClusters` function carries out algorithmic assignment of clusters and outputs a `trial` data frame augmented with the cluster assignments. One of three different algorithms must be selected:
+  + `algo="NN"` implements a [nearest neighbour algorithm](https://en.wikipedia.org/wiki/Nearest-neighbor_chain_algorithm) which takes a collection of points as input, and creates clusters of points by repeatedly merging in points to form larger clusters. This is the default option.
+  + `algo="TSP"` implements the "repetitive_nn" option of the `TSP` package for solving the travelling salesman problem. This finds an efficient path through the study locations. Clusters are formed by grouping the required number of locations sequentially along the path. Note that this is not guaranteed to give rise to congruent clusters.
+  + `algo="kmeans"` implements a [k-means algorithm](https://en.wikipedia.org/wiki/K-means_clustering) that aims to partition the locations into the required number of clusters in which each observation belongs to the cluster with the nearest cluster centroid. k-means clustering minimizes within-cluster variances (squared Euclidean distances) but does not necessarily give equal-sized clusters.
+Irrespective of the algorithm, the target number of points allocated to each cluster is specified by the parameter `h`.
++ The `Randomize_CRT` function carries out a simple randomization of clusters to arms, and outputs a `trial` data frame augmented with the assignments.
+
+The example uses locations from Rusinga Island, Kenya.
+
+#### Example
+```{r example1.r, fig.path=('/vignettes/'),echo=TRUE}
+library(CRTspillover)
+test1 = read.csv(file=system.file("extdata", file= "Solarmal_baseline.csv",
+                                  package = "CRTspillover", mustWork = TRUE))
+test2  = Convert_LatLong(df=test1)
+# Aggregate data for multiple observations for the same location
+# Only the (x,y) co-ordinates and numerical auxiliary variables
+#
+test2$base_num = test2$RDT_test_result
+test2=with(test2,test2[,c('x','y','base_num')])
+test2$base_denom = 1
+test3 = Aggregate_CRT(trial=test2,auxiliaries=c('base_num','base_denom'))
+# Plot map of locations
+Plot_CRTmap(test3,maskbuffer=0.5)
+# Assign and plot clusters specified to include 50 households
+test4 = DefineClusters(trial=test3, h=50, algo='NN')
+Plot_CRTmap(trial=test4,maskbuffer=0.5)
+# Assign and plot trial arms using matched pairs randomisation
+test5 = Randomize_CRT(trial=test4,matchedPair = TRUE)
+Plot_CRTmap(trial=test5,maskbuffer=0.5)
+```

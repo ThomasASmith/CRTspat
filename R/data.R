@@ -42,7 +42,6 @@
 #' \item \code{method}: statistical method
 #' \item \code{PointEstimates}: point estimates
 #' \item \code{IntervalEstimates}: interval estimates
-#' \item \code{ModelObject}: object returned by the fitting function
 #' }
 "test_Analyse_CRT"
 

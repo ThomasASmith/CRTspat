@@ -1,7 +1,7 @@
 ---
 title: "CRTspillover package"
 author: "Tom Smith, Lea Multerer"
-date: "2022-12-20"
+date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
   toc: true

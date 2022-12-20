@@ -594,7 +594,7 @@ BootEmpiricalAnalysis <- function(resampledData){
 #'
 #' @examples
 #' # low resolution mesh for test dataset
-#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=20)
+#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=10)
 createMesh = function(trial = trial,
                       offset = -0.1,
                       max.edge = 0.25,
@@ -696,7 +696,7 @@ estimateContamination = function(beta2 = beta2,
                      A = INLA::inla.stack.A(stk.e)),
                    control.compute = list(dic = TRUE))
   loss = result.e$dic$family.dic
-  cat("DIC: ",loss," Contamination parameter: ",beta2,"  \r")
+  cat("\rDIC: ",loss," Contamination parameter: ",beta2,"  \r")
   return(loss)}
 
 

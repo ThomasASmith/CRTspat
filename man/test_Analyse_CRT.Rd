@@ -11,7 +11,6 @@ list object with the following attributes:
 \item \code{method}: statistical method
 \item \code{PointEstimates}: point estimates
 \item \code{IntervalEstimates}: interval estimates
-\item \code{ModelObject}: object returned by the fitting function
 }
 }
 \usage{
