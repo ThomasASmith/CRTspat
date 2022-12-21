@@ -41,5 +41,5 @@ list containing the mesh
 }
 \examples{
 # low resolution mesh for test dataset
-exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=12)
+exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=10)
 }

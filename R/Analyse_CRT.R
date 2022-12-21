@@ -85,13 +85,14 @@ Analyse_CRT <- function(trial,
     }
     # cont='Z' is used to remove the estimation of effect size from the model
     cont= 'Z'
-    trial$base_num=trial[[baselineNumerator]]
-    trial$base_neg=trial[[baselineDenominator]]-trial[[baselineNumerator]]
-    trial$base_denom=trial[[baselineDenominator]]
+    trial$y1=trial[[baselineNumerator]]
+    trial$y0=trial[[baselineDenominator]]-trial[[baselineNumerator]]
+    trial$y_off=trial[[baselineDenominator]]
 
   } else {
-    trial$neg=trial[[denominator]]-trial[[numerator]]
-    trial$denom=trial[[denominator]]
+    trial$y1=trial[[numerator]]
+    trial$y0=trial[[denominator]]-trial[[numerator]]
+    trial$y_off=trial[[denominator]]
 
     # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant coordinate
     # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
@@ -123,7 +124,7 @@ Analyse_CRT <- function(trial,
   if(method=='GEE'){
     #GEE analysis of cluster effects
     # create model formula
-    fterms = ifelse(cont == 'Z', 'cbind(base_num,base_neg) ~ 1', 'cbind(num,neg) ~ arm')
+    fterms = ifelse(cont == 'Z', 'cbind(y1,y0) ~ 1', 'cbind(y1,y0) ~ arm')
     formula <- stats::as.formula(paste(fterms, collapse = " + "))
 
     fit <- geepack::geeglm(formula=formula, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
@@ -143,6 +144,8 @@ Analyse_CRT <- function(trial,
     DesignEffect = 1 + (clusterSize - 1)*ICC #Design Effect
     CL_DesignEffect = 1 + (clusterSize - 1)*CL_ICC
 
+    # remove the temporary objects from the dataframe
+    fit$ModelObject$data$y1=fit$ModelObject$data$y0=fit$ModelObject$data$y_off=NULL
     PointEstimates=list(controlP=invlogit(logitpC),
                         ICC=ICC,
                         DesignEffect=DesignEffect,
@@ -226,7 +229,7 @@ return(results)}
 
 getContaminationCurve = function(trial, PointEstimates, FUN1){
 
-  denom=num=cats=nearestDiscord=NULL
+  y_off=y1=cats=nearestDiscord=NULL
 
   range_d = max(trial$nearestDiscord)-min(trial$nearestDiscord)
   d = min(trial$nearestDiscord) + range_d*(seq(1:1001)-1)/1000
@@ -258,8 +261,8 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   trial$cats<- cut(trial$nearestDiscord, breaks = c(-Inf,min(d)+seq(1:9)*range_d/10,Inf), labels = FALSE)
   data = data.frame(trial %>%
     group_by(cats) %>%
-    dplyr::summarize(positives = sum(num),
-                     total = sum(denom),
+    dplyr::summarize(positives = sum(y1),
+                     total = sum(y_off),
                      d = median(nearestDiscord)))
     # proportions and binomial confidence intervals by category
     data$p = data$positives/data$total
@@ -282,7 +285,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
                             ncells= 50)
     }
 
-    denom=NULL
+    y_off=NULL
     # specify functional form of sigmoid in distance from boundary
     # 'L' inverse logit; 'P' inverse probit; 'X' or 'Z' do not model contamination
     FUN = switch(cont, 'L' = "invlogit(x)", 'P' = "stats::pnorm(x)", 'X' = NULL, 'Z' = NULL)
@@ -333,7 +336,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     # stack for estimation stk.e
     stk.e <- INLA::inla.stack(
       tag = "est",
-      data = list(y = trial$num, denom=trial$denom),
+      data = list(y = trial$y1, y_off=trial$y_off),
       A = list(1, A=inlaMesh$A),
       effects = effectse
     )
@@ -341,7 +344,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     # stack for prediction stk.p
     stk.p <- INLA::inla.stack(
       tag = "pred",
-      data = list(y = NA, denom = NA),
+      data = list(y = NA, y_off = NA),
       A = list(1, inlaMesh$Ap),
       effects = effectsp
     )
@@ -352,7 +355,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
 
     inlaResult <- INLA::inla(formula,
                    family = "binomial",
-                   Ntrials = denom,
+                   Ntrials = y_off,
                    lincomb = lc,
                    control.family = list(link = "logit"),
                    data = INLA::inla.stack.data(stk.full),
@@ -400,8 +403,8 @@ invlogit = function(x=x){return(1/(1+exp(-x)))}
 
 # Minimal data description and crude efficacy estimate
 get_description = function(trial){
-  positives = tapply(trial$num, trial$arm, FUN=sum)
-  totals = tapply(trial$denom, trial$arm, FUN=sum)
+  positives = tapply(trial$y1, trial$arm, FUN=sum)
+  totals = tapply(trial$y_off, trial$arm, FUN=sum)
   ratios = positives/totals
   efficacy = 1 - ratios[2]/ratios[1]
   description = list(positives=positives,totals=totals,ratios=ratios,efficacy=efficacy,method='DE')
@@ -413,7 +416,7 @@ LogLikelihood <- function(par, FUN=FUN ,trial) {
   transf <- 1/(1+exp(-logitexpectP)) #inverse logit transformation
 
   # FOR BINOMIAL
-  LogLikelihood <- sum(trial$num*log(transf) + trial$neg*log(1-transf))
+  LogLikelihood <- sum(trial$y1*log(transf) + trial$y0*log(1-transf))
 
 
   return(LogLikelihood)
@@ -504,14 +507,14 @@ return(CL)}
 rgen<-function(data,mle){
   par=mle$par
   FUN1=mle$FUN1
-  #simulate data for numerator num
+  #simulate data for numerator y1
   modelp <- FUN1(par=par,trial=data)
   if(mle$link == 'logit') {
     transf = invlogit(modelp)
   } else {
     transf = modelp
   }
-  data$num <- rbinom(length(transf),data$denom,transf) #simulate from binomial distribution
+  data$y1 <- rbinom(length(transf),data$y_off,transf) #simulate from binomial distribution
   return(data)
 }
 
@@ -551,20 +554,20 @@ EmpiricalAnalysis <- function(trial){
 
 rgen_an05 <- function(data,mle){
 
-  description <- psych::describeBy(data$num/data$denom, group=data$arm)
+  description <- psych::describeBy(data$y1/data$y_off, group=data$arm)
   pChat <- description$control$mean
   pIhat <- description$intervention$mean
 
   #simulate data for numerator num
   modelp <- ifelse(as.numeric(data$arm) - 1 > 0, pIhat,pChat)
-  data$num <- rbinom(length(modelp),data$denom,modelp) #simulate from Binomial distribution
+  data$y1 <- rbinom(length(modelp),data$y_off,modelp) #simulate from Binomial distribution
 
   return(data)
 }
 
 # standard non-model based analyses
 BootEmpiricalAnalysis <- function(resampledData){
-  description <- psych::describeBy(resampledData$num/resampledData$denom, group=resampledData$arm)
+  description <- psych::describeBy(resampledData$y1/resampledData$y_off, group=resampledData$arm)
   #reports summary statistic by a grouping variable
   pChat <- description$control$mean
   pIhat <- description$intervention$mean
@@ -674,12 +677,12 @@ estimateContamination = function(beta2 = beta2,
                                  FUN=FUN,
                                  inlaMesh=inlaMesh,
                                  formula=formula){
-  denom=NULL
+  y_off=NULL
   x = trial$nearestDiscord*beta2
   trial$pvar = eval(parse(text = FUN))
   stk.e <- INLA::inla.stack(
     tag = "est",
-    data = list(y = trial$num, denom=trial$denom),
+    data = list(y = trial$y1, y_off=trial$y_off),
     A = list(1, A=inlaMesh$A),
     effects = list(data.frame(b0=rep(1, nrow(trial)),
                               pvar = trial$pvar,
@@ -688,7 +691,7 @@ estimateContamination = function(beta2 = beta2,
   )
   # run the model with just the estimation stack (no predictions needed at this stage)
   result.e <- INLA::inla(formula,
-                   family = "binomial", Ntrials = denom,
+                   family = "binomial", Ntrials = y_off,
                    control.family = list(link = "logit"),
                    data = INLA::inla.stack.data(stk.e),
                    control.predictor = list(
