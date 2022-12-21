@@ -115,10 +115,10 @@ Analyse_CRT <- function(trial,
     PointEstimates <- EmpiricalAnalysis(trial)
     PointEstimates$contaminationParameter = NA #contamination is not estimated
     if(requireBootstrap){
-      boot_an05 <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
-                              R=resamples, sim="parametric", ran.gen=rgen_an05, mle=PointEstimates)
-      PointEstimates$bootstrapMean_efficacy = mean(boot_an05$t)
-      IntervalEstimates$efficacy <- namedCL(quantile(boot_an05$t,c(alpha/2,1-alpha/2)),alpha=alpha)
+      boot_emp <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
+                              R=resamples, sim="parametric", ran.gen=rgen_emp, mle=PointEstimates)
+      PointEstimates$bootstrapMean_efficacy = mean(boot_emp$t)
+      IntervalEstimates$efficacy <- namedCL(quantile(boot_emp$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
   }
   if(method=='GEE'){
@@ -190,11 +190,18 @@ Analyse_CRT <- function(trial,
           new_estimates=as.data.frame(t(matrix(data= unlist(apply(as.data.frame(boot_output$t), 1,
                                                                   FittingResults,trial=trial,
                                                                   FUN1=FUN1)),ncol=resamples1,nrow=length(PointEstimates))))
+
           boot_estimates = rbind(boot_estimates,new_estimates)
         }
       }
       colnames(boot_estimates) = names(PointEstimates)
-      IntervalEstimates =  computeIntervals(df=boot_estimates,alpha=alpha)
+      #boot_parameters = as.data.frame(apply(boot_estimates, 1, function(x){FittingResults(trial=trial, FUN1=FUN1, par=c(x[1:3]))}))
+      varnames= colnames(colnames(boot_estimates))
+      IntervalEstimates = as.list(varnames)
+      for(i in 1:length(varnames)){
+        IntervalEstimates[[i]]=namedCL(quantile(boot_estimates[,varnames[i]],c(alpha/2,1-alpha/2)),alpha=alpha)
+      }
+      names(IntervalEstimates)=varnames
     }
   } else if(method %in% c('LR','CRE','SPDE','SPCRE')){
       results = inlaModel(trial=trial,cont=cont,method=method,alpha=alpha,inlaMesh=inlaMesh)
@@ -317,16 +324,16 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
     beta2=NA
     if(cont %in% c('L','P')){
       beta2 =  stats::optimize(f=estimateContamination,
-                       interval=c(0.1,50),
+                       interval=c(0.01,10),
                        trial=trial,
                        FUN=FUN,
                        inlaMesh=inlaMesh,
                        formula=formula,
                        tol = 0.1)$minimum
-      x = trial$nearestDiscord*beta2
+      x = trial$nearestDiscord*exp(beta2)
       trial$pvar = eval(parse(text = FUN))
       effectse$df$pvar = trial$pvar
-      x = inlaMesh$prediction$nearestDiscord*beta2
+      x = inlaMesh$prediction$nearestDiscord*exp(beta2)
       inlaMesh$prediction$pvar = ifelse(cont == 'X', rep(NA,nrow(inlaMesh$prediction)), eval(parse(text = FUN)))
       effectsp$df$pvar = inlaMesh$prediction$pvar
       # set up linear contrasts (not required for cont='X')
@@ -351,7 +358,7 @@ inlaModel = function(trial,cont,method,alpha=0.05,inlaMesh=NULL){
 
     # stk.full comprises both stk.e and stk.p
     stk.full <- INLA::inla.stack(stk.e, stk.p)
-    cat('Starting full INLA analysis                  \n')
+    cat('Starting full INLA analysis                                      \n')
 
     inlaResult <- INLA::inla(formula,
                    family = "binomial",
@@ -469,15 +476,15 @@ CalculatePiecewiseLinearFunction <- function(par,trial){
 
 # sigmoid (logit) function (on the logit scale) for contamination function
 CalculateLogisticFunction <- function(par,trial){
-
-  lp <- par[1] + par[2]*invlogit(par[3]*trial$nearestDiscord)
+  theta <- exp(par[3])
+  lp <- par[1] + par[2]*invlogit(theta*trial$nearestDiscord)
   return(lp)
 }
 
 # inverse probit function (on the logit scale) for contamination function
 CalculateProbitFunction <- function(par,trial){
-
-  lp <- par[1] + par[2]*stats::pnorm(par[3]*trial$nearestDiscord)
+  theta <- exp(par[3])
+  lp <- par[1] + par[2]*stats::pnorm(theta*trial$nearestDiscord)
   return(lp)
 }
 
@@ -529,14 +536,7 @@ SingleTrialAnalysis <- function(trial, FUN2=FUN2) {
   return(result)
 }
 
-computeIntervals = function(df,alpha){
-  varnames= colnames(df)
-  IntervalEstimates = as.list(varnames)
-  for(i in 1:length(varnames)){
-    IntervalEstimates[[i]]=namedCL(quantile(df[,varnames[i]],c(alpha/2,1-alpha/2)),alpha=alpha)
-  }
-  names(IntervalEstimates)=varnames
-return(IntervalEstimates)}
+
 
 ##############################################################################
 #functions for Empirical Analysis
@@ -552,7 +552,7 @@ EmpiricalAnalysis <- function(trial){
 }
 
 
-rgen_an05 <- function(data,mle){
+rgen_emp <- function(data,mle){
 
   description <- psych::describeBy(data$y1/data$y_off, group=data$arm)
   pChat <- description$control$mean
@@ -678,7 +678,7 @@ estimateContamination = function(beta2 = beta2,
                                  inlaMesh=inlaMesh,
                                  formula=formula){
   y_off=NULL
-  x = trial$nearestDiscord*beta2
+  x = trial$nearestDiscord*exp(beta2)
   trial$pvar = eval(parse(text = FUN))
   stk.e <- INLA::inla.stack(
     tag = "est",
