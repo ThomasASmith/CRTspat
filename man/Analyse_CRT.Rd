@@ -7,7 +7,7 @@
 Analyse_CRT(
   trial,
   method = "ML",
-  cont = "L",
+  cfunc = "L",
   numerator = "num",
   denominator = "denom",
   excludeBuffer = FALSE,
@@ -16,6 +16,9 @@ Analyse_CRT(
   baselineOnly = FALSE,
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom",
+  localisedEffects = FALSE,
+  clusterEffects = TRUE,
+  spatialEffects = FALSE,
   resamples = 1000,
   inlaMesh = NULL
 )
@@ -28,12 +31,9 @@ options are:
 'EMP'  : empirical,
 'ML'   : maximum likelihood,
 'GEE'  : generalised estimating equations
-'LR'   : INLA model linear in contamination function.
-'CRE'  : INLA model linear in contamination function with cluster random effects
-'SPDE' : INLA model linear in contamination function with Matern spatial process
-'SPCRE': INLA model linear in contamination function with cluster random effects and Matern spatial process}
+'INLA' : INLA}
 
-\item{cont}{transformation defining the contamination function
+\item{cfunc}{transformation defining the contamination function
 options are:
 'S': piecewise linear (slope),
 'L': inverse logistic (sigmoid),
@@ -55,6 +55,12 @@ options are:
 \item{baselineNumerator}{name of numerator variable for baseline data (if present)}
 
 \item{baselineDenominator}{name of denominator variable for baseline data (if present)}
+
+\item{localisedEffects}{logical: indicator of whether the model includes local effects with no contamination}
+
+\item{clusterEffects}{logical: indicator of whether the model includes cluster random effects}
+
+\item{spatialEffects}{logical: indicator of whether the model includes spatial random effects}
 
 \item{resamples}{number of bootstrap samples}
 
