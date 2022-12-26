@@ -26,14 +26,14 @@
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
 #' @param resamples number of bootstrap samples
-#' @param inlaMesh name of pre-existing INLA input object created by CreateMesh()
+#' @param inla.mesh name of pre-existing INLA input object created by CreateMesh()
 #' @return list containing the following results of the analysis
 #' \itemize{
 #' \item \code{description}: Description of the trial dataset
 #' \item \code{method}: statistical method
-#' \item \code{PointEstimates}: point estimates
-#' \item \code{IntervalEstimates}: interval estimates
-#' \item \code{ModelObject}: object returned by the fitting function
+#' \item \code{pt.ests}: point estimates
+#' \item \code{int.ests}: interval estimates
+#' \item \code{model.object}: object returned by the fitting function
 #' \item \code{contamination}: function values and statistics describing the estimated contamination
 #' }
 #' @importFrom grDevices rainbow
@@ -60,19 +60,30 @@ Analyse_CRT <- function(trial,
                         clusterEffects=FALSE,
                         spatialEffects=FALSE,
                         resamples=1000,
-                        inlaMesh=NULL){
+                        inla.mesh=NULL){
 
   ##############################################################################
+  # test validity of inputs
+  if(!method %in% c('EMP','ML','GEE','INLA')){
+    cat('Error: Invalid value for statistical method\n')
+    return(NULL)
+  }
+  if(!cfunc %in% c('S','L','P','X')){
+    cat('Error: Invalid contamination function\n')
+    return(NULL)
+  }
   # MAIN FUNCTION CODE STARTS HERE
   cat('\n=====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================\n')
-  #store the input trial so that any changes to this can be removed before output
-  input_trial = trial
+
   cluster=NULL
 
   if("buffer" %in% colnames(trial) & excludeBuffer)
   {
     trial = trial[!trial$buffer,]
   }
+
+  # create names for confidence limits for use throughout
+  CLnames = c(paste0(alpha/0.02,'%'),paste0(100-alpha/0.02,'%'))
 
   #trial needs to be ordered for some analyses
   trial <- trial[order(trial$cluster),]
@@ -81,10 +92,9 @@ Analyse_CRT <- function(trial,
   if(baselineOnly){
     if(method %in% c('EMP','ML','GEE')){
       method='GEE'
-      cat('Analysis of baseline only, using method GEE\n')
-    } else if(method %in% c('LR','CRE','SPDE','SPCRE')) {
-      method='CRE'
-      cat('Analysis of baseline only, using method CRE\n')
+      cat('Analysis of baseline only, using GEE\n')
+    } else if(method == 'INLA') {
+      cat('Analysis of baseline only, using INLA\n')
     }
     # cfunc='Z' is used to remove the estimation of effect size from the model
     cfunc= 'Z'
@@ -101,8 +111,9 @@ Analyse_CRT <- function(trial,
     # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
     if(is.null(trial$nearestDiscord)) {trial <- Specify_CRTbuffer(trial=trial,bufferWidth=0)}
   }
-  PointEstimates=ModelObject=list()
-  IntervalEstimates=list(controlP=NA,interventionP=NA,efficacy=NA)
+  model.object = list()
+  pt.ests=list(contamination.par=NA,pr.contaminated = NA, contaminationRange = NA)
+  int.ests=list(controlP=NA,interventionP=NA,efficacy=NA)
   sd = 0.5/(qnorm(1-alpha)*sqrt(2)) #initial value used in bootstrap calculations
   description= get_description(trial)
   # Specify the function used for calculating the linear predictor
@@ -114,14 +125,15 @@ Analyse_CRT <- function(trial,
   FUN2 <- FUN1 <- eval(parse(text=LPfunction))
 
   if(method=='EMP'){
-    # empirical analysis that ignores contamination
-    PointEstimates <- EmpiricalAnalysis(trial)
-    PointEstimates$contaminationParameter = NA #contamination is not estimated
+    fit <- EmpiricalAnalysis(trial)
+    pt.ests$controlP=fit$controlP
+    pt.ests$interventionP=fit$interventionP
+    pt.ests$efficacy=fit$efficacy
     if(requireBootstrap){
       boot_emp <- boot::boot(data=trial, statistic=BootEmpiricalAnalysis,
-                             R=resamples, sim="parametric", ran.gen=rgen_emp, mle=PointEstimates)
-      PointEstimates$bootstrapMean_efficacy = mean(boot_emp$t)
-      IntervalEstimates$efficacy <- namedCL(quantile(boot_emp$t,c(alpha/2,1-alpha/2)),alpha=alpha)
+                             R=resamples, sim="parametric", ran.gen=rgen_emp, mle=fit)
+      pt.ests$bootstrapMean_efficacy = mean(boot_emp$t)
+      int.ests$efficacy <- namedCL(quantile(boot_emp$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
   }
   if(method=='GEE'){
@@ -148,16 +160,17 @@ Analyse_CRT <- function(trial,
     CL_DesignEffect = 1 + (clusterSize - 1)*CL_ICC
 
     # remove the temporary objects from the dataframe
-    fit$ModelObject$data$y1=fit$ModelObject$data$y0=fit$ModelObject$data$y_off=NULL
-    PointEstimates=list(controlP=invlogit(logitpC),
-                        ICC=ICC,
-                        DesignEffect=DesignEffect,
-                        ModelObject=fit)
-    IntervalEstimates=list(controlP=CL_pC,
-                           ICC=CL_ICC,
-                           DesignEffect=CL_DesignEffect)
+    fit$model.object$data$y1=fit$model.object$data$y0=fit$model.object$data$y_off=NULL
+    pt.ests$controlP=invlogit(logitpC)
+    pt.ests$ICC=ICC
+    pt.ests$DesignEffect=DesignEffect
+    pt.ests$model.object=fit
+    int.ests$controlP=CL_pC
+    int.ests$ICC=CL_ICC
+    int.ests$DesignEffect=CL_DesignEffect
 
     # Estimation of efficacy does not apply if analysis is of baseline only (cfunc='Z')
+    pt.ests$efficacy = 0
     if(cfunc=='X'){
       logitpI = summary_fit$coefficients[1,1] + summary_fit$coefficients[2,1]
       se_logitpI = sqrt(fit$geese$vbeta[1,1] + fit$geese$vbeta[2,2] + 2*fit$geese$vbeta[1,2])
@@ -165,18 +178,28 @@ Analyse_CRT <- function(trial,
       CL_pI = namedCL(invlogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
       CL_eff = estimateCLEfficacy(mu=summary_fit$coefficients[,1], Sigma=fit$geese$vbeta ,alpha=alpha, resamples=resamples)
 
-      PointEstimates$interventionP=invlogit(logitpI)
-      PointEstimates$efficacy=(1 - invlogit(logitpI)/invlogit(logitpC))
-      IntervalEstimates$interventionP=CL_pI
-      IntervalEstimates$efficacy=CL_eff
+      pt.ests$interventionP=invlogit(logitpI)
+      pt.ests$efficacy=(1 - invlogit(logitpI)/invlogit(logitpC))
+      int.ests$interventionP=CL_pI
+      int.ests$efficacy=CL_eff
     }
-    PointEstimates$contaminationParameter = NA #contamination is not estimated
 
   } else if(method == 'ML'){
     ############### ML Methods with contamination functions and logistic link #################
 
     par = SingleTrialAnalysis(trial=trial,FUN2=FUN2)
-    PointEstimates <- FittingResults(trial, par=par,FUN1=FUN1)
+    fit <- FittingResults(trial, par=par,FUN1=FUN1)
+    pt.ests$controlP=fit$controlP
+    pt.ests$interventionP=fit$interventionP
+    pt.ests$efficacy=fit$efficacy
+    pt.ests$contamination.par=fit$contamination.par
+    pt.ests <- pt.ests[names(pt.ests) != "model.object"]
+    pt.ests$pr.contaminated = 1 #None of the ML models include local effects
+    results = list(description=description,
+                   method=method,
+                   pt.ests=pt.ests,
+                   int.ests=int.ests,
+                   model.object=model.object)
     if(requireBootstrap){
       mle=list(par=par,FUN1=FUN1,link='logit')
       boot_estimates = data.frame(V1=c(),V2=c(),V3=c(),V4=c())
@@ -193,24 +216,24 @@ Analyse_CRT <- function(trial,
         if(!substr(boot_output[1],1,5)=="Error"){
           new_estimates=as.data.frame(t(matrix(data= unlist(apply(as.data.frame(boot_output$t), 1,
                                                                   FittingResults,trial=trial,
-                                                                  FUN1=FUN1)),ncol=resamples1,nrow=length(PointEstimates))))
+                                                                  FUN1=FUN1)),ncol=resamples1,nrow=length(fit))))
 
           boot_estimates = rbind(boot_estimates,new_estimates)
         }
         tries=tries+5
         cat('\r',nrow(boot_estimates),' bootstrap samples analysed, out of',tries,' tries    \r' )
       }
-      colnames(boot_estimates) = names(PointEstimates)
-      IntervalEstimates = as.data.frame(t(apply(boot_estimates,2,function(x){
-        namedCL(quantile(x,c(alpha/2,1-alpha/2)),alpha=alpha)})))
-      IntervalEstimates <- setNames(split(IntervalEstimates,
-                                          seq(nrow(IntervalEstimates))),
-                                    rownames(IntervalEstimates))
-
+      colnames(boot_estimates) = names(fit)
+      bounds = (apply(boot_estimates,2,function(x){
+        quantile(x,c(alpha/2,0.5, 1-alpha/2),alpha=alpha)}))
+      results = add_estimates(results=results,bounds=bounds,CLnames=CLnames)
     }
+
+
+    ############### INLA Methods #################
   } else if(method == 'INLA'){
-    if(is.null(inlaMesh)){
-      inlaMesh = createMesh(trial=trial,
+    if(is.null(inla.mesh)){
+      inla.mesh = createMesh(trial=trial,
                             offset = -0.1,
                             max.edge = 0.25,
                             inla.alpha = 2,
@@ -225,7 +248,7 @@ Analyse_CRT <- function(trial,
 
     # create model formula
     fterms = switch(cfunc,
-                    'Z' = 'y ~ 1',
+                    'Z' = 'y ~ 0 + b0',
                     'X' = 'y ~ 0 + b0',
                     'L' ='y ~ 0 + b0 + pvar',
                     'P' ='y ~ 0 + b0 + pvar')
@@ -235,36 +258,34 @@ Analyse_CRT <- function(trial,
     formula_as_text = paste(fterms, collapse = " + ")
     formula <- stats::as.formula(formula_as_text)
 
-    spde = inlaMesh$spde
-    cat('Estimating scale parameter for contamination range','\n')
+    spde = inla.mesh$spde
 
     effectse = list(df=data.frame(b0=rep(1, nrow(trial)),
                                   b1=ifelse(trial$arm=='intervention',-1,0),
                                   cluster = trial$cluster),
-                    s = inlaMesh$indexs)
-    effectsp = list(df=data.frame(b0=rep(1, nrow(inlaMesh$prediction)),
-                                  b1=ifelse(inlaMesh$prediction$arm=='intervention',-1,0),
-                                  cluster = inlaMesh$prediction$cluster),
-                    s = inlaMesh$indexs)
+                    s = inla.mesh$indexs)
+    effectsp = list(df=data.frame(b0=rep(1, nrow(inla.mesh$prediction)),
+                                  b1=ifelse(inla.mesh$prediction$arm=='intervention',-1,0),
+                                  cluster = inla.mesh$prediction$cluster),
+                    s = inla.mesh$indexs)
     lc=NULL
     beta2=NA
     if(cfunc %in% c('L','P')){
-      ### FOR DEBUGGING SKIP THE ESTIMATION OF beta2
+      cat('Estimating scale parameter for contamination range','\n')
       beta2 =  stats::optimize(f=estimateContamination,
                            interval=c(0.01,10),
                            trial=trial,
                            FUN=FUN,
-                           inlaMesh=inlaMesh,
+                           inla.mesh=inla.mesh,
                            formula=formula,
                            tol = 0.1)$minimum
       x = trial$nearestDiscord*exp(beta2)
       trial$pvar = eval(parse(text = FUN))
       effectse$df$pvar = trial$pvar
-      x = inlaMesh$prediction$nearestDiscord*exp(beta2)
-      inlaMesh$prediction$pvar = ifelse(cfunc == 'X', rep(NA,nrow(inlaMesh$prediction)), eval(parse(text = FUN)))
-      effectsp$df$pvar = inlaMesh$prediction$pvar
+      x = inla.mesh$prediction$nearestDiscord*exp(beta2)
+      inla.mesh$prediction$pvar = ifelse(cfunc == 'X', rep(NA,nrow(inla.mesh$prediction)), eval(parse(text = FUN)))
+      effectsp$df$pvar = inla.mesh$prediction$pvar
       # set up linear contrasts (not required for cfunc='X' or 'Z')
-      lc=NULL
       if(grepl('pvar', formula_as_text, fixed = TRUE)){
         lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1)
         if(grepl('b1', formula_as_text, fixed = TRUE)){
@@ -278,7 +299,7 @@ Analyse_CRT <- function(trial,
     stk.e <- INLA::inla.stack(
       tag = "est",
       data = list(y = trial$y1, y_off=trial$y_off),
-      A = list(1, A=inlaMesh$A),
+      A = list(1, A=inla.mesh$A),
       effects = effectse
     )
 
@@ -286,15 +307,15 @@ Analyse_CRT <- function(trial,
     stk.p <- INLA::inla.stack(
       tag = "pred",
       data = list(y = NA, y_off = NA),
-      A = list(1, inlaMesh$Ap),
+      A = list(1, inla.mesh$Ap),
       effects = effectsp
     )
 
     # stk.full comprises both stk.e and stk.p
     stk.full <- INLA::inla.stack(stk.e, stk.p)
-    cat('Starting full INLA analysis                                      \n')
+    cat('INLA analysis                                                 \n')
 
-    inlaResult <- INLA::inla(formula,
+    inla.result <- INLA::inla(formula,
                              family = "binomial",
                              Ntrials = y_off,
                              lincomb = lc,
@@ -309,88 +330,101 @@ Analyse_CRT <- function(trial,
     # Augment the inla results list with application specific quantities
 
     index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
-    inlaMesh$prediction$proportion <- invlogit(inlaResult$summary.linear.predictor[index,'0.5quant'])
+    inla.mesh$prediction$proportion <- invlogit(inla.result$summary.linear.predictor[index,'0.5quant'])
     cat(formula_as_text,'\n')
 
     #Compute sample-based confidence limits for intervened outcome and efficacy if intervention effects are estimated
     if(grepl('pvar', formula_as_text, fixed = TRUE) | grepl('b1', formula_as_text, fixed = TRUE)){
       # Specify the means of the variables
-      mu = inlaResult$summary.lincomb.derived$mean
-      names(mu) = rownames(inlaResult$summary.lincomb.derived)
+      mu = inla.result$summary.lincomb.derived$mean
+      names(mu) = rownames(inla.result$summary.lincomb.derived)
       # Specify the covariance matrix of the variables
-      cov = inlaResult$misc$lincomb.derived.covariance.matrix
+      cov = inla.result$misc$lincomb.derived.covariance.matrix
       sample = as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
-      sample$pC = invlogit(sample$b0)
-      sample$pI = invlogit(sample$lc)
+      sample$controlP = invlogit(sample$b0)
       #Cp is the proportion of effect subject to contamination
-      if('b1' %in% names(mu)){
-        sample$Cp =with(sample,1-(pC - invlogit(b0 + b1))/(pC-pI))
-      } else {
-        sample$Cp=1
+      if('b1' %in% names(mu) & 'pvar' %in% names(mu)){
+        sample$interventionP = invlogit(sample$lc)
+        sample$pr.contaminated =with(sample,1-(controlP - invlogit(b0 + b1))/(controlP-interventionP))
+      } else if('b1' %in% names(mu)) {
+        sample$interventionP = invlogit(sample$b1)
+        sample$pr.contaminated=0
+      } else if('pvar' %in% names(mu)) {
+        sample$interventionP = invlogit(sample$pvar)
+        sample$pr.contaminated=1
       }
-      sample$Es = 1 - sample$pI/sample$pC
+      sample$efficacy = 1 - sample$interventionP/sample$controlP
       bounds = (apply(sample,2,function(x){
         quantile(x,c(alpha/2,0.5, 1-alpha/2),alpha=alpha)}))
     } else {
-      pC = unlist(invlogit(inlaResult$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]))
-      bounds=data.frame(pC=pC,pI=pC,Es=rep(0,3),Cp=rep(NA,3))
+      controlP = unlist(invlogit(inla.result$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]))
+      bounds=data.frame(controlP=controlP,interventionP=controlP,efficacy=rep(0,3),pr.contaminated=rep(0,3))
     }
-    results = list(modelObject=inlaResult,inlaMesh = inlaMesh,PointEstimates = list(),IntervalEstimates = list(),method=method)
+    results = list(model.object=inla.result,inla.mesh = inla.mesh,pt.ests = list(),int.ests = list(),method=method)
 
-    results$PointEstimates$controlP = bounds[2,'pC']
-    results$PointEstimates$interventionP = bounds[2,'pI']
-    results$PointEstimates$efficacy = bounds[2,'Es']
-    results$PointEstimates$proportionCont = bounds[2,'Cp']
-    results$PointEstimates$contaminationParameter=beta2
-
-    # Extract interval estimates
-    CLnames = c(paste0(alpha/0.02,'%'),paste0(100-alpha/0.02,'%'))
-    results$IntervalEstimates$controlP = stats::setNames(bounds[c(1,3),'pC'], CLnames)
-    results$IntervalEstimates$interventionP = stats::setNames(bounds[c(1,3),'pI'],CLnames)
-    results$IntervalEstimates$efficacy = stats::setNames(bounds[c(1,3),'Es'],CLnames)
-    results$IntervalEstimates$proportionCont = stats::setNames(bounds[c(1,3),'Cp'],CLnames)
+    results = add_estimates(results=results,bounds=bounds,CLnames=CLnames)
+    results$int.ests$pr.contaminated = stats::setNames(bounds[c(1,3),'pr.contaminated'],CLnames)
+    results$pt.ests$pr.contaminated = bounds[2,'pr.contaminated']
+    if(bounds[2,'pr.contaminated'] < 0){
+      cat('** Warning: different signs for main effect and contamination: face validity check fails **\n')
+    }
+    results$pt.ests$contamination.par=log(beta2)
     results$description=description
   }
   if(method %in% c('EMP','ML','GEE')){
     # tidy up and consolidate the list of results
-    ModelObject=PointEstimates$ModelObject
-    PointEstimates <- PointEstimates[names(PointEstimates) != "GAsolution3"]
-    PointEstimates <- PointEstimates[names(PointEstimates) != "ModelObject"]
+    model.object=pt.ests$model.object
+    pt.ests <- pt.ests[names(pt.ests) != "GAsolution3"]
+    pt.ests <- pt.ests[names(pt.ests) != "model.object"]
     results = list(description=description,
                    method=method,
-                   PointEstimates=PointEstimates,
-                   IntervalEstimates=IntervalEstimates,
-                   ModelObject=ModelObject)
+                   pt.ests=pt.ests,
+                   int.ests=int.ests,
+                   model.object=model.object)
   }
   results$contamination = getContaminationCurve(trial=trial,
-                                                PointEstimates=results$PointEstimates,
-                                                FUN1=FUN1)
-  results$PointEstimates$contaminationRange =
-    ifelse(cfunc=='X',NA,results$contamination$contaminationRange)
+                                                  pt.ests=results$pt.ests,
+                                                  FUN1=FUN1)
+  results$pt.ests$contaminationRange = results$contamination$contaminationRange
   results$contamination$contaminationRange = NULL
 
   ## Output to screen
 
   cat('Analysis model: ',method,' Contamination option: ',cfunc,'\n')
   CLtext = paste0(' (',100*(1-alpha),'% CL: ')
-  cat('Estimated Proportions-      Control: ',results$PointEstimates$controlP,CLtext,
-      unlist(results$IntervalEstimates$controlP),')\n')
-  if(!is.null(results$PointEstimates$interventionP)){
-    cat('                       Intervention: ',results$PointEstimates$interventionP,CLtext,
-        unlist(results$IntervalEstimates$interventionP),')\n')
-    cat('Efficacy: ',results$PointEstimates$efficacy,CLtext,
-        unlist(results$IntervalEstimates$efficacy),')\n')
+  cat('Estimated Proportions-      Control: ',results$pt.ests$controlP,CLtext,
+      unlist(results$int.ests$controlP),')\n')
+  if(results$pt.ests$efficacy != 0){
+    if(!is.null(results$pt.ests$interventionP)){
+      cat('                       Intervention: ',results$pt.ests$interventionP,CLtext,
+          unlist(results$int.ests$interventionP),')\n')
+      cat('Efficacy: ',results$pt.ests$efficacy,CLtext,
+          unlist(results$int.ests$efficacy),')\n')
+    }
+    if(!is.na(results$pt.ests$pr.contaminated)){
+      cat('Proportion of effect subject to contamination: ',results$pt.ests$pr.contaminated,CLtext,
+          unlist(results$int.ests$pr.contaminated),')\n')
+    }
+    if(!is.na(results$pt.ests$contaminationRange)){
+      cat('Contamination Range: ',results$pt.ests$contaminationRange,'\n')}
   }
-  if(!is.null(results$PointEstimates$proportionCont)){
-    cat('Proportion of effect subject to contamination: ',results$PointEstimates$proportionCont,CLtext,
-        unlist(results$IntervalEstimates$proportionCont),')\n')
-  }
-  if(!is.na(results$PointEstimates$contaminationRange)){
-    cat('Contamination Range: ',results$PointEstimates$contaminationRange,'\n')}
-  if(!is.null(results$modelObject$dic$dic)) cat('DIC: ',results$modelObject$dic$dic)
+  if(!is.null(results$model.object$dic$dic)) cat('DIC: ',results$model.object$dic$dic)
 return(results)}
 
-getContaminationCurve = function(trial, PointEstimates, FUN1){
+# Add estimates to results list
+add_estimates = function(results,bounds,CLnames){
+  results$pt.ests$controlP = bounds[2,'controlP']
+  results$pt.ests$interventionP = bounds[2,'interventionP']
+  results$pt.ests$efficacy = bounds[2,'efficacy']
+
+  # Extract interval estimates
+  results$int.ests$controlP = stats::setNames(bounds[c(1,3),'controlP'], CLnames)
+  results$int.ests$interventionP = stats::setNames(bounds[c(1,3),'interventionP'],CLnames)
+  results$int.ests$efficacy = stats::setNames(bounds[c(1,3),'efficacy'],CLnames)
+  return(results)
+}
+
+getContaminationCurve = function(trial, pt.ests, FUN1){
 
   y_off=y1=cats=nearestDiscord=NULL
 
@@ -398,19 +432,19 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   d = min(trial$nearestDiscord) + range_d*(seq(1:1001)-1)/1000
 
   # define the limits of the curve both for control and intervention arms
-  limits = c(PointEstimates$controlP,PointEstimates$interventionP)
+  limits = c(pt.ests$controlP,pt.ests$interventionP)
   limits0 = limits1 = limits
   Cp = 1
-  if(0 < PointEstimates$proportionCont & PointEstimates$proportionCont < 1){
-    Cp = PointEstimates$proportionCont
+  if(is.na(pt.ests$pr.contaminated)){
+    Cp = 0
+  } else if(0 < pt.ests$pr.contaminated & pt.ests$pr.contaminated < 1){
+    Cp = pt.ests$pr.contaminated
     limits0 =c(limits[1], Cp*limits[2]+(1-Cp)*limits[1])
     limits1 =c(Cp*limits[1]+(1-Cp)*limits[2], limits[2])
-  } else if(PointEstimates$proportionCont < 1){
-    cat('** Warning: different signs for main effect and contamination: face validity check fails **\n')
   }
 
-  par0 = c(logit(limits0[1]),logit(limits0[2])-logit(limits0[1]),PointEstimates$contaminationParameter)
-  par1 = c(logit(limits1[1]),logit(limits1[2])-logit(limits1[1]),PointEstimates$contaminationParameter)
+  par0 = c(logit(limits0[1]),logit(limits0[2])-logit(limits0[1]),pt.ests$contamination.par)
+  par1 = c(logit(limits1[1]),logit(limits1[2])-logit(limits1[1]),pt.ests$contamination.par)
   curve = ifelse(d<0,
           invlogit(FUN1(trial=data.frame(nearestDiscord=d),par=par0)),
           invlogit(FUN1(trial=data.frame(nearestDiscord=d),par=par1)))
@@ -426,6 +460,7 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   }
   if(is.na(thetaU)) thetaU=max(trial$nearestDiscord)
   if(is.na(thetaL)) thetaL=min(trial$nearestDiscord)
+
   #contamination range
   contaminatedInterval = c(thetaL,thetaU)
   if(thetaL > thetaU) contaminatedInterval= c(thetaU,thetaL)
@@ -492,11 +527,11 @@ FittingResults <- function(trial, FUN1, par){
   interventionP <- invlogit(par[2] + par[1])
   efficacy <- (controlP - interventionP)/controlP
 
-  PointEstimates=list(controlP=controlP,
+  pt.ests=list(controlP=controlP,
                       interventionP=interventionP,
                       efficacy=efficacy,
-                      contaminationParameter=par[3])
-  return(PointEstimates)
+                      contamination.par=par[3])
+  return(pt.ests)
 }
 
 ##############################################################################
@@ -583,7 +618,7 @@ SingleTrialAnalysis <- function(trial, FUN2=FUN2) {
 
   GA <- GA::ga("real-valued", fitness = LogLikelihood, FUN=FUN2,
                trial=trial,
-               lower = c(-10,-10,-100), upper = c(10,10,100),
+               lower = c(-10,-10,-10), upper = c(10,10,10),
                maxiter = 500, run = 50, optim = TRUE,monitor = FALSE)
   result <- GA@solution
 
@@ -598,11 +633,11 @@ SingleTrialAnalysis <- function(trial, FUN2=FUN2) {
 # standard descriptive analyses
 EmpiricalAnalysis <- function(trial){
   description <- get_description(trial)
-  PointEstimates=list(controlP=unname(description$ratios[1]),
+  pt.ests=list(controlP=unname(description$ratios[1]),
                       interventionP=unname(description$ratios[2]),
                       efficacy=unname(description$efficacy),
                       contaminationRange = NA)
-  return(PointEstimates)
+  return(pt.ests)
 }
 
 
@@ -718,18 +753,18 @@ createMesh = function(trial = trial,
   rows=seq(1:nrow(prediction))
   prediction$nearestDiscord = sapply(rows,FUN=calcNearestDiscord)
   prediction$nearestDiscord = with(prediction,ifelse(arm=='control',-nearestDiscord,nearestDiscord))
-  inlaMesh  = list(prediction=prediction,
+  inla.mesh  = list(prediction=prediction,
                    A=A,
                    Ap=Ap,
                    indexs=indexs,
                    spde=spde)
-  return(inlaMesh)}
+  return(inla.mesh)}
 
 # Use profiling to estimate beta2
 estimateContamination = function(beta2 = beta2,
                                  trial=trial,
                                  FUN=FUN,
-                                 inlaMesh=inlaMesh,
+                                 inla.mesh=inla.mesh,
                                  formula=formula){
   y_off=NULL
   x = trial$nearestDiscord*exp(beta2)
@@ -737,12 +772,12 @@ estimateContamination = function(beta2 = beta2,
   stk.e <- INLA::inla.stack(
     tag = "est",
     data = list(y = trial$y1, y_off=trial$y_off),
-    A = list(1, A=inlaMesh$A),
+    A = list(1, A=inla.mesh$A),
     effects = list(data.frame(b0=rep(1, nrow(trial)),
                               b1=ifelse(trial$arm=='intervention',-1,0),
                               pvar = trial$pvar,
                               cluster = trial$cluster),
-                   s = inlaMesh$indexs)
+                   s = inla.mesh$indexs)
   )
   # run the model with just the estimation stack (no predictions needed at this stage)
   result.e <- INLA::inla(formula,

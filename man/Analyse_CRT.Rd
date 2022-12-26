@@ -17,10 +17,10 @@ Analyse_CRT(
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom",
   localisedEffects = FALSE,
-  clusterEffects = TRUE,
+  clusterEffects = FALSE,
   spatialEffects = FALSE,
   resamples = 1000,
-  inlaMesh = NULL
+  inla.mesh = NULL
 )
 }
 \arguments{
@@ -64,16 +64,16 @@ options are:
 
 \item{resamples}{number of bootstrap samples}
 
-\item{inlaMesh}{name of pre-existing INLA input object created by CreateMesh()}
+\item{inla.mesh}{name of pre-existing INLA input object created by CreateMesh()}
 }
 \value{
 list containing the following results of the analysis
 \itemize{
 \item \code{description}: Description of the trial dataset
 \item \code{method}: statistical method
-\item \code{PointEstimates}: point estimates
-\item \code{IntervalEstimates}: interval estimates
-\item \code{ModelObject}: object returned by the fitting function
+\item \code{pt.ests}: point estimates
+\item \code{int.ests}: interval estimates
+\item \code{model.object}: object returned by the fitting function
 \item \code{contamination}: function values and statistics describing the estimated contamination
 }
 }
