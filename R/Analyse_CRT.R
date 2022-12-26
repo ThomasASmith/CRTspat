@@ -57,7 +57,7 @@ Analyse_CRT <- function(trial,
                         baselineNumerator='base_num',
                         baselineDenominator='base_denom',
                         localisedEffects=FALSE,
-                        clusterEffects=TRUE,
+                        clusterEffects=FALSE,
                         spatialEffects=FALSE,
                         resamples=1000,
                         inlaMesh=NULL){
@@ -250,15 +250,13 @@ Analyse_CRT <- function(trial,
     beta2=NA
     if(cfunc %in% c('L','P')){
       ### FOR DEBUGGING SKIP THE ESTIMATION OF beta2
-      beta2 = 1
-
-      #      beta2 =  stats::optimize(f=estimateContamination,
-      #                       interval=c(0.01,10),
-      #                       trial=trial,
-      #                       FUN=FUN,
-      #                       inlaMesh=inlaMesh,
-      #                       formula=formula,
-      #                       tol = 0.1)$minimum
+      beta2 =  stats::optimize(f=estimateContamination,
+                           interval=c(0.01,10),
+                           trial=trial,
+                           FUN=FUN,
+                           inlaMesh=inlaMesh,
+                           formula=formula,
+                           tol = 0.1)$minimum
       x = trial$nearestDiscord*exp(beta2)
       trial$pvar = eval(parse(text = FUN))
       effectse$df$pvar = trial$pvar
@@ -312,38 +310,45 @@ Analyse_CRT <- function(trial,
 
     index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
     inlaMesh$prediction$proportion <- invlogit(inlaResult$summary.linear.predictor[index,'0.5quant'])
-    results = list(modelObject=inlaResult,inlaMesh = inlaMesh,PointEstimates = list(),IntervalEstimates = list(),method=method)
     cat(formula_as_text,'\n')
 
     #Compute sample-based confidence limits for intervened outcome and efficacy if intervention effects are estimated
     if(grepl('pvar', formula_as_text, fixed = TRUE) | grepl('b1', formula_as_text, fixed = TRUE)){
       # Specify the means of the variables
-      mu <- c(b0= inlaResult$summary.fixed['b0','mean'],lc= inlaResult$summary.lincomb.derived['lc','mean'])
+      mu = inlaResult$summary.lincomb.derived$mean
+      names(mu) = rownames(inlaResult$summary.lincomb.derived)
       # Specify the covariance matrix of the variables
-      cov = inlaResult$misc$lincomb.derived.covariance.matrix[c('lc','b0'),c('lc','b0')]
+      cov = inlaResult$misc$lincomb.derived.covariance.matrix
       sample = as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
       sample$pC = invlogit(sample$b0)
       sample$pI = invlogit(sample$lc)
+      #Cp is the proportion of effect subject to contamination
+      if('b1' %in% names(mu)){
+        sample$Cp =with(sample,1-(pC - invlogit(b0 + b1))/(pC-pI))
+      } else {
+        sample$Cp=1
+      }
       sample$Es = 1 - sample$pI/sample$pC
-      bounds = apply(sample,2,function(x){
-        quantile(x,c(alpha/2,0.5, 1-alpha/2),alpha=alpha)})
-      bounds <- data.frame(setNames(split(bounds,seq(ncol(bounds))),colnames(bounds)))
-
+      bounds = (apply(sample,2,function(x){
+        quantile(x,c(alpha/2,0.5, 1-alpha/2),alpha=alpha)}))
     } else {
       pC = unlist(invlogit(inlaResult$summary.fixed['b0',c("0.025quant","0.5quant","0.975quant")]))
-      bounds=data.frame(pC=pC,pI=pC,Es=rep(0,3))
+      bounds=data.frame(pC=pC,pI=pC,Es=rep(0,3),Cp=rep(NA,3))
     }
+    results = list(modelObject=inlaResult,inlaMesh = inlaMesh,PointEstimates = list(),IntervalEstimates = list(),method=method)
+
     results$PointEstimates$controlP = bounds[2,'pC']
     results$PointEstimates$interventionP = bounds[2,'pI']
     results$PointEstimates$efficacy = bounds[2,'Es']
+    results$PointEstimates$proportionCont = bounds[2,'Cp']
     results$PointEstimates$contaminationParameter=beta2
 
-    # TODO: correct in case alpha <>0.05
     # Extract interval estimates
-    results$IntervalEstimates$controlP = stats::setNames(bounds[c(1,3),'pC'],c('2.5%','97.5%'))
-    results$IntervalEstimates$interventionP = stats::setNames(bounds[c(1,3),'pI'],c('2.5%','97.5%'))
-    results$IntervalEstimates$efficacy = stats::setNames(bounds[c(1,3),'Es'],c('2.5%','97.5%'))
-
+    CLnames = c(paste0(alpha/0.02,'%'),paste0(100-alpha/0.02,'%'))
+    results$IntervalEstimates$controlP = stats::setNames(bounds[c(1,3),'pC'], CLnames)
+    results$IntervalEstimates$interventionP = stats::setNames(bounds[c(1,3),'pI'],CLnames)
+    results$IntervalEstimates$efficacy = stats::setNames(bounds[c(1,3),'Es'],CLnames)
+    results$IntervalEstimates$proportionCont = stats::setNames(bounds[c(1,3),'Cp'],CLnames)
     results$description=description
   }
   if(method %in% c('EMP','ML','GEE')){
@@ -363,15 +368,27 @@ Analyse_CRT <- function(trial,
   results$PointEstimates$contaminationRange =
     ifelse(cfunc=='X',NA,results$contamination$contaminationRange)
   results$contamination$contaminationRange = NULL
+
+  ## Output to screen
+
   cat('Analysis model: ',method,' Contamination option: ',cfunc,'\n')
-  cat('Estimated Proportions-      Control: ',results$PointEstimates$controlP,' (95% CL: ',
+  CLtext = paste0(' (',100*(1-alpha),'% CL: ')
+  cat('Estimated Proportions-      Control: ',results$PointEstimates$controlP,CLtext,
       unlist(results$IntervalEstimates$controlP),')\n')
-  cat('                       Intervention: ',results$PointEstimates$interventionP,' (95% CL: ',
-      unlist(results$IntervalEstimates$interventionP),')\n')
-  cat('Efficacy: ',results$PointEstimates$efficacy,' (95% CL: ',
-      unlist(results$IntervalEstimates$efficacy),')\n')
-  cat('Contamination Range: ',results$PointEstimates$contaminationRange,'\n')
-  return(results)}
+  if(!is.null(results$PointEstimates$interventionP)){
+    cat('                       Intervention: ',results$PointEstimates$interventionP,CLtext,
+        unlist(results$IntervalEstimates$interventionP),')\n')
+    cat('Efficacy: ',results$PointEstimates$efficacy,CLtext,
+        unlist(results$IntervalEstimates$efficacy),')\n')
+  }
+  if(!is.null(results$PointEstimates$proportionCont)){
+    cat('Proportion of effect subject to contamination: ',results$PointEstimates$proportionCont,CLtext,
+        unlist(results$IntervalEstimates$proportionCont),')\n')
+  }
+  if(!is.na(results$PointEstimates$contaminationRange)){
+    cat('Contamination Range: ',results$PointEstimates$contaminationRange,'\n')}
+  if(!is.null(results$modelObject$dic$dic)) cat('DIC: ',results$modelObject$dic$dic)
+return(results)}
 
 getContaminationCurve = function(trial, PointEstimates, FUN1){
 
@@ -379,20 +396,33 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
 
   range_d = max(trial$nearestDiscord)-min(trial$nearestDiscord)
   d = min(trial$nearestDiscord) + range_d*(seq(1:1001)-1)/1000
-  par = with(PointEstimates,c(logit(controlP),
-                              logit(interventionP)-logit(controlP),
-                              contaminationParameter))
-  curve = invlogit(FUN1(trial=data.frame(nearestDiscord=d),par=par))
+
+  # define the limits of the curve both for control and intervention arms
+  limits = c(PointEstimates$controlP,PointEstimates$interventionP)
+  limits0 = limits1 = limits
+  Cp = 1
+  if(0 < PointEstimates$proportionCont & PointEstimates$proportionCont < 1){
+    Cp = PointEstimates$proportionCont
+    limits0 =c(limits[1], Cp*limits[2]+(1-Cp)*limits[1])
+    limits1 =c(Cp*limits[1]+(1-Cp)*limits[2], limits[2])
+  } else if(PointEstimates$proportionCont < 1){
+    cat('** Warning: different signs for main effect and contamination: face validity check fails **\n')
+  }
+
+  par0 = c(logit(limits0[1]),logit(limits0[2])-logit(limits0[1]),PointEstimates$contaminationParameter)
+  par1 = c(logit(limits1[1]),logit(limits1[2])-logit(limits1[1]),PointEstimates$contaminationParameter)
+  curve = ifelse(d<0,
+          invlogit(FUN1(trial=data.frame(nearestDiscord=d),par=par0)),
+          invlogit(FUN1(trial=data.frame(nearestDiscord=d),par=par1)))
 
   #estimate contamination range
-  #The absolute value of deltaP is used so that a positive range is obtained even with negative efficacy
-  deltaP <- abs(PointEstimates$controlP - PointEstimates$interventionP)
+  #The absolute values of the limits are used so that a positive range is obtained even with negative efficacy
   thetaL = thetaU = NA
-  if (abs(PointEstimates$controlP - curve[1000]) > (0.025*deltaP)) {
-    thetaL <- d[min(which(abs(PointEstimates$controlP - curve) > (0.025*deltaP)))]
+  if (abs(limits0[1] - curve[1000]) > 0.025*abs(limits0[1]-limits0[2])) {
+    thetaL <- d[min(which(abs(limits0[1] - curve) > 0.025*abs(limits0[1]-limits0[2])))]
   }
-  if (abs(PointEstimates$interventionP - curve[1000]) < (0.025*deltaP)) {
-    thetaU <- d[min(which(abs(PointEstimates$interventionP - curve) < (0.025*deltaP)))]
+  if (abs(limits1[2] - curve[1000]) < 0.025*abs(limits1[1]-limits1[2])) {
+    thetaU <- d[min(which(abs(limits1[2] - curve) < 0.025*abs(limits1[1]-limits1[2])))]
   }
   if(is.na(thetaU)) thetaU=max(trial$nearestDiscord)
   if(is.na(thetaL)) thetaL=min(trial$nearestDiscord)
@@ -400,7 +430,7 @@ getContaminationCurve = function(trial, PointEstimates, FUN1){
   contaminatedInterval = c(thetaL,thetaU)
   if(thetaL > thetaU) contaminatedInterval= c(thetaU,thetaL)
   contaminationRange = thetaU - thetaL
-  if(deltaP == 0) contaminationRange = NA
+  if(Cp == 0) contaminationRange = NA
   # To remove warnings from plotting ensure that contamination interval is non-zero
   if(is.na(contaminationRange) || contaminationRange == 0){contaminatedInterval <- c(-0.0001,0.0001)}
   #categorisation of trial data for plotting
