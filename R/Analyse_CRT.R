@@ -255,17 +255,19 @@ Analyse_CRT <- function(trial,
     if(localisedEffects) fterms = c(fterms, 'b1')
     if(clusterEffects) fterms = c(fterms, 'f(cluster, model = "iid")')
     if(spatialEffects) fterms = c(fterms, 'f(s, model = spde)')
+    # console display of the formula
     formula_as_text = paste(fterms, collapse = " + ")
+    cat(formula_as_text,'\n')
     formula <- stats::as.formula(formula_as_text)
 
     spde = inla.mesh$spde
 
     effectse = list(df=data.frame(b0=rep(1, nrow(trial)),
-                                  b1=ifelse(trial$arm=='intervention',-1,0),
+                                  b1=ifelse(trial$arm=='intervention',1,0),
                                   cluster = trial$cluster),
                     s = inla.mesh$indexs)
     effectsp = list(df=data.frame(b0=rep(1, nrow(inla.mesh$prediction)),
-                                  b1=ifelse(inla.mesh$prediction$arm=='intervention',-1,0),
+                                  b1=ifelse(inla.mesh$prediction$arm=='intervention',1,0),
                                   cluster = inla.mesh$prediction$cluster),
                     s = inla.mesh$indexs)
     lc=NULL
@@ -273,7 +275,7 @@ Analyse_CRT <- function(trial,
     if(cfunc %in% c('L','P')){
       cat('Estimating scale parameter for contamination range','\n')
       beta2 =  stats::optimize(f=estimateContamination,
-                           interval=c(0.01,10),
+                           interval=c(-10,10),
                            trial=trial,
                            FUN=FUN,
                            inla.mesh=inla.mesh,
@@ -331,7 +333,6 @@ Analyse_CRT <- function(trial,
 
     index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
     inla.mesh$prediction$proportion <- invlogit(inla.result$summary.linear.predictor[index,'0.5quant'])
-    cat(formula_as_text,'\n')
 
     #Compute sample-based confidence limits for intervened outcome and efficacy if intervention effects are estimated
     if(grepl('pvar', formula_as_text, fixed = TRUE) | grepl('b1', formula_as_text, fixed = TRUE)){
@@ -342,15 +343,15 @@ Analyse_CRT <- function(trial,
       cov = inla.result$misc$lincomb.derived.covariance.matrix
       sample = as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
       sample$controlP = invlogit(sample$b0)
-      #Cp is the proportion of effect subject to contamination
+      #pr.contaminated is the proportion of effect subject to contamination
       if('b1' %in% names(mu) & 'pvar' %in% names(mu)){
         sample$interventionP = invlogit(sample$lc)
         sample$pr.contaminated =with(sample,1-(controlP - invlogit(b0 + b1))/(controlP-interventionP))
       } else if('b1' %in% names(mu)) {
-        sample$interventionP = invlogit(sample$b1)
+        sample$interventionP = invlogit(sample$b0+sample$b1)
         sample$pr.contaminated=0
       } else if('pvar' %in% names(mu)) {
-        sample$interventionP = invlogit(sample$pvar)
+        sample$interventionP = invlogit(sample$b0+sample$pvar)
         sample$pr.contaminated=1
       }
       sample$efficacy = 1 - sample$interventionP/sample$controlP
@@ -365,10 +366,15 @@ Analyse_CRT <- function(trial,
     results = add_estimates(results=results,bounds=bounds,CLnames=CLnames)
     results$int.ests$pr.contaminated = stats::setNames(bounds[c(1,3),'pr.contaminated'],CLnames)
     results$pt.ests$pr.contaminated = bounds[2,'pr.contaminated']
-    if(bounds[2,'pr.contaminated'] < 0){
+
+    results$passed.face.validity.check = TRUE
+    if(results$pt.ests$pr.contaminated < 0 | results$pt.ests$pr.contaminated > 1){
       cat('** Warning: different signs for main effect and contamination: face validity check fails **\n')
+      results$passed.face.validity.check = FALSE
+      results$pt.ests$pr.contaminated = NA
+      results$int.ests$pr.contaminated = c(NA,NA)
     }
-    results$pt.ests$contamination.par=log(beta2)
+    results$pt.ests$contamination.par=beta2
     results$description=description
   }
   if(method %in% c('EMP','ML','GEE')){
@@ -405,10 +411,17 @@ Analyse_CRT <- function(trial,
       cat('Proportion of effect subject to contamination: ',results$pt.ests$pr.contaminated,CLtext,
           unlist(results$int.ests$pr.contaminated),')\n')
     }
-    if(!is.na(results$pt.ests$contaminationRange)){
-      cat('Contamination Range: ',results$pt.ests$contaminationRange,'\n')}
   }
-  if(!is.null(results$model.object$dic$dic)) cat('DIC: ',results$model.object$dic$dic)
+  if(!is.na(results$pt.ests$contaminationRange)){
+    cat('Contamination Range: ',results$pt.ests$contaminationRange,'\n')
+  }
+  if(!is.null(results$model.object$dic$dic)){
+      # The contamination parameter is not estimated by INLA but should be considered in the DIC
+      results$model.object$dic$dic = results$model.object$dic$dic + 2
+      cat('DIC: ',results$model.object$dic$dic,' including penalty for the contamination parameter\n')}
+  else if(!is.null(results$model.object$dic$dic)){
+      cat('DIC: ',results$model.object$dic$dic,'\n')
+  }
 return(results)}
 
 # Add estimates to results list
@@ -437,7 +450,7 @@ getContaminationCurve = function(trial, pt.ests, FUN1){
   Cp = 1
   if(is.na(pt.ests$pr.contaminated)){
     Cp = 0
-  } else if(0 < pt.ests$pr.contaminated & pt.ests$pr.contaminated < 1){
+  } else if(0 <= pt.ests$pr.contaminated & pt.ests$pr.contaminated <= 1){
     Cp = pt.ests$pr.contaminated
     limits0 =c(limits[1], Cp*limits[2]+(1-Cp)*limits[1])
     limits1 =c(Cp*limits[1]+(1-Cp)*limits[2], limits[2])
@@ -774,7 +787,7 @@ estimateContamination = function(beta2 = beta2,
     data = list(y = trial$y1, y_off=trial$y_off),
     A = list(1, A=inla.mesh$A),
     effects = list(data.frame(b0=rep(1, nrow(trial)),
-                              b1=ifelse(trial$arm=='intervention',-1,0),
+                              b1=ifelse(trial$arm=='intervention',1,0),
                               pvar = trial$pvar,
                               cluster = trial$cluster),
                    s = inla.mesh$indexs)
