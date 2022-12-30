@@ -26,7 +26,7 @@ test_that("Toy GEE analysis creates correct output", {
   get_test4 = function(){
     testEstimates= Analyse_CRT(trial=test_Simulate_CRT,method='GEE',excludeBuffer = FALSE,
                 requireBootstrap=FALSE,alpha=0.2)
-    testEstimates$ModelObject=NULL
+    testEstimates$model.object=NULL
     return(testEstimates)
   }
   expect_equal(get_test4(), test_Analyse_CRT)

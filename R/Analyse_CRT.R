@@ -415,7 +415,7 @@ Analyse_CRT <- function(trial,
   if(!is.na(results$pt.ests$contaminationRange)){
     cat('Contamination Range: ',results$pt.ests$contaminationRange,'\n')
   }
-  if(!is.null(results$model.object$dic$dic)){
+  if(!is.null(results$model.object$dic$dic) & cfunc %in% c('L','P')){
       # The contamination parameter is not estimated by INLA but should be considered in the DIC
       results$model.object$dic$dic = results$model.object$dic$dic + 2
       cat('DIC: ',results$model.object$dic$dic,' including penalty for the contamination parameter\n')}
@@ -801,7 +801,8 @@ estimateContamination = function(beta2 = beta2,
                            compute = TRUE,link = 1,
                            A = INLA::inla.stack.A(stk.e)),
                          control.compute = list(dic = TRUE))
-  loss = result.e$dic$family.dic
+  # The DIC is penalised to allow for estimation of beta2
+  loss = result.e$dic$family.dic + 2
   cat("\rDIC: ",loss," Contamination parameter: ",beta2,"  \r")
   return(loss)}
 
