@@ -65,6 +65,8 @@ Simulate_CRT = function(trial=NULL,
       trial = NULL
       return(trial)
     }
+    #trial needs to be ordered for GEE analyses (estimation of ICC)
+    trial <- trial[order(trial$cluster),]
 
     # For the smoothing step compute contributions to the relative effect size
     # from other households as a function of distance to the other households
@@ -78,29 +80,38 @@ Simulate_CRT = function(trial=NULL,
         trial$infectiousness_proxy = trial[[baselineNumerator]]/trial[[baselineDenominator]]
     } else if("infectiousness_proxy" %in% colnames(trial)){
       # create a baseline dataset using a pre-existing exposure proxy
-      npositives = round(initialPrevalence*nrow(trial))
-      trial = syntheticBaseline(bw=NULL,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
+      trial = syntheticBaseline(bw=NULL,trial=trial,sd=sd,euclid=euclid,initialPrevalence=initialPrevalence)
     } else if(generateBaseline){
         # determine the required smoothing bandwidth by fitting to the pre-specified ICC
 
         # compute approximate diagonal of clusters
         approx_diag = sqrt((max(trial$x)-min(trial$x))^2 + (max(trial$y)-min(trial$y))^2)/sqrt(length(unique(trial$cluster)))
 
-        # number of positives required to match the specified prevalence
-        npositives = round(initialPrevalence*nrow(trial))
-
-
         cat("Estimating the smoothing required to achieve the target ICC of",ICC_inp,"\n")
+
         bw =  stats::optimize(f=ICCdeviation,interval=c(0.1,10),
                               trial=trial,ICC_inp=ICC_inp,approx_diag=approx_diag,sd=sd,
-                              euclid=euclid,npositives=npositives,tol = tol)$minimum
+                              euclid=euclid,efficacy=efficacy,initialPrevalence=initialPrevalence,
+                              tol = tol)$minimum
+
         # overprint the output that was recording progress
         cat("\r                                                         \n")
 
-        # create a baseline dataset using a pre-existing exposure proxy or optimized bandwidth
-        trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
+        # set the seed so that the same result is obtained for a specific bandwidth
+        if(!is.null(bw)) set.seed(round(bw*1000000))
+        # create a baseline dataset using the optimized bandwidth
+
+        trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,initialPrevalence=initialPrevalence)
     }
-    # Assign expected proportions to each location assuming a fixed efficacy.
+
+    trial = assignPositives(trial=trial, euclid=euclid, sd=sd,
+                            efficacy=efficacy, initialPrevalence=initialPrevalence)
+
+    return(trial)
+}
+
+# Assign expected proportions to each location assuming a fixed efficacy.
+assignPositives = function(trial, euclid, sd, efficacy, initialPrevalence){
 
     # Indicator of whether the source is intervened is (as.numeric(trial$arm[i]) - 1
     # smoothedIntervened is the value of infectiousness_proxy decremented
@@ -123,32 +134,32 @@ Simulate_CRT = function(trial=NULL,
     # to smoothedIntervened multiplied by the denominator
     expected_allocation = smoothedIntervened*trial$denom/sum(smoothedIntervened*trial$denom)
 
+    #TODO: correct this code for the case where denom can be >1
     positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=expected_allocation)
     trial$num=0
     trial$num[positives]=1
-    return(trial)
-}
+    trial$neg = trial$denom - trial$num
+return(trial)}
 
-# Function required for optimising bandwidth
-ICCdeviation = function(bw=bw,
-                        trial=trial,
-                        ICC_inp=ICC_inp,
-                        approx_diag=approx_diag,
-                        sd=sd,
-                        euclid=euclid,
-                        npositives=npositives){
+# Function required for optimising bandwidth by minimising the deviation of the calculated ICC from the input ICC
+ICCdeviation = function(bw,trial,ICC_inp,approx_diag,sd,euclid,efficacy,initialPrevalence){
   cluster=NULL
-  trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,npositives=npositives)
-  trial$base_neg = trial$base_denom - trial$base_num
-  fit <- geepack::geeglm(cbind(base_num,base_neg) ~ 1, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
+
+  # set the seed so that the same result is obtained for a specific bandwidth
+  if(!is.null(bw)) set.seed(round(bw*1000000))
+
+  trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,initialPrevalence=initialPrevalence)
+  trial = assignPositives(trial=trial, euclid=euclid, sd=sd,
+                          efficacy=efficacy, initialPrevalence=initialPrevalence)
+  fit <- geepack::geeglm(cbind(num,neg) ~ arm, id = cluster, corstr = "exchangeable", data=trial, family=binomial(link="logit"))
   summary_fit = summary(fit)
   # Intracluster correlation
   ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
-  cat("\rbandwidth: ",bw*approx_diag,"  ICC=",ICC,"          ")
+  cat("\rbandwidth: ",bw,"  ICC=",ICC,"        ")
   loss = abs(ICC - ICC_inp)
 return(loss)}
 
-syntheticBaseline = function(bw,trial,sd,euclid,npositives){
+syntheticBaseline = function(bw,trial,sd,euclid,initialPrevalence){
   #assign initial pattern if it does not exist
   if(!is.null(bw)){
     trial$infectiousness_proxy <- KDESmoother(trial$x,trial$y,kernnumber=200,bandwidth=bw,low=0.0,high=1.0)
@@ -161,10 +172,14 @@ syntheticBaseline = function(bw,trial,sd,euclid,npositives){
   # scale to input value of initial prevalence by assigning required number of infections with probabilities proportionate
   # to infectiousness_proxy
 
+  # number of positives required to match the specified prevalence
+  npositives = round(initialPrevalence*nrow(trial))
+
   positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=smoothedBaseline)
   trial$base_denom=1
   trial$base_num=0
   trial$base_num[positives]=1
+  trial$base_neg = trial$base_denom - trial$base_num
   return(trial)
 }
 
