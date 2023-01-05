@@ -388,12 +388,13 @@ Analyse_CRT <- function(trial,
                    int.ests=int.ests,
                    model.object=model.object)
   }
-  results$contamination = getContaminationCurve(trial=trial,
-                                                  pt.ests=results$pt.ests,
-                                                  FUN1=FUN1)
-  results$pt.ests$contaminationRange = results$contamination$contaminationRange
-  results$contamination$contaminationRange = NULL
-
+  if(cfunc != 'Z'){
+    results$contamination = getContaminationCurve(trial=trial,
+                                                    pt.ests=results$pt.ests,
+                                                    FUN1=FUN1)
+    results$pt.ests$contaminationRange = results$contamination$contaminationRange
+    results$contamination$contaminationRange = NULL
+  }
   ## Output to screen
 
   cat('Analysis model: ',method,' Contamination option: ',cfunc,'\n')

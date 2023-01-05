@@ -15,7 +15,7 @@ Simulate_CRT(
   ICC_inp = NULL,
   sd = NULL,
   theta_inp = NULL,
-  tol = 0.005
+  tol = 1e-04
 )
 }
 \arguments{

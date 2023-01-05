@@ -47,7 +47,7 @@ Simulate_CRT = function(trial=NULL,
                         ICC_inp=NULL,
                         sd=NULL,
                         theta_inp=NULL,
-                        tol=0.005){
+                        tol=1E-4){
 
   ##############################################################################
   #  Simulation of cluster randomized trial with contamination
@@ -89,18 +89,21 @@ Simulate_CRT = function(trial=NULL,
 
         cat("Estimating the smoothing required to achieve the target ICC of",ICC_inp,"\n")
 
-        bw =  stats::optimize(f=ICCdeviation,interval=c(0.1,10),
-                              trial=trial,ICC_inp=ICC_inp,approx_diag=approx_diag,sd=sd,
-                              euclid=euclid,efficacy=efficacy,initialPrevalence=initialPrevalence,
-                              tol = tol)$minimum
-
+        loss = 999
+        while(loss > tol){
+          ICC.loss = OOR::StoSOO(par=NA,fn=ICCdeviation,lower=-5, upper=5,nb_iter=20,
+                           trial=trial,ICC_inp=ICC_inp,approx_diag=approx_diag,sd=sd,
+                           euclid=euclid,efficacy=efficacy,initialPrevalence=initialPrevalence)
+          loss = ICC.loss$value
+        }
+        logbw = ICC.loss$par
         # overprint the output that was recording progress
         cat("\r                                                         \n")
 
         # set the seed so that the same result is obtained for a specific bandwidth
-        if(!is.null(bw)) set.seed(round(bw*1000000))
+        bw = exp(logbw)
+        set.seed(round(bw*1000000))
         # create a baseline dataset using the optimized bandwidth
-
         trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,initialPrevalence=initialPrevalence)
     }
 
@@ -117,8 +120,9 @@ assignPositives = function(trial, euclid, sd, efficacy, initialPrevalence){
     # smoothedIntervened is the value of infectiousness_proxy decremented
     # by the effect of intervention and smoothed to allow for mosquito movement
 
-    smoothedIntervened <- gauss(sd, euclid) %*% (trial$infectiousness_proxy * (1 -efficacy*(as.numeric(trial$arm) - 1)))
-
+    if(sd > 0) {smoothedIntervened <- gauss(sd, euclid) %*% (trial$infectiousness_proxy *
+                                                 (1 -efficacy*(as.numeric(trial$arm) - 1)))}
+    else {smoothedIntervened = trial$infectiousness_proxy * (1 -efficacy*(as.numeric(trial$arm) - 1))}
     # distances to nearest discordant households
     discord <- outer(trial$arm, trial$arm, "!=") #returns true & false.
     euclidd <- ifelse(discord,euclid,99999.9)
@@ -142,11 +146,11 @@ assignPositives = function(trial, euclid, sd, efficacy, initialPrevalence){
 return(trial)}
 
 # Function required for optimising bandwidth by minimising the deviation of the calculated ICC from the input ICC
-ICCdeviation = function(bw,trial,ICC_inp,approx_diag,sd,euclid,efficacy,initialPrevalence){
+ICCdeviation = function(logbw,trial,ICC_inp,approx_diag,sd,euclid,efficacy,initialPrevalence){
   cluster=NULL
-
   # set the seed so that the same result is obtained for a specific bandwidth
-  if(!is.null(bw)) set.seed(round(bw*1000000))
+  if(!is.null(logbw)){bw = exp(logbw)
+                      set.seed(round(bw*1000000))}
 
   trial = syntheticBaseline(bw=bw,trial=trial,sd=sd,euclid=euclid,initialPrevalence=initialPrevalence)
   trial = assignPositives(trial=trial, euclid=euclid, sd=sd,
@@ -155,8 +159,8 @@ ICCdeviation = function(bw,trial,ICC_inp,approx_diag,sd,euclid,efficacy,initialP
   summary_fit = summary(fit)
   # Intracluster correlation
   ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
-  cat("\rbandwidth: ",bw,"  ICC=",ICC,"        ")
-  loss = abs(ICC - ICC_inp)
+  cat("\rbandwidth: ",bw,"  ICC=",ICC,"        \r")
+  loss = (ICC - ICC_inp)^2
 return(loss)}
 
 syntheticBaseline = function(bw,trial,sd,euclid,initialPrevalence){
@@ -167,7 +171,8 @@ syntheticBaseline = function(bw,trial,sd,euclid,initialPrevalence){
   # Smooth the exposure proxy to allow for mosquito movement
   # Note that the s.d. in each dimension of the 2 d gaussian is sd/sqrt(2)
   # smoothedBaseline is the amount received by the each cluster from the contributions (infectiousness_proxy) of each source
-  smoothedBaseline <-  gauss(sd, euclid) %*% trial$infectiousness_proxy
+  if(sd > 0) {smoothedBaseline <-  gauss(sd, euclid) %*% trial$infectiousness_proxy}
+  else {smoothedBaseline = trial$infectiousness_proxy}
 
   # scale to input value of initial prevalence by assigning required number of infections with probabilities proportionate
   # to infectiousness_proxy
@@ -176,6 +181,7 @@ syntheticBaseline = function(bw,trial,sd,euclid,initialPrevalence){
   npositives = round(initialPrevalence*nrow(trial))
 
   positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=smoothedBaseline)
+
   trial$base_denom=1
   trial$base_num=0
   trial$base_num[positives]=1
@@ -229,6 +235,9 @@ gauss <- function(sd,euclid){ #definition of a gauss function
 
 
 KDESmoother <- function(x,y,kernnumber,bandwidth,low,high){
+
+  # force bandwidth to be scalar
+  bandwidth=bandwidth[1]
 
   sam <- sample(1:length(x),kernnumber,replace=F)
 

@@ -29,6 +29,7 @@ Imports:
     mgcv,
     dplyr,
     spatstat.random,
+    OOR
 Suggests: 
     knitr, rmarkdown, 
     TSP, aod, ggthemes, gstat, lme4, maptools, methods, mvtnorm, plyr, qpdf, rgdal, spatstat.core,
