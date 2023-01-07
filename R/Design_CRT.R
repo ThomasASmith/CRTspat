@@ -149,7 +149,9 @@ describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
   min_k = ceiling(n_ind*(1+((cv_h + 1)*mean_h - 1)*ICC)/mean_h)
 
   # power with k clusters per arm
-  power = stats::pnorm(sqrt(k*mean_h/(2*(1+(mean_h-1)*ICC)))* d/sqrt(sigma2) - Zsig)   #Hemming eqn 27
+  # power = stats::pnorm(sqrt(k*mean_h/(2*(1+(mean_h-1)*ICC)))* d/sqrt(sigma2) - Zsig)   #Hemming eqn 27
+
+  power = stats::pnorm(sqrt(k*mean_h/(2*DE))* d/sqrt(sigma2) - Zsig)   #unequal cluster sizes
 
   cat('calculated design effect: ',DE,'\n')
   cat('Locations- total: ',nrow(trial),'. Per cluster mean: ',mean_h,'S.D.: ', sd_h,'\n')

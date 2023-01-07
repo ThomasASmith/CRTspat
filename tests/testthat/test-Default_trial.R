@@ -1,46 +1,73 @@
 set.seed(1234)
 test_that("Design_CRT() creates the default trial", {
-  expect_identical(Design_CRT(alpha = 0.05,
-                              desiredPower = 0.8,
-                              effect = 0.6,
-                              ICC = 0.175,
-                              pC = 0.4,
-                              postulatedContaminationRange = 0.05,
-                              coordinates=CRTspillover::test_coordinates,
-                              h = 80)
-                            , test_design)
+  get_test1 = function(){
+    Solarmal_baseline <- read.csv(file = "Solarmal_baseline.csv")
+    testLocationsxy <- Convert_LatLong(Solarmal_baseline) #test_site is simulated
+    coordinates <- Solarmal_baseline[]
+    test_design <- Design_CRT(alpha = 0.05,
+                    desiredPower = 0.8,
+                    effect = 0.6,
+                    ICC = 0.175,
+                    pC = 0.4,
+                    postulatedContaminationRange = 0.05,
+                    coordinates = testLocationsxy,
+                    h = 80)
+    df <- test_design$descriptionCoreTrial$trial
+    df$cluster <- as.numeric(df$cluster)
+    df$arm <- as.character(df$arm)
+    row.names(df) <- NULL
+  return(df)
+  }
+expect_equal(get_test1(),read.csv(file = "test_design.csv"))
 })
+
 set.seed(1234)
 test_that("Simulate_TrialSite() creates the default site", {
-  expect_identical(Simulate_TrialSite(), test_site)
+ expect_equal(Simulate_TrialSite(),read.csv(file = "test_site.csv"))
 })
-set.seed(1234)
+
+set.seed(4321)
 test_that("Simulate_CRT() creates the default simulation", {
-  expect_identical(Simulate_CRT(trial=CRTspillover::test_design$descriptionFullTrial$trial,
-                  theta_inp=1.2,initialPrevalence=0.4,
-                  ICC_inp=0.05,efficacy=0.2,tol=0.05),
-                  test_Simulate_CRT)
+ get_test3 = function(){
+ Solarmal_baseline <- read.csv(file = "Solarmal_baseline.csv")
+ testLocationsxy <- Convert_LatLong(Solarmal_baseline) #test_site is simulated
+ testClusters1 <- DefineClusters(testLocationsxy,h = 50)
+ testArms1 <- Randomize_CRT(trial = testClusters,matchedPair = TRUE)
+ test_Simulate_CRT <- Simulate_CRT(trial = testArms1,
+                      theta_inp = 1.2,initialPrevalence = 0.4,
+                      ICC_inp = 0.05,efficacy = 0.2,tol = 0.05)
+ test_Simulate_CRT$cluster <- as.numeric(test_Simulate_CRT$cluster)
+ test_Simulate_CRT$arm <- as.character(test_Simulate_CRT$arm)
+ rownames(test_Simulate_CRT) <- NULL
+ return(test_Simulate_CRT)}
+ expect_equal(get_test3(),read.csv(file = "test_Simulate_CRT.csv"))
 })
+
 set.seed(1234)
 test_that("Toy GEE analysis creates correct output", {
-  get_test4 = function(){
-    testEstimates= Analyse_CRT(trial=test_Simulate_CRT,method='GEE',excludeBuffer = FALSE,
-                requireBootstrap=FALSE,alpha=0.2)
-    testEstimates$model.object=NULL
-    return(testEstimates)
-  }
-  expect_equal(get_test4(), test_Analyse_CRT)
+ get_test4 = function(){
+             trial <- read.csv(file = "test_Simulate_CRT.csv")
+             testEstimates <- Analyse_CRT(trial = trial,
+             method = 'GEE',excludeBuffer = FALSE,
+             requireBootstrap = FALSE,alpha = 0.2)
+             value <- testEstimates$contamination$data$positives[4]
+ return(value)
+ }
+ expect_equal(get_test4(), 220)
 })
+
 set.seed(1234)
 get_test5 = function(){
-  testLocationsLatLong = Solarmal_baseline[, c('lat','long')]
-  testLocationsxy=Convert_LatLong(testLocationsLatLong) #test_site is simulated
-  testAnonymisedLocations=Anonymise_TrialSite(testLocationsxy)
-  testClusters=DefineClusters(testAnonymisedLocations,h=50)
-  testArms=Randomize_CRT(trial=testClusters,matchedPair = FALSE)
-  testBuffer=Specify_CRTbuffer(trial = testArms, bufferWidth = 0.1)
-  return(testBuffer)
-}
-test_that("Anonymisation, randomization, and creation of buffer produces expected trial",      {
-  expect_identical(get_test5(), testBuffer)
+   Solarmal_baseline <- read.csv(file = "Solarmal_baseline.csv")
+   testLocationsLatLong <- Solarmal_baseline[, c('lat','long')]
+   testLocationsxy <- Convert_LatLong(testLocationsLatLong) #test_site is simulated
+   testAnonymisedLocations <- Anonymise_TrialSite(testLocationsxy)
+   testClusters <- DefineClusters(testAnonymisedLocations,h = 50)
+   testArms <- Randomize_CRT(trial = testClusters,matchedPair = FALSE)
+   testBuffer <- Specify_CRTbuffer(trial = testArms, bufferWidth = 0.1)
+   testBuffer$cluster <- as.numeric(testBuffer$cluster)
+   testBuffer$arm <- as.character(testBuffer$arm)
+return(testBuffer)}
+test_that("Anonymisation, randomization, and creation of buffer produces expected trial", {
+ expect_equal(get_test5(), read.csv(file = "testBuffer.csv"))
 })

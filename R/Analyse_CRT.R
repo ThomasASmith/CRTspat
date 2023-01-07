@@ -5,6 +5,7 @@
 #' @param method statistical method used to analyse trial.
 #' options are:
 #' 'EMP'  : empirical,
+#' 'HM'   : comparison of cluster means only
 #' 'ML'   : maximum likelihood,
 #' 'GEE'  : generalised estimating equations
 #' 'INLA' : INLA
@@ -64,7 +65,7 @@ Analyse_CRT <- function(trial,
 
   ##############################################################################
   # test validity of inputs
-  if(!method %in% c('EMP','ML','GEE','INLA')){
+  if(!method %in% c('EMP','HM','ML','GEE','INLA')){
     cat('Error: Invalid value for statistical method\n')
     return(NULL)
   }
@@ -88,7 +89,7 @@ Analyse_CRT <- function(trial,
   #trial needs to be ordered for some analyses
   trial <- trial[order(trial$cluster),]
 
-  if(method=='EMP' | method=='GEE') cfunc = 'X'
+  if(method %in% c('EMP','HM','GEE')) cfunc = 'X'
   if(baselineOnly){
     if(method %in% c('EMP','ML','GEE')){
       method='GEE'
@@ -136,6 +137,35 @@ Analyse_CRT <- function(trial,
       int.ests$efficacy <- namedCL(quantile(boot_emp$t,c(alpha/2,1-alpha/2)),alpha=alpha)
     }
   }
+  if(method=='HM'){
+
+    y1 <- arm <- NULL
+    clusterSum <- data.frame(trial %>%
+                        group_by(cluster) %>%
+                        dplyr::summarize(positives = sum(y1),
+                                         total = sum(y_off),
+                                         arm = arm[1]))
+    clusterSum$lp <- logit(clusterSum$positives/clusterSum$total)
+    formula <- stats::as.formula('lp ~ arm')
+    model.object = stats::t.test(formula=formula, data=clusterSum,
+                  alternative="two.sided",conf.level=1-alpha,var.equal = TRUE)
+    pt.ests$p.value <- model.object$p.value
+    analysisC <- stats::t.test(clusterSum$lp[clusterSum$arm=='control'], conf.level = 1-alpha)
+    pt.ests$controlP <- invlogit(analysisC$estimate[1])
+    int.ests$controlP <- invlogit(analysisC$conf.int)
+    analysisI <- stats::t.test(clusterSum$lp[clusterSum$arm=='intervention'], conf.level = 1-alpha)
+    pt.ests$interventionP <- invlogit(analysisI$estimate[1])
+    int.ests$interventionP <- invlogit(analysisI$conf.int)
+
+    # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
+    Sigma <- matrix(data=c(analysisC$stderr^2,0,0,analysisI$stderr^2),nrow=2,ncol=2)
+    pt.ests$efficacy <- 1- pt.ests$interventionP/pt.ests$controlP
+    int.ests$efficacy <- estimateCLEfficacy(mu=c(analysisC$estimate,analysisI$estimate),
+                                           Sigma=Sigma,
+                                           alpha=alpha,
+                                           resamples=resamples,
+                                           method=method)
+  }
   if(method=='GEE'){
     #GEE analysis of cluster effects
     # create model formula
@@ -148,26 +178,23 @@ Analyse_CRT <- function(trial,
     z=-qnorm(alpha/2) #standard deviation score for calculating confidence intervals
     logitpC = summary_fit$coefficients[1,1]
     se_logitpC = summary_fit$coefficients[1,2]
-    CL_pC = namedCL(invlogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),alpha=alpha)
-
-    # Intracluster correlation
-    ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
-    se_ICC = noLabels(summary_fit$corr[2])
-    CL_ICC = namedCL(noLabels(c(ICC-z*se_ICC,ICC+z*se_ICC)),alpha=alpha)
 
     clusterSize = nrow(trial)/nlevels(as.factor(trial$cluster))
-    DesignEffect = 1 + (clusterSize - 1)*ICC #Design Effect
-    CL_DesignEffect = 1 + (clusterSize - 1)*CL_ICC
+
 
     # remove the temporary objects from the dataframe
     fit$model.object$data$y1=fit$model.object$data$y0=fit$model.object$data$y_off=NULL
     pt.ests$controlP=invlogit(logitpC)
-    pt.ests$ICC=ICC
-    pt.ests$DesignEffect=DesignEffect
+    int.ests$controlP=namedCL(invlogit(c(logitpC-z*se_logitpC,logitpC+z*se_logitpC)),alpha=alpha)
+
     pt.ests$model.object=fit
-    int.ests$controlP=CL_pC
-    int.ests$ICC=CL_ICC
-    int.ests$DesignEffect=CL_DesignEffect
+
+    # Intracluster correlation
+    pt.ests$ICC = noLabels(summary_fit$corr[1]) #with corstr = "exchangeable", alpha is the ICC
+    se_ICC = noLabels(summary_fit$corr[2])
+    int.ests$ICC=namedCL(noLabels(c(pt.ests$ICC-z*se_ICC,pt.ests$ICC+z*se_ICC)),alpha=alpha)
+    pt.ests$DesignEffect = 1 + (clusterSize - 1)*pt.ests$ICC #Design Effect
+    int.ests$DesignEffect = 1 + (clusterSize - 1)*int.ests$ICC
 
     # Estimation of efficacy does not apply if analysis is of baseline only (cfunc='Z')
     pt.ests$efficacy = 0
@@ -175,13 +202,15 @@ Analyse_CRT <- function(trial,
       logitpI = summary_fit$coefficients[1,1] + summary_fit$coefficients[2,1]
       se_logitpI = sqrt(fit$geese$vbeta[1,1] + fit$geese$vbeta[2,2] + 2*fit$geese$vbeta[1,2])
 
-      CL_pI = namedCL(invlogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
-      CL_eff = estimateCLEfficacy(mu=summary_fit$coefficients[,1], Sigma=fit$geese$vbeta ,alpha=alpha, resamples=resamples)
+      int.ests$interventionP = namedCL(invlogit(c(logitpI-z*se_logitpI,logitpI+z*se_logitpI)),alpha=alpha)
+      int.ests$efficacy = estimateCLEfficacy(mu=summary_fit$coefficients[,1],
+                                  Sigma=fit$geese$vbeta ,
+                                  alpha=alpha,
+                                  resamples=resamples,
+                                  method=method)
 
       pt.ests$interventionP=invlogit(logitpI)
       pt.ests$efficacy=(1 - invlogit(logitpI)/invlogit(logitpC))
-      int.ests$interventionP=CL_pI
-      int.ests$efficacy=CL_eff
     }
 
   } else if(method == 'ML'){
@@ -377,7 +406,7 @@ Analyse_CRT <- function(trial,
     results$pt.ests$contamination.par=beta2
     results$description=description
   }
-  if(method %in% c('EMP','ML','GEE')){
+  if(method %in% c('EMP','ML','HM','GEE')){
     # tidy up and consolidate the list of results
     model.object=pt.ests$model.object
     pt.ests <- pt.ests[names(pt.ests) != "GAsolution3"]
@@ -591,8 +620,9 @@ CalculateProbitFunction <- function(par,trial){
   return(lp)
 }
 
+
 ##############################################################################
-# Functions for GEE analysis
+# Functions for HM and GEE analysis
 
 noLabels=function(x){
   xclean = as.matrix(x)
@@ -600,15 +630,21 @@ noLabels=function(x){
   xclean = as.vector(xclean)
   return(xclean)}
 
-estimateCLEfficacy = function(mu, Sigma,alpha=alpha, resamples=resamples){
-  # Use resampling approach to avoid need for complicated Taylor approximation
+estimateCLEfficacy = function(mu, Sigma,alpha, resamples, method){
+
+  # Use resampling approach to avoid need for Taylor approximation
   # use at least 10000 samples (this is very cheap)
-  resamples1 = max(resamples,10000,na.rm = TRUE)
-  samples = MASS::mvrnorm(n = resamples1,mu=mu,Sigma=Sigma)
-  pC = invlogit(samples[,1])
-  pI = invlogit(samples[,1] + samples[,2])
-  eff = 1 - pI/pC
-  CL = quantile(eff, probs = c(alpha/2, 1-alpha/2))
+  resamples1 <- max(resamples,10000,na.rm = TRUE)
+  samples <- MASS::mvrnorm(n = resamples1,mu=mu,Sigma=Sigma)
+  pC <- invlogit(samples[,1])
+
+  # for the HM method the input the t-tests provide estimates for the s.e. for both arms separately
+  # for the GEE method the input is in terms of the incremental effect of the intervention
+
+  pI <- ifelse(method=='HM', invlogit(samples[,2]), invlogit(samples[,1] + samples[,2]))
+  eff <- 1 - pI/pC
+
+  CL <- quantile(eff, probs = c(alpha/2, 1-alpha/2))
   return(CL)}
 
 ##############################################################################

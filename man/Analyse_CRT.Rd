@@ -29,6 +29,7 @@ Analyse_CRT(
 \item{method}{statistical method used to analyse trial.
 options are:
 'EMP'  : empirical,
+'HM'   : comparison of cluster means only
 'ML'   : maximum likelihood,
 'GEE'  : generalised estimating equations
 'INLA' : INLA}
