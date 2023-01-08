@@ -19,7 +19,7 @@ DefineClusters(
 
 \item{nclusters}{number of clusters}
 
-\item{algo}{algorithm for cluster boundaries, options are: "TSP": travelling salesman problem heuristic; "NN": nearest neighbor; "kmeans": kmeans algorithm}
+\item{algo}{algorithm for cluster boundaries, options are: 'TSP': travelling salesman problem heuristic; 'NN': nearest neighbor; 'kmeans': kmeans algorithm}
 
 \item{reuseTSP}{indicator of whether a pre-existing path should be used by the TSP algorithm}
 }
@@ -31,16 +31,16 @@ The input coordinates as a dataframe augmented with the following attributes
 \item \code{cluster}: cluster assignments
 \item \code{h}: number of households in each cluster
 \item \code{algo}: algorithm used for cluster boundaries
-\item \code{path}: TSP path (if algo= 'TSP')
+\item \code{path}: TSP path (if algo = 'TSP')
 }
 }
 \description{
 \code{DefineClusters} algorithmically assigns locations to clusters in a CRT with geographical clustering, by one of three algorithms:
-(i)    Nearest neighbour (NN): (assigns equal numbers of locations to each cluster)
-(ii)   kmeans clustering (kmeans) : (aims to partition locations so that each belongs to the cluster with the nearest centroid)
-(iii)  travelling salesman problem heuristic : assigns locations sequentially along a travelling salesman path
+(i) Nearest neighbour (NN): (assigns equal numbers of locations to each cluster)
+(ii) kmeans clustering (kmeans) : (aims to partition locations so that each belongs to the cluster with the nearest centroid)
+(iii) travelling salesman problem heuristic : assigns locations sequentially along a travelling salesman path
 }
 \examples{
-#Assign clusters to the test trial dataset averaging h=40 using the kmeans algorithm
-exampletrial = DefineClusters(trial=test_site, h=40, algo='kmeans')
+#Assign clusters to the test trial dataset averaging h = 40 using the kmeans algorithm
+exampletrial <- DefineClusters(trial = test_site, h = 40, algo = 'kmeans')
 }

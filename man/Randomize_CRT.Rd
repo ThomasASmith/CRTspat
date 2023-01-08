@@ -29,5 +29,5 @@ The input dataframe augmented with variable arm coded 'control' or 'intervention
 \examples{
 #Randomize the clusters in the example trial
 set.seed(352)
-exampletrial=Randomize_CRT(testClusters)
+exampletrial <- Randomize_CRT(testClusters)
 }

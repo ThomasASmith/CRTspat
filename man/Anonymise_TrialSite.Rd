@@ -17,5 +17,5 @@ data.frame with modified co-ordinates of households (other columns remain unchan
 }
 \examples{
 #Rotate and reflect test site locations
-transformedTestlocations=Anonymise_TrialSite()
+transformedTestlocations <- Anonymise_TrialSite()
 }
