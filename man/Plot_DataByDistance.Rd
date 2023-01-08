@@ -9,7 +9,7 @@ Plot_DataByDistance(
   trial = trial,
   num = num,
   denom = denom,
-  cpalette = c("#D55E00", "#009E73", "#0072A7", "#C879C8")
+  cpalette = c("#D55E00", "#0072A7")
 )
 }
 \arguments{
