@@ -1,2 +1,8 @@
 .Rproj.user
 docs
+inst/extdata/.Rhistory
+*.png
+vignettes/Usecase3.Rmd
+vignettes/Usecase2.Rmd
+vignettes/Usecase1.Rmd
+vignettes/CRTspillover.Rmd
