@@ -1,3 +1,18 @@
+#' Helper function to read in example dataset from csv format
+#'
+#' \code{get_example_baseline} reads the example dataset from .csv format
+#' @return A data.frame comprising with the following columns:
+#' \itemize{
+#' \item \code{x}: x-coordinates of location
+#' \item \code{y}: y-coordinates of location
+#' \item \code{RDT_test_result}: test result (0= negative, 1 = positive)
+#' }
+#' @export
+get_example_baseline = function(){
+  example_baseline_path <- system.file("extdata", "example_baseline.csv", package = "CRTspillover")
+  example_baseline <- read.csv(example_baseline_path)
+return(example_baseline)}
+
 #' Sample of coordinates from an arbitrary site in West Africa
 #' @format data.frame:
 #' \itemize{

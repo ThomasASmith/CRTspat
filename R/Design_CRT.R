@@ -53,70 +53,70 @@ Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
                         algo = "kmeans",
                         reuseTSP=FALSE){
 
-# convert power and significance level to normal deviates
-Zsig = -qnorm(alpha/2)
-Zpow = qnorm(desiredPower)
+  # convert power and significance level to normal deviates
+  Zsig = -qnorm(alpha/2)
+  Zpow = qnorm(desiredPower)
 
-##############################################################################
-# Calculations (see e.g. Hemming et al, 2011
-# https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102
-# )
-##############################################################################
-# Step I: Calculations for the required minimum number of clusters for both arms
+  ##############################################################################
+  # Calculations (see e.g. Hemming et al, 2011
+  # https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102
+  # )
+  ##############################################################################
+  # Step I: Calculations for the required minimum number of clusters for both arms
 
-# required number of individuals in an individual RCT
-pI = pC * (1- effect) # probability in intervened group
-d = pC -pI # difference between groups
-sigma2 = 1/2*(pI*(1-pI) + pC*(1-pC))
-n_ind <- 2*sigma2*((Zsig + Zpow)/d)^2 #required individuals per arm in individually randomized trial
+  # required number of individuals in an individual RCT
+  pI = pC * (1- effect) # probability in intervened group
+  d = pC -pI # difference between groups
+  sigma2 = 1/2*(pI*(1-pI) + pC*(1-pC))
+  n_ind <- 2*sigma2*((Zsig + Zpow)/d)^2 #required individuals per arm in individually randomized trial
 
-# see below for calculations of design effect and minimum numbers of clusters required
+  # see below for calculations of design effect and minimum numbers of clusters required
 
 
-##############################################################################
-# Step J: specify or compute cluster boundaries
-########################################################################################
-trial = DefineClusters(trial=coordinates, h=h, algo=algo, reuseTSP=reuseTSP)
+  ##############################################################################
+  # Step J: specify or compute cluster boundaries
+  ########################################################################################
+  trial = DefineClusters(trial=coordinates, h=h, algo=algo, reuseTSP=reuseTSP)
 
-##############################################################################
-#Step K: Random assignment of clusters to arms
-trial = Randomize_CRT(trial)
+  ##############################################################################
+  #Step K: Random assignment of clusters to arms
+  trial = Randomize_CRT(trial)
 
-# augment the trial data frame with distance to nearest discordant coordinate
-# (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
-trial <- Specify_CRTbuffer(trial=trial,bufferWidth=postulatedContaminationRange)
+  # augment the trial data frame with distance to nearest discordant coordinate
+  # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
+  trial <- Specify_CRTbuffer(trial=trial,bufferWidth=postulatedContaminationRange)
 
-output = list(pC = pC,
-              alpha = alpha,
-              n_ind=n_ind,
-              desiredPower = desiredPower,
-              inputClusterSize = h,
-              algo = algo,
-              postulatedContaminationRange = postulatedContaminationRange,
-              effect = effect,
-              ICC = ICC,
-              h = h)
+  output = list(pC = pC,
+                alpha = alpha,
+                n_ind=n_ind,
+                desiredPower = desiredPower,
+                inputClusterSize = h,
+                algo = algo,
+                postulatedContaminationRange = postulatedContaminationRange,
+                effect = effect,
+                ICC = ICC,
+                h = h)
 
-cat('=====================CLUSTER RANDOMISED TRIAL DESIGN =================\n')
-cat('Significance level: ',alpha,'\n')
-cat('required effect size: ',effect,'\n')
-cat('assumed prevalence in absence of intervention ',pC,'\n')
-cat('pre-specified intra-cluster correlation: ',ICC,'\n\n')
-cat('=====================         FULL TRIAL AREA        =================\n')
-output$descriptionFullTrial = describeTrial(trial=trial,pC = pC, d = d, desiredPower = desiredPower,
-                                         n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
-if(postulatedContaminationRange > 0){
+  cat('=====================CLUSTER RANDOMISED TRIAL DESIGN =================\n')
+  cat('Significance level: ',alpha,'\n')
+  cat('required effect size: ',effect,'\n')
+  cat('assumed prevalence in absence of intervention ',pC,'\n')
+  cat('pre-specified intra-cluster correlation: ',ICC,'\n\n')
+  cat('=====================         FULL TRIAL AREA        =================\n')
+  output$descriptionFullTrial = describeTrial(trial=trial,pC = pC, d = d, desiredPower = desiredPower,
+                                              n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
+  if(postulatedContaminationRange > 0){
 
-  cat('\n=====================    EXCLUDING BUFFER ZONES        =================\n')
-  cat('buffer of width ',postulatedContaminationRange,' km.\n')
-  output$descriptionCoreTrial =  describeTrial(trial=trial[trial$buffer==FALSE,], pC = pC, d = d, desiredPower = desiredPower,
-                                             n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
-  #proportion of coordinates in core
-  output$descriptionCoreTrial$proportionInCore <- sum(abs(trial$nearestDiscord) >= postulatedContaminationRange)/dim(trial)[1]
-  pbuff = sum(ifelse(trial$buffer,1,0))/nrow(trial)*100
-  cat(pbuff,'% of locations in buffer zone.\n')
-}
-return(output)}
+    cat('\n=====================    EXCLUDING BUFFER ZONES        =================\n')
+    cat('buffer of width ',postulatedContaminationRange,' km.\n')
+    output$descriptionCoreTrial =  describeTrial(trial=trial[trial$buffer==FALSE,], pC = pC, d = d, desiredPower = desiredPower,
+                                                 n_ind =n_ind, sigma2 = sigma2, Zsig = Zsig, ICC = ICC)
+    #proportion of coordinates in core
+    output$descriptionCoreTrial$proportionInCore <- sum(abs(trial$nearestDiscord) >= postulatedContaminationRange)/dim(trial)[1]
+    pbuff = sum(ifelse(trial$buffer,1,0))/nrow(trial)*100
+    cat(pbuff,'% of locations in buffer zone.\n')
+  }
+  return(output)}
 
 # Characteristics of a trial design
 describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
@@ -167,4 +167,4 @@ describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
                          clustersAssigned = length(arm),
                          power=power)
 
-return(CRT_description)}
+  return(CRT_description)}

@@ -1,5 +1,5 @@
 ---
-title: "Use Case 1"
+title: "Use Case 1: Algorithmic definition of clusters and of buffer zones"
 output:
   rmarkdown::html_vignette:
   toc: true
@@ -36,27 +36,24 @@ The `maskbuffer` parameter specifies the width (in km) of the coloured area draw
 Irrespective of the algorithm, the target number of points allocated to each cluster is specified by the parameter `h`.
 + The `Randomize_CRT` function carries out a simple randomization of clusters to arms, and outputs a `trial` data frame augmented with the assignments. (If baseline data are available matched pair randomization is available as an option)
 
-The example uses locations from Rusinga Island, Kenya.
+The example uses locations from Rusinga Island, Kenya. (The example dataset also contains multiple records
+of test positivity from a baseline survey)
 
 #### Example
-```{r example1.r, fig.path=('/vignettes/'),echo=TRUE}
+```{r example1.r, fig.path=('../man/figures/'),echo=TRUE}
 library(CRTspillover)
-test1 = read.csv(file=system.file("extdata", file= "Solarmal_baseline.csv",
-                                  package = "CRTspillover", mustWork = TRUE))
-test2  = Convert_LatLong(df=test1)
-# Aggregate data for multiple observations for the same location
-# Only the (x,y) co-ordinates and numerical auxiliary variables
-#
-test2$base_num = test2$RDT_test_result
-test2=with(test2,test2[,c('x','y','base_num')])
-test2$base_denom = 1
-test3 = Aggregate_CRT(trial=test2,auxiliaries=c('base_num','base_denom'))
+example_locations <- get_example_baseline()
+example_xy <- Convert_LatLong(df = example_locations)
+# Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
+# auxiliary variables
+example_xy$base_num <- example_xy$RDT_test_result
+example_xy <- with(example_xy, example_xy[, c("x", "y", "base_num")])
+example_xy$base_denom <- 1
+example_aggregated <- Aggregate_CRT(trial = example_xy, auxiliaries = c("base_num", "base_denom"))
 # Plot map of locations
-Plot_CRTmap(test3,maskbuffer=0.5)
-# Assign and plot clusters specified to include 50 households
-test4 = DefineClusters(trial=test3, h=50, algo='NN')
-Plot_CRTmap(trial=test4,maskbuffer=0.5)
-# Assign and plot trial arms using matched pairs randomisation
-test5 = Randomize_CRT(trial=test4,matchedPair = TRUE)
-Plot_CRTmap(trial=test5,maskbuffer=0.5)
+Plot_CRTmap(example_aggregated, maskbuffer = 0.5)
+example_clustered <- DefineClusters(trial = example_aggregated, h = 50, algo = 'NN')
+Plot_CRTmap(example_clustered, maskbuffer = 0.5)
+example_randomized <- Randomize_CRT(trial = example_clustered, matchedPair = TRUE)
+Plot_CRTmap(trial <- example_randomized,maskbuffer=0.5,legend.position=c(0.2,0.8))
 ```
