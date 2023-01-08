@@ -17,7 +17,8 @@ Plot_CRTmap(
   showContamination = FALSE,
   cpalette = NULL,
   maskbuffer = 0.2,
-  labelsize = 4
+  labelsize = 4,
+  legend.position = NULL
 )
 }
 \arguments{
@@ -46,6 +47,8 @@ Plot_CRTmap(
 \item{maskbuffer}{radius of buffer drawn around inhabited areas}
 
 \item{labelsize}{size of labels giving cluster numbers}
+
+\item{legend.position}{for plot of trial arms (using ggplot2::themes syntax)}
 }
 \value{
 graphics object produced by the ggplot2 package
@@ -63,7 +66,7 @@ Plot_CRTmap(trial=testArms,showArms=FALSE,showClusterBoundaries=FALSE,
 Plot_CRTmap(trial=testArms, showArms=FALSE, colourClusters=TRUE, labelsize=2, maskbuffer=0.2)
 
 #Plot arms
-Plot_CRTmap(trial=testArms, maskbuffer=0.2)
+Plot_CRTmap(trial=testArms, maskbuffer=0.2, legend.position=c(0.2,0.8))
 
 #Plot distance to nearest discordant location
 
