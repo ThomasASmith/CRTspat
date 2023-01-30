@@ -18,14 +18,14 @@
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
+#' \item \code{cluster}: assignment to cluster
 #' \item \code{arm}: assignment to trial arm
 #' \item \code{infectiousness_proxy}: infectiousness proxy
-#' \item \code{nearestDiscord}: distance to nearest discordant location
 #' \item \code{base_denom}: denominator for baseline
 #' \item \code{base_num}: numerator for baseline
-#' \item \code{denom}: number of samples evaluated at the location
-#' \item \code{num}: number of positive samples (0 or 1)
-#' \item \code{index}: row number
+#' \item \code{nearestDiscord}: distance to nearest discordant location
+#' \item \code{denom}: denominator for the outcome
+#' \item \code{num}: numerator for the outcome
 #' }
 #' @export
 #'
@@ -112,15 +112,13 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
   return(trial)
 }
 
-# Assign expected proportions to each location assuming a fixed
-# efficacy.
+# Assign expected proportions to each location assuming a fixed efficacy.
 assignPositives <- function(trial, euclid, sd, efficacy, initialPrevalence) {
 
   # Indicator of whether the source is intervened is
   # (as.numeric(trial$arm[i]) - 1 smoothedIntervened is the value
   # of infectiousness_proxy decremented by the effect of
   # intervention and smoothed to allow for mosquito movement
-  denom <- expected_proportion <- num <- rowno <- NULL
 
   if (sd > 0) {
     smoothedIntervened <- gauss(sd, euclid) %*% (trial$infectiousness_proxy *
@@ -133,33 +131,36 @@ assignPositives <- function(trial, euclid, sd, efficacy, initialPrevalence) {
   discord <- outer(trial$arm, trial$arm, "!=")  #returns true & false.
   euclidd <- ifelse(discord, euclid, 99999.9)
 
-  # for the control arm return the minimal distance with a minus
-  # sign
+  # for the control arm return the minimal distance with a minus sign
   trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(euclidd,MARGIN = 2, min),
                                                           apply(euclidd, MARGIN = 2, min))
 
-  # npositives is the total number of positives to be distributed
-  # among the households
-  if (!("denom" %in% colnames(trial)))
-    trial$denom <- 1
-  npositives <- round(initialPrevalence * sum(trial$denom) * (1 - 0.5 * efficacy))
+  if (!("denom" %in% colnames(trial))) trial$denom <- 1
 
-  # scale to input value of initial prevalence by assigning
-  # required number of infections with probabilities proportionate
-  # to smoothedIntervened multiplied by the denominator
-
-  # the denominator must be an integer; this changes the
-  # denominator if a non-integral value is input
+  # the denominator must be an integer; this changes the denominator if a non-integral value is input
   trial$denom <- round(trial$denom, digits = 0)
 
-  expected_allocation <- smoothedIntervened * trial$denom/sum(smoothedIntervened *
-                                                                trial$denom)
+  # compute the total positives expected given the input efficacy
+  npositives <- round(initialPrevalence * sum(trial$denom) * (1 - 0.5 * efficacy))
+
+  trial <- distributePositives(trial = trial, npositives = npositives, smoothed = smoothedIntervened)
+  return(trial)
+}
+
+# allocate the positives to locations
+distributePositives <- function(trial, npositives, smoothed){
+  denom <- expected_proportion <- num <- rowno <- NULL
+
+  # scale to input value of initial prevalence by assigning required number of infections with
+  # probabilities proportional to smoothedIntervened multiplied by the denominator
+
+  expected_allocation <- smoothed * trial$denom/sum(smoothed * trial$denom)
+
   trial$expected_proportion <- expected_allocation/trial$denom
   trial$rowno <- seq(1:length(trial$denom))
 
   # expand the vector of locations to allow for denominators > 1
-  triallong <- trial %>%
-    tidyr::uncount(denom)
+  triallong <- trial %>% tidyr::uncount(denom)
 
   # sample generates a multinomial sample and outputs the indices
   # of the locations assigned
@@ -168,15 +169,13 @@ assignPositives <- function(trial, euclid, sd, efficacy, initialPrevalence) {
   triallong$num <- 0
   triallong$num[positives] <- 1
 
-  # summarise the numerator values into the original set of
-  # locations
+  # summarise the numerator values into the original set of locations
   num <- dplyr::group_by(triallong, rowno) %>%
     dplyr::summarise(num = sum(num))
 
   # use left_join to merge into the original data frame (records
   # with zero denominator do not appear in num)
-  trial <- trial %>%
-    dplyr::left_join(num)
+  trial <- trial %>% dplyr::left_join(num, by="rowno")
 
   # remove temporary variables and replace numerators with zero
   # where denominator is zero
@@ -186,7 +185,6 @@ assignPositives <- function(trial, euclid, sd, efficacy, initialPrevalence) {
     cat("You may want to remove these records or rescale the denominators \n")
     trial$num[is.na(trial$num)] <- 0
   }
-  trial$neg <- trial$denom - trial$num
   return(trial)
 }
 
@@ -204,6 +202,7 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, euclid,
                              initialPrevalence = initialPrevalence)
   trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy,
                            initialPrevalence = initialPrevalence)
+  trial$neg <- trial$denom - trial$num
   fit <- geepack::geeglm(cbind(num, neg) ~ arm, id = cluster, corstr = "exchangeable",
                          data = trial, family = binomial(link = "logit"))
   summary_fit <- summary(fit)
@@ -244,7 +243,6 @@ syntheticBaseline <- function(bw, trial, sd, euclid, initialPrevalence) {
   trial$base_denom <- 1
   trial$base_num <- 0
   trial$base_num[positives] <- 1
-  trial$base_neg <- trial$base_denom - trial$base_num
   return(trial)
 }
 

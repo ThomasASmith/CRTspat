@@ -46,14 +46,14 @@ A trial simulation object comprising a data frame containing the following numer
 \itemize{
 \item \code{x}: x-coordinates of location
 \item \code{y}: y-coordinates of location
+\item \code{cluster}: assignment to cluster
 \item \code{arm}: assignment to trial arm
 \item \code{infectiousness_proxy}: infectiousness proxy
-\item \code{nearestDiscord}: distance to nearest discordant location
 \item \code{base_denom}: denominator for baseline
 \item \code{base_num}: numerator for baseline
-\item \code{denom}: number of samples evaluated at the location
-\item \code{num}: number of positive samples (0 or 1)
-\item \code{index}: row number
+\item \code{nearestDiscord}: distance to nearest discordant location
+\item \code{denom}: denominator for the outcome
+\item \code{num}: numerator for the outcome
 }
 }
 \description{
