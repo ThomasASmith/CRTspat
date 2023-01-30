@@ -136,13 +136,37 @@ assignPositives = function(trial, euclid, sd, efficacy, initialPrevalence){
 
     # scale to input value of initial prevalence by assigning required number of infections with probabilities proportionate
     # to smoothedIntervened multiplied by the denominator
-    expected_allocation = smoothedIntervened*trial$denom/sum(smoothedIntervened*trial$denom)
 
-    #TODO: correct this code for the case where denom can be >1
-    positives = sample(x=nrow(trial),size=npositives,replace=FALSE,prob=expected_allocation)
-    trial$num=0
-    trial$num[positives]=1
-    trial$neg = trial$denom - trial$num
+    # the denominator must be an integer; this changes the denominator if a non-integral value is input
+    trial$denom <- round(trial$denom, digits = 0)
+
+    expected_allocation = smoothedIntervened*trial$denom/sum(smoothedIntervened*trial$denom)
+    trial$expected_proportion <- expected_allocation/trial$denom
+    trial$rowno <- seq(1:length(trial$denom))
+
+    # expand the vector of locations to allow for denominators > 1
+    triallong <- trial %>% tidyr::uncount(denom)
+
+    # sample generates a multinomial sample and outputs the indices of the locations assigned
+    positives <- sample(x=nrow(triallong),size=npositives,replace=FALSE,
+                        prob=triallong$expected_proportion)
+    triallong$num <- 0
+    triallong$num[positives] <- 1
+
+    # summarise the numerator values into the original set of locations
+    trial$num <- dplyr::group_by(triallong, rowno) %>% dplyr::summarise(num = sum(num))
+
+    # use left_join to merge into the original data frame (records with zero denominator do not appear in num)
+    trial <- trial %>% dplyr::left_join(num)
+
+    # remove temporary variables and replace numerators with zero where denominator is zero
+    trial <- subset(trial, select = -c(rowno, expected_proportion))
+    if(sum(is.na(trial$num)) > 0){
+      cat("** Warning: some records have zero denominator after rounding **\n")
+      cat("You may want to remove these records or rescale the denominators \n")
+      trial$num[is.na(trial$num)] <- 0
+    }
+    trial$neg <- trial$denom - trial$num
 return(trial)}
 
 # Function required for optimising bandwidth by minimising the deviation of the calculated ICC from the input ICC
