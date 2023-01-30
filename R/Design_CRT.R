@@ -157,7 +157,9 @@ describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
   cat('Locations- total: ',nrow(trial),'. Per cluster mean: ',mean_h,'S.D.: ', sd_h,'\n')
   cat('S.D. of distance to nearest discordant location (km): ',sd_distance,'\n')
   cat('Minimum clusters (total over both arms) for power of ',desiredPower*100,'%: ',min_k,'. Available clusters: ',length(arm),'\n')
-
+  if(min_k < length(arm)){
+    cat("** Warning: insufficient clusters available to achieve required power **\n")
+  }
   CRT_description = list(trial=trial,
                          nominalDE = DE,
                          sd_distance = sd_distance,
