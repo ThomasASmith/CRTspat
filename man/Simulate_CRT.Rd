@@ -12,6 +12,7 @@ Simulate_CRT(
   matchedPair = TRUE,
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom",
+  denominator = NULL,
   ICC_inp = NULL,
   sd = NULL,
   theta_inp = NULL,
@@ -32,6 +33,8 @@ Simulate_CRT(
 \item{baselineNumerator}{name of numerator variable for baseline data (if present)}
 
 \item{baselineDenominator}{name of denominator variable for baseline data (if present)}
+
+\item{denominator}{name of denominator variable for the outcome (if present)}
 
 \item{ICC_inp}{Intra Cluster Correlation, provided as input when baseline data are to be simulated}
 
