@@ -140,25 +140,27 @@ assignPositives <- function(trial, euclid, sd, efficacy, initialPrevalence, deno
   # for the control arm return the minimal distance with a minus sign
   trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(euclidd,MARGIN = 2, min),
                                                           apply(euclidd, MARGIN = 2, min))
-  if (!('denom' %in% colnames(trial))) trial$denom <- 1
-
-  # the denominator must be an integer; this changes the denominator if a non-integral value is input
-  trial$denom <- round(trial$denom, digits = 0)
-
-  # compute the total positives expected given the input efficacy
-  npositives <- round(initialPrevalence * sum(trial$denom) * (1 - 0.5 * efficacy))
 
   trial <- distributePositives(trial = trial,
-                               npositives = npositives,
+                               initialPrevalence = initialPrevalence,
                                smoothed = smoothedIntervened,
+                               efficacy = efficacy,
                                denominator = 'denom',
                                numerator = 'num')
   return(trial)
 }
 
 # allocate the positives to locations
-distributePositives <- function(trial, npositives, smoothed, denominator, numerator){
-  expected_proportion <- num <- rowno <- sumnum <- NULL
+distributePositives <- function(trial, initialPrevalence,
+                                smoothed, efficacy, denominator, numerator){
+  num <- rowno <- sumnum <- NULL
+  if (!(denominator %in% colnames(trial))) trial[[denominator]] <- 1
+
+  # the denominator must be an integer; this changes the value if a non-integral value is input
+  trial[[denominator]] <- round(trial[[denominator]], digits = 0)
+
+  # compute the total positives expected given the input efficacy
+  npositives <- round(initialPrevalence * sum(trial[[denominator]]) * (1 - 0.5 * efficacy))
 
   # scale to input value of initial prevalence by assigning required number of infections with
   # probabilities proportional to smoothedIntervened multiplied by the denominator
@@ -237,19 +239,12 @@ syntheticBaseline <- function(bw, trial, sd, euclid, initialPrevalence) {
     smoothedBaseline <- trial$infectiousness_proxy
   }
 
-  # scale to input value of initial prevalence by assigning
-  # required number of infections with probabilities proportionate
-  # to infectiousness_proxy
-
-  # number of positives required to match the specified prevalence
-  npositives <- round(initialPrevalence * nrow(trial))
-
-  positives <- sample(x = nrow(trial), size = npositives, replace = FALSE,
-                      prob = smoothedBaseline)
-
-  trial$base_denom <- 1
-  trial$base_num <- 0
-  trial$base_num[positives] <- 1
+  trial <- distributePositives(trial = trial,
+                               initialPrevalence = initialPrevalence,
+                               smoothed = smoothedBaseline,
+                               efficacy = 0,
+                               denominator = 'base_denom',
+                               numerator = 'base_num')
   return(trial)
 }
 
