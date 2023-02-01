@@ -5,7 +5,7 @@
 #' @param method statistical method used to analyse trial.
 #' options are:
 #' 'EMP'  : empirical,
-#' 'HM'   : comparison of cluster means only
+#' 'HM'   : comparison of cluster means by t-test
 #' 'ML'   : maximum likelihood,
 #' 'GEE'  : generalised estimating equations
 #' 'INLA' : INLA
@@ -46,7 +46,7 @@
 #' # Standard GEE analysis of test dataset ignoring contamination
 #' exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
 
-Analyse_CRT <- function(trial, method = "ML", cfunc = "L", numerator = "num", denominator = "denom", excludeBuffer = FALSE,
+Analyse_CRT <- function(trial, method = "GEE", cfunc = "L", numerator = "num", denominator = "denom", excludeBuffer = FALSE,
                         alpha = 0.05, requireBootstrap = FALSE, baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
                         localisedEffects = FALSE, clusterEffects = FALSE, spatialEffects = FALSE, resamples = 1000, inla.mesh = NULL) {
 
@@ -104,7 +104,7 @@ Analyse_CRT <- function(trial, method = "ML", cfunc = "L", numerator = "num", de
   pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contaminationRange = NA)
   int.ests <- list(controlP = NA, interventionP = NA, efficacy = NA)
   sd <- 0.5/(qnorm(1 - alpha) * sqrt(2))  #initial value used in bootstrap calculations
-  description <- get_description(trial)
+  if(!baselineOnly) description <- get_description(trial)
   # Specify the function used for calculating the linear predictor
   LPfunction <- c("CalculateNoEffect", "CalculateNoContaminationFunction", "CalculatePiecewiseLinearFunction", "CalculateLogisticFunction",
                   "CalculateProbitFunction")[which(cfunc == c("Z", "X", "S", "L", "P"))]
