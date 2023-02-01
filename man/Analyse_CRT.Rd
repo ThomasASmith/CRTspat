@@ -6,7 +6,7 @@
 \usage{
 Analyse_CRT(
   trial,
-  method = "ML",
+  method = "GEE",
   cfunc = "L",
   numerator = "num",
   denominator = "denom",
@@ -29,7 +29,7 @@ Analyse_CRT(
 \item{method}{statistical method used to analyse trial.
 options are:
 'EMP'  : empirical,
-'HM'   : comparison of cluster means only
+'HM'   : comparison of cluster means by t-test
 'ML'   : maximum likelihood,
 'GEE'  : generalised estimating equations
 'INLA' : INLA}
