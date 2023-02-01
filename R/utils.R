@@ -45,6 +45,10 @@ Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_n
   trial$cluster <- as.factor(trial$cluster)
   # Randomization, assignment to arms
   nclusters <- length(unique(trial$cluster))
+  if((nclusters %% 2) == 1 & matchedPair){
+    cat("** Warning: odd number of clusters: assignments are not matched on baseline data **\n")
+    matchedPair <- FALSE
+  }
   # uniformly distributed numbers, take mean and boolean of that
   rand_numbers <- runif(nclusters, 0, 1)
   if (!is.null(trial[[baselineNumerator]]) & matchedPair) {

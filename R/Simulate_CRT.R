@@ -153,7 +153,7 @@ assignPositives <- function(trial, euclid, sd, efficacy, initialPrevalence, deno
 # allocate the positives to locations
 distributePositives <- function(trial, initialPrevalence,
                                 smoothed, efficacy, denominator, numerator){
-  num <- rowno <- sumnum <- NULL
+  expected_proportion <- num <- rowno <- sumnum <- NULL
   if (!(denominator %in% colnames(trial))) trial[[denominator]] <- 1
 
   # the denominator must be an integer; this changes the value if a non-integral value is input
