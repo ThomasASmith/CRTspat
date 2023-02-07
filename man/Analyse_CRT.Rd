@@ -8,6 +8,7 @@ Analyse_CRT(
   trial,
   method = "GEE",
   cfunc = "L",
+  link = "logit",
   numerator = "num",
   denominator = "denom",
   excludeBuffer = FALSE,
@@ -40,6 +41,8 @@ options are:
 'L': inverse logistic (sigmoid),
 'P': inverse probit,
 'X': contamination not modelled'}
+
+\item{link}{link function: options are 'logit' and 'log'}
 
 \item{numerator}{name of numerator variable for efficacy data (if present)}
 

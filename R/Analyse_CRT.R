@@ -15,6 +15,7 @@
 #' 'L': inverse logistic (sigmoid),
 #' 'P': inverse probit,
 #' 'X': contamination not modelled'
+#' @param link link function: options are 'logit' and 'log'
 #' @param numerator name of numerator variable for efficacy data (if present)
 #' @param denominator name of denominator variable for efficacy data (if present)
 #' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
@@ -46,7 +47,7 @@
 #' # Standard GEE analysis of test dataset ignoring contamination
 #' exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
 
-Analyse_CRT <- function(trial, method = "GEE", cfunc = "L", numerator = "num", denominator = "denom", excludeBuffer = FALSE,
+Analyse_CRT <- function(trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num", denominator = "denom", excludeBuffer = FALSE,
                         alpha = 0.05, requireBootstrap = FALSE, baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
                         localisedEffects = FALSE, clusterEffects = FALSE, spatialEffects = FALSE, resamples = 1000, inla.mesh = NULL) {
 
@@ -104,7 +105,7 @@ Analyse_CRT <- function(trial, method = "GEE", cfunc = "L", numerator = "num", d
   pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contaminationRange = NA)
   int.ests <- list(controlP = NA, interventionP = NA, efficacy = NA)
   sd <- 0.5/(qnorm(1 - alpha) * sqrt(2))  #initial value used in bootstrap calculations
-  if(!baselineOnly) description <- get_description(trial)
+  description <- ifelse(baselineOnly, list(), get_description(trial))
   # Specify the function used for calculating the linear predictor
   LPfunction <- c("CalculateNoEffect", "CalculateNoContaminationFunction", "CalculatePiecewiseLinearFunction", "CalculateLogisticFunction",
                   "CalculateProbitFunction")[which(cfunc == c("Z", "X", "S", "L", "P"))]
@@ -152,7 +153,14 @@ Analyse_CRT <- function(trial, method = "GEE", cfunc = "L", numerator = "num", d
     fterms <- ifelse(cfunc == "Z", "cbind(y1,y0) ~ 1", "cbind(y1,y0) ~ arm")
     formula <- stats::as.formula(paste(fterms, collapse = " + "))
 
-    fit <- geepack::geeglm(formula = formula, id = cluster, corstr = "exchangeable", data = trial, family = binomial(link = "logit"))
+    if (link == "log"){
+      fit <- geepack::geeglm(formula = y1 ~ 1 + offset(y_off),
+                             id = cluster, data = trial, family = poisson(link = "log"),
+                             corstr = "exchangeable", scale.fix = FALSE)
+    } else {
+      fit <- geepack::geeglm(formula = formula, id = cluster, corstr = "exchangeable",
+                             data = trial, family = binomial(link = "logit"))
+    }
     summary_fit <- summary(fit)
 
     z <- -qnorm(alpha/2)  #standard deviation score for calculating confidence intervals
@@ -360,6 +368,8 @@ Analyse_CRT <- function(trial, method = "GEE", cfunc = "L", numerator = "num", d
     results$contamination <- getContaminationCurve(trial = trial, pt.ests = results$pt.ests, FUN1 = FUN1)
     results$pt.ests$contaminationRange <- results$contamination$contaminationRange
     results$contamination$contaminationRange <- NULL
+  } else {
+    results$pt.ests$contaminationRange <- NA
   }
   ## Output to screen
 
@@ -377,6 +387,10 @@ Analyse_CRT <- function(trial, method = "GEE", cfunc = "L", numerator = "num", d
       cat("Proportion of effect subject to contamination: ", results$pt.ests$pr.contaminated, CLtext, unlist(results$int.ests$pr.contaminated),
           ")\n")
     }
+  }
+  if (!is.null(pt.ests$ICC)){
+    cat("Estimated intracluster correlation (ICC): ", results$pt.ests$ICC, CLtext, unlist(results$int.ests$ICC),
+        ")\n")
   }
   if (!is.na(results$pt.ests$contaminationRange)) {
     cat("Contamination Range: ", results$pt.ests$contaminationRange, "\n")
@@ -674,7 +688,7 @@ BootEmpiricalAnalysis <- function(resampledData) {
 #' # low resolution mesh for test dataset
 #' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=10)
 createMesh <- function(trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2, maskbuffer = 0.5, ncells = 50) {
-  cat("Creating mesh for INLA analysis: resolution parameter= ", ncells)
+  cat("Creating mesh for INLA analysis: resolution parameter= ", ncells, "\n")
   # create buffer around area of points
   trial.coords <- base::matrix(c(trial$x, trial$y), ncol = 2)
   sptrial <- sp::SpatialPoints(trial.coords)
