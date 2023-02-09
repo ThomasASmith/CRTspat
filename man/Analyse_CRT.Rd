@@ -42,7 +42,7 @@ options are:
 'P': inverse probit,
 'X': contamination not modelled'}
 
-\item{link}{link function: options are 'logit' and 'log'}
+\item{link}{link function: options are 'logit' (the default), 'log', and 'identity'}
 
 \item{numerator}{name of numerator variable for efficacy data (if present)}
 
@@ -72,17 +72,17 @@ options are:
 }
 \value{
 list containing the following results of the analysis
-\itemize{
-\item \code{description}: Description of the trial dataset
-\item \code{method}: statistical method
-\item \code{pt.ests}: point estimates
-\item \code{int.ests}: interval estimates
-\item \code{model.object}: object returned by the fitting function
-\item \code{contamination}: function values and statistics describing the estimated contamination
+\\itemize{
+\\item \\code{description}: Description of the trial dataset
+\\item \\code{method}: statistical method
+\\item \\code{pt.ests}: point estimates
+\\item \\code{int.ests}: interval estimates
+\\item \\code{model.object}: object returned by the fitting function
+\\item \\code{contamination}: function values and statistics describing the estimated contamination
 }
 }
 \description{
-\code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
+\\code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
 }
 \examples{
 # Standard GEE analysis of test dataset ignoring contamination

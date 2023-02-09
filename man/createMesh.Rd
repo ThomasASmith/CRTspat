@@ -2,7 +2,7 @@
 % Please edit documentation in R/Analyse_CRT.R
 \name{createMesh}
 \alias{createMesh}
-\title{\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.}
+\title{\\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.}
 \usage{
 createMesh(
   trial = trial,
@@ -28,16 +28,16 @@ createMesh(
 }
 \value{
 list containing the mesh
-\itemize{
-\item \code{prediction}: Data.table containing the prediction points and covariate values
-\item \code{A}: projection matrix from the observations to the mesh nodes.
-\item \code{Ap}: projection matrix from the prediction points to the mesh nodes.
-\item \code{indexs}:  index set for the SPDE model
-\item \code{spde}: SPDE model
+\\itemize{
+\\item \\code{prediction}: Data.table containing the prediction points and covariate values
+\\item \\code{A}: projection matrix from the observations to the mesh nodes.
+\\item \\code{Ap}: projection matrix from the prediction points to the mesh nodes.
+\\item \\code{indexs}:  index set for the SPDE model
+\\item \\code{spde}: SPDE model
 }
 }
 \description{
-\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.
+\\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.
 }
 \examples{
 # low resolution mesh for test dataset
