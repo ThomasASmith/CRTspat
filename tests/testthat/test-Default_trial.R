@@ -72,9 +72,9 @@ test_that("Anonymisation, randomization, and creation of buffer produces expecte
  expect_equal(get_test5(), read.csv(file = "testBuffer.csv"))
 })
 
-test_that("Analysis using HM option gives expected efficacy", {
+test_that("Analysis using T option gives expected efficacy", {
 get_test6 = function(){
-   analysis <- Analyse_CRT(trial=test_Simulate_CRT,method = 'HM',link='identity')
+   analysis <- Analyse_CRT(trial=test_Simulate_CRT,method = 'T',link='identity')
    value <- round(as.numeric(10000 * analysis$pt.ests$efficacy))
 return(value)}
    expect_equal(get_test6(), 306)
@@ -94,4 +94,15 @@ test_that("Analysis using ML option gives expected contamination range", {
       value <- round(as.numeric(10000 * analysis$pt.ests$contaminationRange))
       return(value)}
    expect_equal(get_test8(), 45316)
+})
+
+set.seed(1234) # a stochastic optimisation is involved
+get_test9 = function(){
+   analysis <- Analyse_CRT(trial=test_Simulate_CRT,
+               method = 'INLA', link='logit', cfunc='P',
+               clusterEffects= TRUE, inla.mesh = inlaMesh100)
+   value <- round(1000 * analysis$model.object$dic$dic)
+   return(value)}
+test_that("Analysis using INLA option gives expected DIc", {
+   expect_equal(get_test9(), 5092287)
 })

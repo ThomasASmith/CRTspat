@@ -31,7 +31,7 @@ Analyse_CRT(
 \item{method}{statistical method used to analyse trial.
 options are:
 'EMP'  : empirical,
-'HM'   : comparison of cluster means by t-test
+'T'   : comparison of cluster means by t-test
 'ML'   : maximum likelihood,
 'GEE'  : generalised estimating equations
 'INLA' : INLA}
@@ -71,7 +71,7 @@ options are:
 
 \item{requireMesh}{logical: indicator of whether spatial predictions are required}
 
-\item{inla.mesh}{name of pre-existing INLA input object created by CreateMesh()}
+\item{inla.mesh}{name of pre-existing INLA input object created by createMesh()}
 }
 \value{
 list containing the following results of the analysis

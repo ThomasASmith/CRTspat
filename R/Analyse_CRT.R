@@ -5,7 +5,7 @@
 #' @param method statistical method used to analyse trial.
 #' options are:
 #' 'EMP'  : empirical,
-#' 'HM'   : comparison of cluster means by t-test
+#' 'T'   : comparison of cluster means by t-test
 #' 'ML'   : maximum likelihood,
 #' 'GEE'  : generalised estimating equations
 #' 'INLA' : INLA
@@ -56,7 +56,7 @@ Analyse_CRT <- function(
     resamples = 1000, requireMesh = TRUE, inla.mesh = NULL)
     {
     # Test of validity of inputs
-    if (!method %in% c("EMP", "HM", "ML", "GEE", "INLA"))
+    if (!method %in% c("EMP", "T", "ML", "GEE", "INLA"))
         {
         cat("Error: Invalid value for statistical method\n")
         return(NULL)
@@ -89,7 +89,7 @@ Analyse_CRT <- function(
     # trial needs to be ordered for some analyses
     trial <- trial[order(trial$cluster), ]
 
-    if (method %in% c("EMP", "HM", "GEE"))
+    if (method %in% c("EMP", "T", "GEE"))
         {
         cat("** Note: statistical method does not allow for contamination **\n")
         cfunc <- "X"
@@ -152,7 +152,7 @@ Analyse_CRT <- function(
                 alpha = alpha
             )
         }
-    } else if (method == "HM"){
+    } else if (method == "T"){
         y1 <- arm <- NULL
         clusterSum <- data.frame(
             trial %>%
@@ -163,10 +163,10 @@ Analyse_CRT <- function(
                   arm = arm[1]
               )
         )
-        clusterSum$lp <- switch(
-            link, identity = clusterSum$y/clusterSum$total, log = log(clusterSum$y/clusterSum$total),
-            logit = logit(clusterSum$y/clusterSum$total)
-        )
+        clusterSum$lp <- switch(link,
+                "identity" = clusterSum$y/clusterSum$total,
+                "log" = log(clusterSum$y/clusterSum$total),
+                "logit" = logit(clusterSum$y/clusterSum$total))
         formula <- stats::as.formula("lp ~ arm")
         model.object <- stats::t.test(
             formula = formula, data = clusterSum, alternative = "two.sided",
@@ -361,27 +361,28 @@ Analyse_CRT <- function(
         # or 'Z' do not model contamination
         FUN <- switch(
             cfunc, L = "invlink(link='logit', x)", P = "stats::pnorm(x)", X = NULL, Z = NULL)
-        family <- switch(link,
-            "identity" = "gaussian",
-            "log" = "poisson",
-            "logit" = "binomial"
-        )
 
         # create model formula
-        fterms <- switch(
-            cfunc, Z = "y1 ~ 0 + b0",
-            X = "y1 ~ 0 + b0",
-            L = "y1 ~ 0 + b0 + pvar",
-            P = "y1 ~ 0 + b0 + pvar"
+        fterms <- switch(link,
+            "identity" = "y1/y_off ~ 0",
+            "log" = "y1 ~ 0",
+            "logit" = "y1 ~ 0"
         )
+
+        fterms <- c(fterms, switch(
+            cfunc, Z = "b0",
+            X = "b0",
+            L = "b0 + pvar",
+            P = "b0 + pvar"
+        ))
+
         if (localisedEffects)
             fterms <- c(fterms, "b1")
         if (clusterEffects)
             fterms <- c(fterms, "f(cluster, model = \"iid\")")
         if (spatialEffects)
             fterms <- c(fterms, "f(s, model = spde)")
-        if (link == "log")
-            fterms <- c(fterms, "offset(log(y_off))")
+
         # console display of the formula
         formula_as_text <- paste(fterms, collapse = " + ")
         cat(formula_as_text, "\n")
@@ -413,8 +414,7 @@ Analyse_CRT <- function(
             beta2 <- stats::optimize(
                 f = estimateContamination, interval = c(-10, 10),
                 trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula,
-                tol = 0.1
-            )$minimum
+                tol = 0.1, link = link)$minimum
             x <- trial$nearestDiscord * exp(beta2)
             trial$pvar <- eval(parse(text = FUN))
             effectse$df$pvar <- trial$pvar
@@ -455,14 +455,36 @@ Analyse_CRT <- function(
         stk.full <- INLA::inla.stack(stk.e, stk.p)
         cat("INLA analysis                                                 \n")
 
-        inla.result <- INLA::inla(
-            formula, family = "binomial", Ntrials = y_off, lincomb = lc,
-            control.family = list(link = "logit"),
-            data = INLA::inla.stack.data(stk.full),
-            control.fixed = list(correlation.matrix = TRUE),
-            control.predictor = list(compute = TRUE, link = 1, A = INLA::inla.stack.A(stk.full)),
-            control.compute = list(dic = TRUE),
-        )
+        if (link == "identity") {
+            inla.result <- INLA::inla(
+                formula, family = "gaussian", lincomb = lc,
+                control.family = list(link = "identity"),
+                data = INLA::inla.stack.data(stk.full),
+                control.fixed = list(correlation.matrix = TRUE),
+                control.predictor = list(compute = TRUE, link = 1,
+                                         A = INLA::inla.stack.A(stk.full)),
+                control.compute = list(dic = TRUE))
+        } else if (link == "log") {
+# For the negative binomial, the mean is linked to the linear predictor by the log transformation
+            inla.result <- INLA::inla(
+                formula, family = "nbinomial", E = y_off, lincomb = lc,
+                control.family = list(prior="gaussian", param = c(0,0.01)),
+                data = INLA::inla.stack.data(stk.full),
+                control.fixed = list(correlation.matrix = TRUE),
+                control.predictor = list(compute = TRUE, link = 1,
+                                         A = INLA::inla.stack.A(stk.full)),
+                control.compute = list(dic = TRUE))
+        } else if (link == "logit") {
+            inla.result <- INLA::inla(
+                formula, family = "binomial", Ntrials = y_off, lincomb = lc,
+                control.family = list(link = "logit"),
+                data = INLA::inla.stack.data(stk.full),
+                control.fixed = list(correlation.matrix = TRUE),
+                control.predictor = list(compute = TRUE, link = 1,
+                                         A = INLA::inla.stack.A(stk.full)),
+                control.compute = list(dic = TRUE))
+        }
+
         # Augment the inla results list with application specific quantities
         index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
         inla.mesh$prediction$proportion <- invlink(link, inla.result$summary.linear.predictor[index, "0.5quant"])
@@ -545,7 +567,7 @@ Analyse_CRT <- function(
         results$pt.ests$contamination.par <- beta2
         results$description <- description
     }
-    if (method %in% c("EMP", "ML", "HM", "GEE"))
+    if (method %in% c("EMP", "ML", "T", "GEE"))
         {
         # tidy up and consolidate the list of results
         model.object <- pt.ests$model.object
@@ -621,8 +643,7 @@ Analyse_CRT <- function(
         cfunc %in% c("L", "P"))
             {
         # The contamination parameter is not estimated by INLA but should be considered in the DIC
-        results$model.object$dic$dic <- results$model.object$dic$dic +
-            2
+        results$model.object$dic$dic <- results$model.object$dic$dic + 2
         cat(
             "DIC: ", results$model.object$dic$dic, " including penalty for the contamination parameter\n"
         )
@@ -800,12 +821,10 @@ logit <- function(p = p)
 # inverse transformation of link function
 invlink <- function(link = link, x = x)
     {
-    if (link == "identity")
-        value <- x
-    if (link == "log")
-        value <- exp(x)
-    if (link == "logit")
-        value <- 1/(1 + exp(-x))
+    value <- switch(link,
+        "identity" = x,
+        "log" = exp(x),
+        "logit" =  1/(1 + exp(-x)))
     return(value)
 }
 
@@ -829,26 +848,22 @@ LogLikelihood <- function(par, FUN = FUN, trial)
     logitexpectP <- FUN(par, trial)
     transf <- 1/(1 + exp(-logitexpectP))  #inverse logit transformation
 
-    # FOR BINOMIAL
+    # for binomial
     LogLikelihood <- sum(
         trial$y1 * log(transf) +
             trial$y0 * log(1 - transf)
     )
 
-
     return(LogLikelihood)
 }
 
-##############################################################################
 
+# transform the parameters into interpretable functions
 FittingResults <- function(trial, FUN1, par)
     {
-
-    # transform the parameters into interpretable functions
     controlY <- invlink(link = "logit", x = par[1])
     interventionY <- invlink(link = "logit", x = (par[2] + par[1]))
     efficacy <- (controlY - interventionY)/controlY
-
     pt.ests <- list(
         controlY = controlY, interventionY = interventionY, efficacy = efficacy,
         contamination.par = par[3]
@@ -905,7 +920,7 @@ CalculateProbitFunction <- function(par, trial)
 }
 
 
-# Functions for HM and GEE analysis
+# Functions for T and GEE analysis
 
 noLabels <- function(x)
     {
@@ -925,10 +940,10 @@ estimateCLEfficacy <- function(mu, Sigma, alpha, resamples, method, link)
 
     pC <- invlink(link, samples[, 1])
 
-    # for the HM method the t-tests provide estimates for the s.e. for both arms separately
+    # for the T method the t-tests provide estimates for the s.e. for both arms separately
     # for the GEE method the input is in terms of the incremental effect of the intervention
 
-    if (method == "HM")
+    if (method == "T")
         pI <- invlink(link, samples[, 2])
     if (method == "GEE")
         pI <- invlink(link, samples[, 1] + samples[, 2])
@@ -1123,12 +1138,12 @@ calcNearestDiscord <- function(x, trial , prediction , distM)
 
 # Use profiling to estimate beta2
 estimateContamination <- function(
-    beta2 = beta2, trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula){
-    y_off <- NULL
+    beta2 = beta2, trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula, link = link){
+    y1 <- y0 <- y_off <- NULL
     x <- trial$nearestDiscord * exp(beta2)
     trial$pvar <- -eval(parse(text = FUN))
     stk.e <- INLA::inla.stack(
-        tag = "est", data = list(y = trial$y1, y_off = trial$y_off),
+        tag = "est", data = list(y1 = trial$y1, y_off = trial$y_off),
         A = list(1, A = inla.mesh$A),
         effects = list(
             data.frame(
@@ -1140,12 +1155,33 @@ estimateContamination <- function(
         )
     )
     # run the model with just the estimation stack (no predictions needed at this stage)
-    result.e <- INLA::inla(
-        formula, family = "binomial", Ntrials = y_off, control.family = list(link = "logit"),
-        data = INLA::inla.stack.data(stk.e),
-        control.predictor = list(compute = TRUE, link = 1, A = INLA::inla.stack.A(stk.e)),
-        control.compute = list(dic = TRUE)
-    )
+    if (link == "identity") {
+        result.e <- INLA::inla(
+            formula, family = "gaussian",
+            control.family = list(link = "identity"),
+            data = INLA::inla.stack.data(stk.e),
+            control.predictor = list(compute = TRUE, link = 1,
+                                     A = INLA::inla.stack.A(stk.e)),
+            control.compute = list(dic = TRUE))
+    } else if (link == "log") {
+        # For the negative binomial, the mean is linked to the linear predictor by the log transformation
+        result.e <- INLA::inla(
+            formula, family = "nbinomial", E = y_off,
+            control.family = list(prior="gaussian", param = c(0,0.01)),
+            data = INLA::inla.stack.data(stk.e),
+            control.predictor = list(compute = TRUE, link = 1,
+                                     A = INLA::inla.stack.A(stk.e)),
+            control.compute = list(dic = TRUE))
+    } else if (link == "logit") {
+        result.e <- INLA::inla(
+            formula, family = "binomial", Ntrials = y_off,
+            control.family = list(link = "logit"),
+            data = INLA::inla.stack.data(stk.e),
+            control.predictor = list(compute = TRUE, link = 1,
+                                     A = INLA::inla.stack.A(stk.e)),
+            control.compute = list(dic = TRUE)
+        )
+    }
     # The DIC is penalised to allow for estimation of beta2
     loss <- result.e$dic$family.dic + 2
     cat("\rDIC: ", loss, " Contamination parameter: ", beta2, "  \r")
