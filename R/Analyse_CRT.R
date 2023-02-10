@@ -15,20 +15,21 @@
 #' 'L': inverse logistic (sigmoid),
 #' 'P': inverse probit,
 #' 'X': contamination not modelled'
-#' @param link link function: options are 'logit' (the default), 'log', and 'identity'
-#' @param numerator name of numerator variable for efficacy data (if present)
-#' @param denominator name of denominator variable for efficacy data (if present)
-#' @param excludeBuffer exclude any buffer zone (records with buffer=TRUE) from the analysis
-#' @param alpha confidence level for confidence intervals and credible intervals
-#' @param requireBootstrap logical indicator of whether bootstrap confidence intervals are required
+#' @param link string: link function- options are 'logit' (the default), 'log', and 'identity'
+#' @param numerator string: name of numerator variable for efficacy data (if present)
+#' @param denominator string: name of denominator variable for efficacy data (if present)
+#' @param excludeBuffer logical: indicator of whether any buffer zone (records with buffer=TRUE) should be excluded from analysis
+#' @param alpha numeric: confidence level for confidence intervals and credible intervals
+#' @param requireBootstrap logical: indicator of whether bootstrap confidence intervals are required
 #' @param baselineOnly logical: indicator of whether required analysis is of efficacy or of baseline only
-#' @param baselineNumerator name of numerator variable for baseline data (if present)
-#' @param baselineDenominator name of denominator variable for baseline data (if present)
+#' @param baselineNumerator string: name of numerator variable for baseline data (if present)
+#' @param baselineDenominator string: name of denominator variable for baseline data (if present)
 #' @param localisedEffects logical: indicator of whether the model includes local effects with no contamination
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
-#' @param resamples number of bootstrap samples
-#' @param inla.mesh name of pre-existing INLA input object created by CreateMesh()
+#' @param resamples integer: number of bootstrap samples
+#' @param requireMesh logical: indicator of whether spatial predictions are required
+#' @param inla.mesh name of pre-existing INLA input object created by createMesh()
 #' @return list containing the following results of the analysis
 #' \\itemize{
 #' \\item \\code{description}: Description of the trial dataset
@@ -52,10 +53,9 @@ Analyse_CRT <- function(
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05, requireBootstrap = FALSE,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
     localisedEffects = FALSE, clusterEffects = FALSE, spatialEffects = FALSE,
-    resamples = 1000, inla.mesh = NULL)
+    resamples = 1000, requireMesh = TRUE, inla.mesh = NULL)
     {
-
-    #################### TEST VALIDITY OF INPUTS
+    # Test of validity of inputs
     if (!method %in% c("EMP", "HM", "ML", "GEE", "INLA"))
         {
         cat("Error: Invalid value for statistical method\n")
@@ -66,7 +66,8 @@ Analyse_CRT <- function(
         cat("Error: Invalid contamination function\n")
         return(NULL)
     }
-    #################### MAIN FUNCTION CODE STARTS HERE
+
+    # MAIN FUNCTION CODE STARTS HERE
     cat(
         "\n=====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================\n"
     )
@@ -86,16 +87,14 @@ Analyse_CRT <- function(
     )
 
     # trial needs to be ordered for some analyses
-    trial <- trial[order(trial$cluster),
-        ]
+    trial <- trial[order(trial$cluster), ]
 
     if (method %in% c("EMP", "HM", "GEE"))
         {
         cat("** Note: statistical method does not allow for contamination **\n")
         cfunc <- "X"
     }
-    if (baselineOnly)
-    {
+    if (baselineOnly){
         if (method %in% c("EMP", "ML", "GEE"))
             {
             method <- "GEE"
@@ -110,23 +109,19 @@ Analyse_CRT <- function(
         trial$y0 <- trial[[baselineDenominator]] - trial[[baselineNumerator]]
         trial$y_off <- trial[[baselineDenominator]]
 
-    } else
-    {
+    } else {
         trial$y1 <- trial[[numerator]]
         trial$y0 <- trial[[denominator]] - trial[[numerator]]
         trial$y_off <- trial[[denominator]]
 
         # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant
         # coordinate (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
-        if (is.null(trial$nearestDiscord))
-            {
+        if (is.null(trial$nearestDiscord)){
             trial <- Specify_CRTbuffer(trial = trial, bufferWidth = 0)
         }
     }
     model.object <- list()
-    pt.ests <- list(
-        contamination.par = NA, pr.contaminated = NA, contaminationRange = NA
-    )
+    pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contaminationRange = NA)
     int.ests <- list(controlY = NA, interventionY = NA, efficacy = NA)
     sd <- 0.5/(qnorm(1 - alpha) * sqrt(2))  #initial value used in bootstrap calculations
     description <- ifelse(baselineOnly, list(), get_description(trial))
@@ -136,20 +131,17 @@ Analyse_CRT <- function(
         "CalculateLogisticFunction", "CalculateProbitFunction")[which(cfunc == c("Z", "X", "S", "L", "P"))]
     FUN2 <- FUN1 <- eval(parse(text = LPfunction))
 
-    if (method == "EMP")
-    {
+    if (method == "EMP"){
         description <- get_description(trial)
         fit <- list(
             controlY = unname(description$ratios[1]),
             interventionY = unname(description$ratios[2]),
             efficacy = unname(description$efficacy),
-            contaminationRange = NA
-        )
+            contaminationRange = NA)
         pt.ests$controlY <- fit$controlY
         pt.ests$interventionY <- fit$interventionY
         pt.ests$efficacy <- fit$efficacy
-        if (requireBootstrap)
-        {
+        if (requireBootstrap){
             boot_emp <- boot::boot(
                 data = trial, statistic = BootEmpiricalAnalysis, R = resamples,
                 sim = "parametric", ran.gen = rgen_emp, mle = fit
@@ -160,10 +152,7 @@ Analyse_CRT <- function(
                 alpha = alpha
             )
         }
-    }
-
-    if (method == "HM")
-    {
+    } else if (method == "HM"){
         y1 <- arm <- NULL
         clusterSum <- data.frame(
             trial %>%
@@ -185,55 +174,41 @@ Analyse_CRT <- function(
         )
         pt.ests$p.value <- model.object$p.value
         analysisC <- stats::t.test(
-            clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 -
-                alpha
-        )
+            clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
         pt.ests$controlY <- invlink(link, analysisC$estimate[1])
         int.ests$controlY <- invlink(link, analysisC$conf.int)
         analysisI <- stats::t.test(
-            clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 -
-                alpha
-        )
+            clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
         pt.ests$interventionY <- invlink(link, analysisI$estimate[1])
         int.ests$interventionY <- invlink(link, analysisI$conf.int)
 
         # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
         Sigma <- matrix(
             data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
-            nrow = 2, ncol = 2
-        )
+            nrow = 2, ncol = 2)
         pt.ests$efficacy <- 1 - pt.ests$interventionY/pt.ests$controlY
         int.ests$efficacy <- estimateCLEfficacy(
             mu = c(analysisC$estimate, analysisI$estimate),
             Sigma = Sigma, alpha = alpha, resamples = resamples, method = method,
-            link = link
-        )
-    }
-
-    if (method == "GEE")
-    {
+            link = link)
+    } else if (method == "GEE") {
         # GEE analysis of cluster effects
 
         if (link == "log")
         {
             fterms <- ifelse(
-                cfunc == "Z", "y1 ~ 1 + offset(log(y_off))", "y1 ~ arm + offset(log(y_off))"
-            )
+                cfunc == "Z", "y1 ~ 1 + offset(log(y_off))", "y1 ~ arm + offset(log(y_off))")
             formula <- stats::as.formula(fterms)
             fit <- geepack::geeglm(
                 formula = formula, id = cluster, data = trial, family = poisson(link = "log"),
-                corstr = "exchangeable", scale.fix = FALSE
-            )
-        } else if (link == "logit")
-        {
+                corstr = "exchangeable", scale.fix = FALSE)
+        } else if (link == "logit") {
             fterms <- ifelse(cfunc == "Z", "cbind(y1,y0) ~ 1", "cbind(y1,y0) ~ arm")
             formula <- stats::as.formula(fterms)
             fit <- geepack::geeglm(
                 formula = formula, id = cluster, corstr = "exchangeable",
-                data = trial, family = binomial(link = "logit")
-            )
-        } else if (link == "identity")
-        {
+                data = trial, family = binomial(link = "logit"))
+        } else if (link == "identity") {
             fterms <- ifelse(cfunc == "Z", "y1/y_off ~ 1", "y1/y_off ~ arm")
             formula <- stats::as.formula(fterms)
             fit <- geepack::geeglm(
@@ -305,8 +280,7 @@ Analyse_CRT <- function(
         pt.ests$interventionY <- fit$interventionY
         pt.ests$efficacy <- fit$efficacy
         pt.ests$contamination.par <- fit$contamination.par
-        pt.ests <- pt.ests[names(pt.ests) !=
-            "model.object"]
+        pt.ests <- pt.ests[names(pt.ests) != "model.object"]
         pt.ests$pr.contaminated <- 1  #None of the ML models include local effects
         results <- list(
             description = description, method = method, pt.ests = pt.ests,
@@ -386,14 +360,19 @@ Analyse_CRT <- function(
         # specify functional form of sigmoid in distance from boundary 'L' inverse logit; 'P' inverse probit; 'X'
         # or 'Z' do not model contamination
         FUN <- switch(
-            cfunc, L = "invlink(link, x)", P = "stats::pnorm(x)", X = NULL,
-            Z = NULL
+            cfunc, L = "invlink(link='logit', x)", P = "stats::pnorm(x)", X = NULL, Z = NULL)
+        family <- switch(link,
+            "identity" = "gaussian",
+            "log" = "poisson",
+            "logit" = "binomial"
         )
 
         # create model formula
         fterms <- switch(
-            cfunc, Z = "y ~ 0 + b0", X = "y ~ 0 + b0", L = "y ~ 0 + b0 + pvar",
-            P = "y ~ 0 + b0 + pvar"
+            cfunc, Z = "y1 ~ 0 + b0",
+            X = "y1 ~ 0 + b0",
+            L = "y1 ~ 0 + b0 + pvar",
+            P = "y1 ~ 0 + b0 + pvar"
         )
         if (localisedEffects)
             fterms <- c(fterms, "b1")
@@ -401,6 +380,8 @@ Analyse_CRT <- function(
             fterms <- c(fterms, "f(cluster, model = \"iid\")")
         if (spatialEffects)
             fterms <- c(fterms, "f(s, model = spde)")
+        if (link == "log")
+            fterms <- c(fterms, "offset(log(y_off))")
         # console display of the formula
         formula_as_text <- paste(fterms, collapse = " + ")
         cat(formula_as_text, "\n")
@@ -458,14 +439,14 @@ Analyse_CRT <- function(
         }
         # stack for estimation stk.e
         stk.e <- INLA::inla.stack(
-            tag = "est", data = list(y = trial$y1, y_off = trial$y_off),
+            tag = "est", data = list(y1 = trial$y1, y_off = trial$y_off),
             A = list(1, A = inla.mesh$A),
             effects = effectse
         )
 
         # stack for prediction stk.p
         stk.p <- INLA::inla.stack(
-            tag = "pred", data = list(y = NA, y_off = NA),
+            tag = "pred", data = list(y1 = NA, y_off = NA),
             A = list(1, inla.mesh$Ap),
             effects = effectsp
         )
@@ -1048,8 +1029,7 @@ BootEmpiricalAnalysis <- function(resampledData)
 #' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=10)
 createMesh <- function(
     trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2, maskbuffer = 0.5,
-    ncells = 50
-)
+    ncells = 50)
     {
     cat(
         "Creating mesh for INLA analysis: resolution parameter= ", ncells,
@@ -1120,28 +1100,30 @@ createMesh <- function(
             ]
     )
     prediction$shortestDistance <- apply(distM, 1, min)
-    calcNearestDiscord <- function(x)
-        {
-        discords <- (trial$arm != prediction$arm[x])
-        nearestDiscord <- min(distM[x, discords])
-        return(nearestDiscord)
-    }
     rows <- seq(1:nrow(prediction))
-    prediction$nearestDiscord <- sapply(rows, FUN = calcNearestDiscord)
-    prediction$nearestDiscord <- with(
-        prediction, ifelse(arm == "control", -nearestDiscord, nearestDiscord)
-    )
+    prediction$nearestDiscord <- sapply(rows,
+                                        FUN = calcNearestDiscord,
+                                        trial = trial,
+                                        prediction = prediction,
+                                        distM = distM)
     inla.mesh <- list(
         prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde
     )
     return(inla.mesh)
 }
 
+# Calculate the distance to the nearest discordant location
+calcNearestDiscord <- function(x, trial , prediction , distM)
+{
+    discords <- (trial$arm != prediction$arm[x])
+    nearestDiscord <- min(distM[x, discords])
+    nearestDiscord <- ifelse(prediction$arm[x] == "control", -nearestDiscord, nearestDiscord)
+    return(nearestDiscord)
+}
+
 # Use profiling to estimate beta2
 estimateContamination <- function(
-    beta2 = beta2, trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula
-)
-    {
+    beta2 = beta2, trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula){
     y_off <- NULL
     x <- trial$nearestDiscord * exp(beta2)
     trial$pvar <- -eval(parse(text = FUN))

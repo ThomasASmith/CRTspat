@@ -21,6 +21,7 @@ Analyse_CRT(
   clusterEffects = FALSE,
   spatialEffects = FALSE,
   resamples = 1000,
+  requireMesh = TRUE,
   inla.mesh = NULL
 )
 }
@@ -42,23 +43,23 @@ options are:
 'P': inverse probit,
 'X': contamination not modelled'}
 
-\item{link}{link function: options are 'logit' (the default), 'log', and 'identity'}
+\item{link}{string: link function- options are 'logit' (the default), 'log', and 'identity'}
 
-\item{numerator}{name of numerator variable for efficacy data (if present)}
+\item{numerator}{string: name of numerator variable for efficacy data (if present)}
 
-\item{denominator}{name of denominator variable for efficacy data (if present)}
+\item{denominator}{string: name of denominator variable for efficacy data (if present)}
 
-\item{excludeBuffer}{exclude any buffer zone (records with buffer=TRUE) from the analysis}
+\item{excludeBuffer}{logical: indicator of whether any buffer zone (records with buffer=TRUE) should be excluded from analysis}
 
-\item{alpha}{confidence level for confidence intervals and credible intervals}
+\item{alpha}{numeric: confidence level for confidence intervals and credible intervals}
 
-\item{requireBootstrap}{logical indicator of whether bootstrap confidence intervals are required}
+\item{requireBootstrap}{logical: indicator of whether bootstrap confidence intervals are required}
 
 \item{baselineOnly}{logical: indicator of whether required analysis is of efficacy or of baseline only}
 
-\item{baselineNumerator}{name of numerator variable for baseline data (if present)}
+\item{baselineNumerator}{string: name of numerator variable for baseline data (if present)}
 
-\item{baselineDenominator}{name of denominator variable for baseline data (if present)}
+\item{baselineDenominator}{string: name of denominator variable for baseline data (if present)}
 
 \item{localisedEffects}{logical: indicator of whether the model includes local effects with no contamination}
 
@@ -66,7 +67,9 @@ options are:
 
 \item{spatialEffects}{logical: indicator of whether the model includes spatial random effects}
 
-\item{resamples}{number of bootstrap samples}
+\item{resamples}{integer: number of bootstrap samples}
+
+\item{requireMesh}{logical: indicator of whether spatial predictions are required}
 
 \item{inla.mesh}{name of pre-existing INLA input object created by CreateMesh()}
 }
