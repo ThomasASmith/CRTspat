@@ -272,7 +272,7 @@ Analyse_CRT <- function(
 
     } else if (method == "ML")
     {
-        ############### ML Methods with contamination functions and logistic link #################
+        # ML Methods with contamination functions and logistic link
 
         par <- SingleTrialAnalysis(trial = trial, FUN2 = FUN2)
         fit <- FittingResults(trial, par = par, FUN1 = FUN1)

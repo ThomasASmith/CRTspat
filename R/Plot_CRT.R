@@ -263,6 +263,7 @@ get_Polygon <- function(polygon_type, i, totalClusters = totalClusters, d = d, x
 #'
 #' @examples
 #' Plot_Contamination(analysis=test_Analyse_CRT)
+
 Plot_Contamination <- function(analysis) {
   d <- p <- upper <- lower <- contaminationFunction <- NULL
   interval <- analysis$contamination$contaminatedInterval
@@ -270,13 +271,14 @@ Plot_Contamination <- function(analysis) {
   g <- g + ggplot2::theme_bw()
   g <- g + ggplot2::geom_point(size = 2)
   g <- g + ggplot2::geom_errorbar(mapping = aes(x = d, ymin = upper, ymax = lower),linewidth = 0.5, width = 0.1)
-  g <- g + ggplot2::geom_line(data = analysis$contamination$FittedCurve)
+  g <- g + ggplot2::geom_line(data = analysis$contamination$FittedCurve,
+                              aes(x = d, y = contaminationFunction), linewidth = 2, colour = "#0072A7")
   g <- g + ggplot2::geom_vline(xintercept = interval, linewidth = 1)
   g <- g + ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed")
   g <- g + ggplot2::geom_rect(aes(xmin = interval[1], xmax = interval[2], ymin = -Inf, ymax = Inf), fill = alpha("#2C77BF", 0.02))
   g <- g + ggplot2::xlab("Distance from boundary (km)")
   g <- g + ggplot2::ylab("Proportion positive")
-  return(plot)
+  return(g)
 }
 
 
