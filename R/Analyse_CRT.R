@@ -371,12 +371,12 @@ Analyse_CRT <- function(
 
         fterms <- c(fterms, switch(
             cfunc, Z = "b0",
-            X = "b0",
+            X = "b0 + b1",
             L = "b0 + pvar",
             P = "b0 + pvar"
         ))
 
-        if (localisedEffects)
+        if (localisedEffects | cfunc != 'X')
             fterms <- c(fterms, "b1")
         if (clusterEffects)
             fterms <- c(fterms, "f(cluster, model = \"iid\")")
@@ -455,6 +455,8 @@ Analyse_CRT <- function(
         stk.full <- INLA::inla.stack(stk.e, stk.p)
         cat("INLA analysis                                                 \n")
 
+        # a second 'link' variable is required for the negative binomial case
+        link1 <- link
         if (link == "identity") {
             inla.result <- INLA::inla(
                 formula, family = "gaussian", lincomb = lc,
@@ -466,6 +468,8 @@ Analyse_CRT <- function(
                 control.compute = list(dic = TRUE))
         } else if (link == "log") {
 # For the negative binomial, the mean is linked to the linear predictor by the log transformation
+# but the model returns the parameters on the untransformed scale
+            link1 <- "identity"
             inla.result <- INLA::inla(
                 formula, family = "nbinomial", E = y_off, lincomb = lc,
                 control.family = list(prior="gaussian", param = c(0,0.01)),
@@ -500,23 +504,23 @@ Analyse_CRT <- function(
             # Specify the covariance matrix of the variables
             cov <- inla.result$misc$lincomb.derived.covariance.matrix
             sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
-            sample$controlY <- invlink(link, sample$b0)
+            sample$controlY <- invlink(link1, sample$b0)
             # pr.contaminated is the proportion of effect subject to contamination
             if ("b1" %in% names(mu) &
                 "pvar" %in% names(mu))
                   {
-                sample$interventionY <- invlink(link, sample$lc)
+                sample$interventionY <- invlink(link1, sample$lc)
                 sample$pr.contaminated <- with(
-                  sample, 1 - (controlY - invlink(link, b0 + b1))/(controlY -
+                  sample, 1 - (controlY - invlink(link1, b0 + b1))/(controlY -
                     interventionY)
               )
             } else if ("b1" %in% names(mu))
                 {
-                sample$interventionY <- invlink(link, sample$b0 + sample$b1)
+                sample$interventionY <- invlink(link1, sample$b0 + sample$b1)
                 sample$pr.contaminated <- 0
             } else if ("pvar" %in% names(mu))
                 {
-                sample$interventionY <- invlink(link, sample$b0 + sample$pvar)
+                sample$interventionY <- invlink(link1, sample$b0 + sample$pvar)
                 sample$pr.contaminated <- 1
             }
             sample$efficacy <- 1 - sample$interventionY/sample$controlY
@@ -533,7 +537,7 @@ Analyse_CRT <- function(
         {
             controlY <- unlist(
                 invlink(
-                  link, inla.result$summary.fixed["b0", c("0.025quant", "0.5quant", "0.975quant")]
+                  link1, inla.result$summary.fixed["b0", c("0.025quant", "0.5quant", "0.975quant")]
               )
             )
             bounds <- data.frame(
