@@ -130,6 +130,7 @@ Analyse_CRT <- function(
         "CalculateNoEffect", "CalculateNoContaminationFunction", "CalculatePiecewiseLinearFunction",
         "CalculateLogisticFunction", "CalculateProbitFunction")[which(cfunc == c("Z", "X", "S", "L", "P"))]
     FUN2 <- FUN1 <- eval(parse(text = LPfunction))
+    # a second 'link' variable is required for the negative binomial case
 
     if (method == "EMP"){
         description <- get_description(trial)
@@ -348,6 +349,7 @@ Analyse_CRT <- function(
         ############### INLA Methods #################
     } else if (method == "INLA")
     {
+        trial <- dplyr::mutate(trial, id =  dplyr::row_number())
         if (is.null(inla.mesh))
             {
             inla.mesh <- createMesh(
@@ -376,12 +378,14 @@ Analyse_CRT <- function(
             P = "b0 + pvar"
         ))
 
-        if (localisedEffects | cfunc != 'X')
+        if (localisedEffects & cfunc != 'X')
             fterms <- c(fterms, "b1")
         if (clusterEffects)
             fterms <- c(fterms, "f(cluster, model = \"iid\")")
         if (spatialEffects)
             fterms <- c(fterms, "f(s, model = spde)")
+        if (link == 'log')
+            fterms <- c(fterms, "f(id, model = \"iid\")")
 
         # console display of the formula
         formula_as_text <- paste(fterms, collapse = " + ")
@@ -394,6 +398,7 @@ Analyse_CRT <- function(
             df = data.frame(
                 b0 = rep(1, nrow(trial)),
                 b1 = ifelse(trial$arm == "intervention", 1, 0),
+                id = trial$id,
                 cluster = trial$cluster
             ),
             s = inla.mesh$indexs
@@ -402,6 +407,7 @@ Analyse_CRT <- function(
             df = data.frame(
                 b0 = rep(1, nrow(inla.mesh$prediction)),
                 b1 = ifelse(inla.mesh$prediction$arm == "intervention", 1, 0),
+                id = inla.mesh$prediction$id,
                 cluster = inla.mesh$prediction$cluster
             ),
             s = inla.mesh$indexs
@@ -417,6 +423,7 @@ Analyse_CRT <- function(
                 tol = 0.1, link = link)$minimum
             x <- trial$nearestDiscord * exp(beta2)
             trial$pvar <- eval(parse(text = FUN))
+
             effectse$df$pvar <- trial$pvar
             x <- inla.mesh$prediction$nearestDiscord * exp(beta2)
             inla.mesh$prediction$pvar <- ifelse(
@@ -455,8 +462,6 @@ Analyse_CRT <- function(
         stk.full <- INLA::inla.stack(stk.e, stk.p)
         cat("INLA analysis                                                 \n")
 
-        # a second 'link' variable is required for the negative binomial case
-        link1 <- link
         if (link == "identity") {
             inla.result <- INLA::inla(
                 formula, family = "gaussian", lincomb = lc,
@@ -467,12 +472,9 @@ Analyse_CRT <- function(
                                          A = INLA::inla.stack.A(stk.full)),
                 control.compute = list(dic = TRUE))
         } else if (link == "log") {
-# For the negative binomial, the mean is linked to the linear predictor by the log transformation
-# but the model returns the parameters on the untransformed scale
-            link1 <- "identity"
             inla.result <- INLA::inla(
-                formula, family = "nbinomial", E = y_off, lincomb = lc,
-                control.family = list(prior="gaussian", param = c(0,0.01)),
+                formula, family = "poisson", lincomb = lc,
+                control.family = list(link = "log"),
                 data = INLA::inla.stack.data(stk.full),
                 control.fixed = list(correlation.matrix = TRUE),
                 control.predictor = list(compute = TRUE, link = 1,
@@ -491,7 +493,7 @@ Analyse_CRT <- function(
 
         # Augment the inla results list with application specific quantities
         index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
-        inla.mesh$prediction$proportion <- invlink(link, inla.result$summary.linear.predictor[index, "0.5quant"])
+        inla.mesh$prediction$prediction <- invlink(link, inla.result$summary.linear.predictor[index, "0.5quant"])
 
         # Compute sample-based confidence limits for intervened outcome and efficacy if intervention effects are
         # estimated
@@ -504,23 +506,23 @@ Analyse_CRT <- function(
             # Specify the covariance matrix of the variables
             cov <- inla.result$misc$lincomb.derived.covariance.matrix
             sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
-            sample$controlY <- invlink(link1, sample$b0)
+            sample$controlY <- invlink(link, sample$b0)
             # pr.contaminated is the proportion of effect subject to contamination
             if ("b1" %in% names(mu) &
                 "pvar" %in% names(mu))
                   {
-                sample$interventionY <- invlink(link1, sample$lc)
+                sample$interventionY <- invlink(link, sample$lc)
                 sample$pr.contaminated <- with(
-                  sample, 1 - (controlY - invlink(link1, b0 + b1))/(controlY -
+                  sample, 1 - (controlY - invlink(link, b0 + b1))/(controlY -
                     interventionY)
               )
             } else if ("b1" %in% names(mu))
                 {
-                sample$interventionY <- invlink(link1, sample$b0 + sample$b1)
+                sample$interventionY <- invlink(link, sample$b0 + sample$b1)
                 sample$pr.contaminated <- 0
             } else if ("pvar" %in% names(mu))
                 {
-                sample$interventionY <- invlink(link1, sample$b0 + sample$pvar)
+                sample$interventionY <- invlink(link, sample$b0 + sample$pvar)
                 sample$pr.contaminated <- 1
             }
             sample$efficacy <- 1 - sample$interventionY/sample$controlY
@@ -537,7 +539,7 @@ Analyse_CRT <- function(
         {
             controlY <- unlist(
                 invlink(
-                  link1, inla.result$summary.fixed["b0", c("0.025quant", "0.5quant", "0.975quant")]
+                  link, inla.result$summary.fixed["b0", c("0.025quant", "0.5quant", "0.975quant")]
               )
             )
             bounds <- data.frame(
@@ -601,7 +603,7 @@ Analyse_CRT <- function(
     )
     CLtext <- paste0(" (", 100 * (1 - alpha), "% CL: ")
     cat(
-        "Estimated Proportions-      Control: ", results$pt.ests$controlY,
+        "Estimate-      Control: ", results$pt.ests$controlY,
         CLtext, unlist(results$int.ests$controlY),
         ")\n"
     )
@@ -610,7 +612,7 @@ Analyse_CRT <- function(
         if (!is.null(results$pt.ests$interventionY))
             {
             cat(
-                "                       Intervention: ", results$pt.ests$interventionY,
+                "          Intervention: ", results$pt.ests$interventionY,
                 CLtext, unlist(results$int.ests$interventionY),
                 ")\n"
             )
@@ -707,32 +709,18 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link)
         limits1 <- c(Cp * limits[1] + (1 - Cp) * limits[2], limits[2])
     }
 
-    par0 <- c(
-        logit(limits0[1]),
-        logit(limits0[2]) -
-            logit(limits0[1]),
-        pt.ests$contamination.par
+    par0 <- c(link_tr(link, limits0[1]),
+              link_tr(link, limits0[2]) - link_tr(link, limits0[1]),
+                pt.ests$contamination.par
     )
     par1 <- c(
-        logit(limits1[1]),
-        logit(limits1[2]) -
-            logit(limits1[1]),
+        link_tr(link, limits1[1]),
+        link_tr(link, limits1[2]) - link_tr(link, limits1[1]),
         pt.ests$contamination.par
     )
-    curve <- ifelse(
-        d < 0, invlink(
-            link, FUN1(
-                trial = data.frame(nearestDiscord = d),
-                par = par0
-            )
-        ),
-        invlink(
-            link, FUN1(
-                trial = data.frame(nearestDiscord = d),
-                par = par1
-            )
-        )
-    )
+    curve <- ifelse(d < 0,
+               invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par0)),
+               invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par1)))
 
     # estimate contamination range The absolute values of the limits are used so that a positive range is
     # obtained even with negative efficacy
@@ -784,6 +772,7 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link)
         ),
         labels = FALSE
     )
+    # TODO: generalise this code for non-binomial data
     data <- data.frame(
         trial %>%
             group_by(cats) %>%
@@ -820,6 +809,16 @@ namedCL <- function(limits, alpha = alpha)
 logit <- function(p = p)
     {
     return(log(p/(1 - p)))
+}
+
+# link transformation
+link_tr <- function(link = link, x = x)
+{
+    value <- switch(link,
+                    "identity" = x,
+                    "log" = log(x),
+                    "logit" =  log(x/(1 - x)))
+    return(value)
 }
 
 # inverse transformation of link function
@@ -1045,7 +1044,7 @@ BootEmpiricalAnalysis <- function(resampledData)
 #'
 #' @examples
 #' # low resolution mesh for test dataset
-#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=10)
+#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=8)
 createMesh <- function(
     trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2, maskbuffer = 0.5,
     ncells = 50)
@@ -1054,6 +1053,9 @@ createMesh <- function(
         "Creating mesh for INLA analysis: resolution parameter= ", ncells,
         "\n"
     )
+    # create an id variable if this does not exist
+    if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
+
     # create buffer around area of points
     trial.coords <- base::matrix(
         c(trial$x, trial$y),
@@ -1110,9 +1112,10 @@ createMesh <- function(
     nearestNeighbour <- apply(distM, 1, function(x) return(array(which.min(x))))
     armP <- trial$arm[nearestNeighbour]
     clusterP <- trial$cluster[nearestNeighbour]
+    idP <- trial$id[nearestNeighbour]
     prediction <- data.frame(
         x = pred.coords[, 1], y = pred.coords[, 2], nearestNeighbour = nearestNeighbour,
-        arm = armP, cluster = clusterP
+        arm = armP, id = idP, cluster = clusterP
     )
     prediction <- with(
         prediction, prediction[order(y, x),
@@ -1145,7 +1148,8 @@ estimateContamination <- function(
     beta2 = beta2, trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula, link = link){
     y1 <- y0 <- y_off <- NULL
     x <- trial$nearestDiscord * exp(beta2)
-    trial$pvar <- -eval(parse(text = FUN))
+    trial$pvar <- eval(parse(text = FUN))
+
     stk.e <- INLA::inla.stack(
         tag = "est", data = list(y1 = trial$y1, y_off = trial$y_off),
         A = list(1, A = inla.mesh$A),
@@ -1153,7 +1157,7 @@ estimateContamination <- function(
             data.frame(
                 b0 = rep(1, nrow(trial)),
                 b1 = ifelse(trial$arm == "intervention", 1, 0),
-                pvar = trial$pvar, cluster = trial$cluster
+                pvar = trial$pvar, id = trial$id, cluster = trial$cluster
             ),
             s = inla.mesh$indexs
         )
@@ -1168,10 +1172,9 @@ estimateContamination <- function(
                                      A = INLA::inla.stack.A(stk.e)),
             control.compute = list(dic = TRUE))
     } else if (link == "log") {
-        # For the negative binomial, the mean is linked to the linear predictor by the log transformation
         result.e <- INLA::inla(
-            formula, family = "nbinomial", E = y_off,
-            control.family = list(prior="gaussian", param = c(0,0.01)),
+            formula, family = "poisson",
+            control.family = list(link = "log"),
             data = INLA::inla.stack.data(stk.e),
             control.predictor = list(compute = TRUE, link = 1,
                                      A = INLA::inla.stack.A(stk.e)),
