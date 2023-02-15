@@ -13,7 +13,7 @@ Plot_CRTmap(
   showArms = TRUE,
   analysis = NULL,
   showDistance = FALSE,
-  showProportion = FALSE,
+  showPrediction = FALSE,
   showContamination = FALSE,
   cpalette = NULL,
   maskbuffer = 0.2,
@@ -38,7 +38,7 @@ Plot_CRTmap(
 
 \item{showDistance}{logical: determining whether smoothed raster of the distance from nearest discordant location is shown}
 
-\item{showProportion}{logical: determining whether a smoothed raster of the fitted proportion is shown}
+\item{showPrediction}{logical: determining whether a smoothed raster of the fitted Prediction is shown}
 
 \item{showContamination}{logical: determining whether the estimated contamination range should be shown}
 

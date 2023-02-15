@@ -3,7 +3,7 @@
 \name{Plot_DataByDistance}
 \alias{Plot_DataByDistance}
 \title{\code{Plot_DataByDistance} returns a stacked bar chart of the grouped data
-the grouped proportions of positives by distance from the arm boundary}
+the outcome grouped by distance from the arm boundary}
 \usage{
 Plot_DataByDistance(
   trial = trial,
@@ -26,7 +26,7 @@ graphics object produced by the ggplot2 package
 }
 \description{
 \code{Plot_DataByDistance} returns a stacked bar chart of the grouped data
-the grouped proportions of positives by distance from the arm boundary
+the outcome grouped by distance from the arm boundary
 }
 \examples{
 Plot_DataByDistance(trial=test_Simulate_CRT)

@@ -3,7 +3,7 @@
 \name{Plot_Contamination}
 \alias{Plot_Contamination}
 \title{\code{Plot_Contamination} returns a plot of an estimated contamination function along with
-the grouped proportions of positives by distance from the arm boundary}
+the grouped Predictions of positives by distance from the arm boundary}
 \usage{
 Plot_Contamination(analysis)
 }
@@ -15,7 +15,7 @@ graphics object produced by the ggplot2 package
 }
 \description{
 \code{Plot_Contamination} returns a plot of an estimated contamination function along with
-the grouped proportions of positives by distance from the arm boundary
+the grouped Predictions of positives by distance from the arm boundary
 }
 \examples{
 Plot_Contamination(analysis=test_Analyse_CRT)

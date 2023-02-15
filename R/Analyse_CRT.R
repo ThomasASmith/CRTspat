@@ -772,20 +772,25 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link)
         ),
         labels = FALSE
     )
-    # TODO: generalise this code for non-binomial data
+
     data <- data.frame(
         trial %>%
             group_by(cats) %>%
             dplyr::summarize(
                 positives = sum(y1),
                 total = sum(y_off),
-                d = median(nearestDiscord)
+                d = median(nearestDiscord),
+                average = Williams(x=y1/y_off, alpha=alpha, option = 'M'),
+                lower = Williams(x=y1/y_off, alpha=alpha, option = 'L'),
+                upper = Williams(x=y1/y_off, alpha=alpha, option = 'U')
             )
     )
-    # proportions and binomial confidence intervals by category
-    data$p <- data$positives/data$total
-    data$upper <- with(data, p + 1.96 * (sqrt(p * (1 - p)/total)))
-    data$lower <- with(data, p - 1.96 * (sqrt(p * (1 - p)/total)))
+    if (link == 'logit') {
+        # proportions and binomial confidence intervals by category
+        data$average <- data$positives/data$total
+        data$upper <- with(data, p + 1.96 * (sqrt(p * (1 - p)/total)))
+        data$lower <- with(data, p - 1.96 * (sqrt(p * (1 - p)/total)))
+    }
 
     returnList <- list(
         FittedCurve = data.frame(d = d, contaminationFunction = curve),
@@ -1194,3 +1199,23 @@ estimateContamination <- function(
     cat("\rDIC: ", loss, " Contamination parameter: ", beta2, "  \r")
     return(loss)
 }
+
+# Williams mean and confidence intervals
+Williams <- function(x, alpha, option){
+    logx_1 <- log(x + 1)
+    if(length(logx_1) < 3) {
+        value <- switch(option,
+                M = mean(logx_1),
+                L = NA,
+                U = NA)
+    } else {
+        t <- t.test(x = logx_1, conf.level = 1 - alpha)
+        value <- switch(option,
+                M = t$estimate,
+                L = t$conf.int[1],
+                U = t$conf.int[2])
+    }
+    returnvalue <- as.numeric(exp(value) - 1)
+    return(returnvalue)
+}
+
