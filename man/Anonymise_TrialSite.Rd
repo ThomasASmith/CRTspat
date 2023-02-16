@@ -4,7 +4,7 @@
 \alias{Anonymise_TrialSite}
 \title{Anonymise locations in a trial site}
 \usage{
-Anonymise_TrialSite(trial = CRTspillover::test_site)
+Anonymise_TrialSite(trial = NULL)
 }
 \arguments{
 \item{trial}{dataframe with Cartesian co-ordinates of households (columns x and y)}
@@ -17,5 +17,5 @@ data.frame with modified co-ordinates of households (other columns remain unchan
 }
 \examples{
 #Rotate and reflect test site locations
-transformedTestlocations <- Anonymise_TrialSite()
+transformedTestlocations <- Anonymise_TrialSite(trial = readdata('test_site.csv'))
 }

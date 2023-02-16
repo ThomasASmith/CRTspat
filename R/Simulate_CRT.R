@@ -31,7 +31,7 @@
 #' @export
 #'
 #' @examples
-#' example_simulated_CRT =  Simulate_CRT(trial=CRTspillover::testArms,,
+#' example_simulated_CRT =  Simulate_CRT(trial=readdata('testArms.csv'),
 #'                                      efficacy=0.25,
 #'                                      ICC_inp=0.05,
 #'                                      initialPrevalence=0.5,
@@ -46,6 +46,8 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
 # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
   cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
   bw <- NULL
+  trial$arm <- as.factor(trial$arm)
+  trial$cluster <- as.factor(trial$cluster)
 
   # set the denominator variable to be 'denom'
   if(is.null(denominator)) denominator <- 'denom'

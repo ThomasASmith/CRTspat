@@ -67,6 +67,6 @@ Outputs are:
 }
 \examples{
 
-exampleDesign = Design_CRT(coordinates=CRTspillover::test_site,
+exampleDesign = Design_CRT(coordinates=readdata('test_site.csv'),
                 ICC=0.10, effect=0.4, pC=0.35, postulatedContaminationRange=0.25, h=100)
 }

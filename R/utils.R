@@ -36,9 +36,9 @@ Aggregate_CRT <- function(trial, auxiliaries = NULL) {
 #' @export
 #'
 #' @examples
-#' #Randomize the clusters in the example trial
+#' #Randomize the clusters in an example trial
 #' set.seed(352)
-#' exampletrial <- Randomize_CRT(testClusters)
+#' exampletrial <- Randomize_CRT(trial = readdata('testClusters.csv'))
 Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_num", baselineDenominator = "base_denom") {
 
   cluster <- base_num <- base_denom <- NULL
@@ -84,7 +84,7 @@ Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_n
 #'
 #' @examples
 #' #Specify a buffer of 200m
-#' exampletrial <- Specify_CRTbuffer(testArms, bufferWidth = 0.2)
+#' exampletrial <- Specify_CRTbuffer(trial = readdata('testArms.csv'), bufferWidth = 0.2)
 #'
 Specify_CRTbuffer <- function(trial = trial, bufferWidth = 0) {
   # nearestDiscord: nearest coordinate in the discordant arm, for the control coordinates return the minimal
@@ -142,7 +142,7 @@ Specify_CRTbuffer <- function(trial = trial, bufferWidth = 0) {
 #'
 #' @examples
 #' #Assign clusters to the test trial dataset averaging h = 40 using the kmeans algorithm
-#' exampletrial <- DefineClusters(trial = test_site, h = 40, algo = 'kmeans')
+#' exampletrial <- DefineClusters(trial = readdata('test_site.csv'), h = 40, algo = 'kmeans')
 
 DefineClusters <- function(trial = trial, h = NULL, nclusters = NULL, algo = "NN", reuseTSP = FALSE) {
 
@@ -280,9 +280,9 @@ Convert_LatLong <- function(df, latvar = "lat", longvar = "long") {
 #'
 #' @examples
 #' #Rotate and reflect test site locations
-#' transformedTestlocations <- Anonymise_TrialSite()
+#' transformedTestlocations <- Anonymise_TrialSite(trial = readdata('test_site.csv'))
 
-Anonymise_TrialSite <- function(trial = CRTspillover::test_site) {
+Anonymise_TrialSite <- function(trial = NULL) {
   # Local data from study area (ground survey and/or satellite images) random rotation angle
   theta <- 2 * pi * runif(n = 1)
   x <- trial$x
@@ -305,4 +305,20 @@ Anonymise_TrialSite <- function(trial = CRTspillover::test_site) {
   trial$y <- recentred[2, ]
 
   return(trial)
+}
+
+
+#' Read test dataset
+#'
+#' \code{readdata} reads a file from package library of .csv or .txt test datasets
+#'
+#' @param filename name of text file stored within the package
+#' @return R object corresponding to the text file
+#' @export
+readdata <- function(filename) {
+  fname <- eval(filename)
+  extdata <- system.file("extdata",package = 'CRTspillover')
+  if (unlist(gregexpr('.txt', fname)) > 0) robject <- dget(file = paste0(extdata,'/',fname))
+  if (unlist(gregexpr('.csv', fname)) > 0) robject <- read.csv(file = paste0(extdata,'/',fname))
+return(robject)
 }

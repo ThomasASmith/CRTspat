@@ -46,7 +46,7 @@
 #'
 #' @examples
 #' # Standard GEE analysis of test dataset ignoring contamination
-#' exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
+#' exampleGEE=Analyse_CRT(trial=readdata('test_Simulate_CRT.csv'),method='GEE')
 
 Analyse_CRT <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
@@ -1052,7 +1052,7 @@ BootEmpiricalAnalysis <- function(resampledData)
 #'
 #' @examples
 #' # low resolution mesh for test dataset
-#' exampleMesh=createMesh(trial=test_Simulate_CRT,ncells=8)
+#' exampleMesh=createMesh(trial = readdata('test_Simulate_CRT.csv'), ncells = 7)
 createMesh <- function(
     trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2, maskbuffer = 0.5,
     ncells = 50)

@@ -27,7 +27,7 @@ The input dataframe augmented with variable arm coded 'control' or 'intervention
 \code{Randomize_CRT} carries out randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
 }
 \examples{
-#Randomize the clusters in the example trial
+#Randomize the clusters in an example trial
 set.seed(352)
-exampletrial <- Randomize_CRT(testClusters)
+exampletrial <- Randomize_CRT(trial = readdata('testClusters.csv'))
 }

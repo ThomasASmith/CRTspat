@@ -29,5 +29,5 @@ graphics object produced by the ggplot2 package
 the outcome grouped by distance from the arm boundary
 }
 \examples{
-Plot_DataByDistance(trial=test_Simulate_CRT)
+Plot_DataByDistance(trial=readdata('test_Simulate_CRT.csv'))
 }

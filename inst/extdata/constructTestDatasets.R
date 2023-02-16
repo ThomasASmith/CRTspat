@@ -1,13 +1,17 @@
 # R code for creating the test datasets for package CRTspillover
+library(CRTspillover)
+
+extdata <- system.file("extdata",package = 'CRTspillover')
+
+# the test code is in tests/testthat
+# the test data is in inst/extdata
 
 # Coordinates from the Avecnet trial
-load("C:/git_repos/trialdesign/RCode_DesignCRTs/ForPublication/Simulated_Trials.RData")
-AvecNet_coordinates= trial[[7]][,c(1,2)]
-write.csv(AvecNet_coordinates,file='AvecNet_coordinates.csv')
+#load("C:/git_repos/trialdesign/RCode_DesignCRTs/ForPublication/Simulated_Trials.RData")
+#AvecNet_coordinates= trial[[7]][,c(1,2)]
+#write.csv(AvecNet_coordinates,file=paste0(extdata,'AvecNet_coordinates.csv')
 
-library(CRTspillover)
-# All the test files are in tests/testthat
-setwd('c:/git_repos/CRTspillover/tests/testthat')
+setwd('c:/git_repos/CRTspillover/inst/extdata')
 
 # TEST 1 Test of Design_CRT
 set.seed(1234)
@@ -45,7 +49,7 @@ get_test3 = function(){
     testArms1 <- Randomize_CRT(trial = testClusters,matchedPair = TRUE)
     test_Simulate_CRT <- Simulate_CRT(trial = testArms1,
                                       theta_inp = 1.2,initialPrevalence = 0.4,
-                                      ICC_inp = 0.05,efficacy = 0.2,tol = 0.05)
+                                      ICC_inp = 0.05,efficacy = 0.4,tol = 0.05)
     test_Simulate_CRT$cluster <- as.numeric(test_Simulate_CRT$cluster)
     test_Simulate_CRT$arm <- as.character(test_Simulate_CRT$arm)
     rownames(test_Simulate_CRT) <- NULL
@@ -60,15 +64,20 @@ get_test4 = function(){
   testEstimates <- Analyse_CRT(trial = trial,
                                method = 'GEE',excludeBuffer = FALSE,
                                requireBootstrap = FALSE,alpha = 0.2)
+  # remove the model object before storing as text as this cannot be reloaded and is large
+  testEstimates$model.object <- NULL
+  dput(testEstimates, file = 'test_Analyse_CRT.txt')
   value <- testEstimates$contamination$data$positives[4]
   return(value)
 }
-# return value is an integer
+# return value of test is an integer but the output file may be required for other purposes
+test_Analyse_CRT = dget(file = 'test_Analyse_CRT.txt')
 
-#TEST 5
+# TEST 4 DOES NOT REQUIRE ANY ADDITIONAL FILES
+
 set.seed(1234)
-get_test5 = function(){
-  Solarmal_baseline <- read.csv(file = "Solarmal_baseline.csv")
+get_test5 = function(extdata){
+  Solarmal_baseline <- read.csv(file = paste0(extdata,"/Solarmal_baseline.csv"))
   testLocationsLatLong <- Solarmal_baseline[, c('lat','long')]
   testLocationsxy <- Convert_LatLong(testLocationsLatLong) #test_site is simulated
   testAnonymisedLocations <- Anonymise_TrialSite(testLocationsxy)
@@ -77,13 +86,9 @@ get_test5 = function(){
   testBuffer <- Specify_CRTbuffer(trial = testArms, bufferWidth = 0.1)
   testBuffer$cluster <- as.numeric(testBuffer$cluster)
   testBuffer$arm <- as.character(testBuffer$arm)
-return(testBuffer)}
+  return(testBuffer)}
 
-testBuffer <- get_test5()
+testBuffer <- get_test5(extdata)
 write.csv(testBuffer,file='testBuffer.csv',row.names=FALSE)
 
-
-
-
-# compress files
-#tools::resaveRdaFiles('data')
+# TESTS 6 - 9 USE THE SAME DATASETS AS EARLIER TESTS

@@ -89,5 +89,5 @@ list containing the following results of the analysis
 }
 \examples{
 # Standard GEE analysis of test dataset ignoring contamination
-exampleGEE=Analyse_CRT(trial=test_Simulate_CRT,method='GEE')
+exampleGEE=Analyse_CRT(trial=readdata('test_Simulate_CRT.csv'),method='GEE')
 }

@@ -20,6 +20,6 @@ Locations are added incrementally to the buffer until a predetermined buffering 
 }
 \examples{
 #Specify a buffer of 200m
-exampletrial <- Specify_CRTbuffer(testArms, bufferWidth = 0.2)
+exampletrial <- Specify_CRTbuffer(trial = readdata('testArms.csv'), bufferWidth = 0.2)
 
 }

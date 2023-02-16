@@ -1,7 +1,8 @@
+extdata <- system.file("extdata",package = 'CRTspillover')
 set.seed(1234)
 test_that("Design_CRT() creates the default trial", {
   get_test1 = function(){
-    Solarmal_baseline <- read.csv(file = "Solarmal_baseline.csv")
+    Solarmal_baseline <- read.csv(file = paste0(extdata,"/Solarmal_baseline.csv"))
     testLocationsxy <- Convert_LatLong(Solarmal_baseline) #test_site is simulated
     coordinates <- Solarmal_baseline[]
     test_design <- Design_CRT(alpha = 0.05,
@@ -18,10 +19,10 @@ test_that("Design_CRT() creates the default trial", {
     row.names(df) <- NULL
     return(df)
   }
-  expect_equal(get_test1(),read.csv(file = "test_design.csv"))
+  expect_equal(get_test1(),read.csv(file = paste0(extdata,"/test_design.csv")))
 })
 
 set.seed(1234)
 test_that("Simulate_TrialSite() creates the default site", {
-  expect_equal(Simulate_TrialSite(),read.csv(file = "test_site.csv"))
+  expect_equal(Simulate_TrialSite(),read.csv(file = paste0(extdata,"/test_site.csv")))
 })

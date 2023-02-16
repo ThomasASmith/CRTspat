@@ -59,14 +59,15 @@ Cartesian (x,y) coordinates are used. Units are expected to be km.
 }
 \examples{
 #Plot locations only
-Plot_CRTmap(trial=testArms,showArms=FALSE,showClusterBoundaries=FALSE,
+Plot_CRTmap(trial = readdata('test_CRT2.csv'), showArms=FALSE,showClusterBoundaries=FALSE,
            colourClusters=FALSE, maskbuffer=0.2)
 
 #Plot clusters in colour
-Plot_CRTmap(trial=testArms, showArms=FALSE, colourClusters=TRUE, labelsize=2, maskbuffer=0.2)
+Plot_CRTmap(trial=readdata('test_CRT2.csv'), showArms=FALSE, colourClusters=TRUE,
+          labelsize=2, maskbuffer=0.2)
 
 #Plot arms
-Plot_CRTmap(trial=testArms, maskbuffer=0.2, legend.position=c(0.2,0.8))
+Plot_CRTmap(trial=readdata('test_CRT2.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
 
 #Plot distance to nearest discordant location
 

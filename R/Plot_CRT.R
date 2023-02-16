@@ -25,14 +25,15 @@
 #'
 #' @examples
 #' #Plot locations only
-#' Plot_CRTmap(trial=testArms,showArms=FALSE,showClusterBoundaries=FALSE,
+#' Plot_CRTmap(trial = readdata('test_CRT2.csv'), showArms=FALSE,showClusterBoundaries=FALSE,
 #'            colourClusters=FALSE, maskbuffer=0.2)
 #'
 #' #Plot clusters in colour
-#' Plot_CRTmap(trial=testArms, showArms=FALSE, colourClusters=TRUE, labelsize=2, maskbuffer=0.2)
+#' Plot_CRTmap(trial=readdata('test_CRT2.csv'), showArms=FALSE, colourClusters=TRUE,
+#'           labelsize=2, maskbuffer=0.2)
 #'
 #' #Plot arms
-#' Plot_CRTmap(trial=testArms, maskbuffer=0.2, legend.position=c(0.2,0.8))
+#' Plot_CRTmap(trial=readdata('test_CRT2.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
 #'
 #' #Plot distance to nearest discordant location
 #'
@@ -255,14 +256,14 @@ get_Polygon <- function(polygon_type, i, totalClusters = totalClusters, d = d, x
 
 
 #' \code{Plot_Contamination} returns a plot of an estimated contamination function along with
-#' the grouped Predictions of positives by distance from the arm boundary
+#' the average and interval estimates for the outcome by distance from the arm boundary
 #' @param analysis list of analysis output produced by Analyse_CRT
 #' @return graphics object produced by the ggplot2 package
 #' @importFrom ggplot2 aes
 #' @export
 #'
 #' @examples
-#' Plot_Contamination(analysis=test_Analyse_CRT)
+#' Plot_Contamination(analysis = readdata('test_Analyse_CRT.txt'))
 
 Plot_Contamination <- function(analysis) {
   d <- average <- upper <- lower <- contaminationFunction <- NULL
@@ -293,7 +294,7 @@ Plot_Contamination <- function(analysis) {
 #' @export
 #'
 #' @examples
-#' Plot_DataByDistance(trial=test_Simulate_CRT)
+#' Plot_DataByDistance(trial=readdata('test_Simulate_CRT.csv'))
 
 Plot_DataByDistance <- function(trial = trial, num = num, denom = denom,
                                 cpalette = c("#D55E00", "#0072A7")) {

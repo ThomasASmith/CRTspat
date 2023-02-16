@@ -64,7 +64,7 @@ A trial simulation object comprising a data frame containing the following numer
 For details see Multerer (PhD thesis).
 }
 \examples{
-example_simulated_CRT =  Simulate_CRT(trial=CRTspillover::testArms,,
+example_simulated_CRT =  Simulate_CRT(trial=readdata('testArms.csv'),
                                      efficacy=0.25,
                                      ICC_inp=0.05,
                                      initialPrevalence=0.5,

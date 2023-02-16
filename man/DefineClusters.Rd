@@ -42,5 +42,5 @@ The input coordinates as a dataframe augmented with the following attributes
 }
 \examples{
 #Assign clusters to the test trial dataset averaging h = 40 using the kmeans algorithm
-exampletrial <- DefineClusters(trial = test_site, h = 40, algo = 'kmeans')
+exampletrial <- DefineClusters(trial = readdata('test_site.csv'), h = 40, algo = 'kmeans')
 }
