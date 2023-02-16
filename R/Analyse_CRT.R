@@ -588,7 +588,8 @@ Analyse_CRT <- function(
     }
     if (cfunc != "Z")
     {
-        results$contamination <- getContaminationCurve(trial = trial, pt.ests = results$pt.ests, FUN1 = FUN1, link = link)
+        results$contamination <- getContaminationCurve(trial = trial, pt.ests = results$pt.ests,
+                                                       FUN1 = FUN1, link = link, alpha = alpha)
         results$pt.ests$contaminationRange <- results$contamination$contaminationRange
         results$contamination$contaminationRange <- NULL
     } else
@@ -683,10 +684,10 @@ add_estimates <- function(results, bounds, CLnames)
     return(results)
 }
 
-getContaminationCurve <- function(trial, pt.ests, FUN1, link)
+getContaminationCurve <- function(trial, pt.ests, FUN1, link, alpha)
     {
 
-    y_off <- y1 <- cats <- nearestDiscord <- NULL
+    y_off <- y1 <- average <- upper <- lower <- cats <- nearestDiscord <- NULL
 
     range_d <- max(trial$nearestDiscord) -
         min(trial$nearestDiscord)
@@ -788,8 +789,10 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link)
     if (link == 'logit') {
         # proportions and binomial confidence intervals by category
         data$average <- data$positives/data$total
-        data$upper <- with(data, p + 1.96 * (sqrt(p * (1 - p)/total)))
-        data$lower <- with(data, p - 1.96 * (sqrt(p * (1 - p)/total)))
+        data$upper <- with(data, average -
+                               qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
+        data$lower <- with(data, average +
+                               qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
     }
 
     returnList <- list(
@@ -1209,7 +1212,7 @@ Williams <- function(x, alpha, option){
                 L = NA,
                 U = NA)
     } else {
-        t <- t.test(x = logx_1, conf.level = 1 - alpha)
+        t <- stats::t.test(x = logx_1, conf.level = 1 - alpha)
         value <- switch(option,
                 M = t$estimate,
                 L = t$conf.int[1],

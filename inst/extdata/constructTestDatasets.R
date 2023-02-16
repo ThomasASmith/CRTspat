@@ -37,7 +37,7 @@ test_site <- Simulate_TrialSite()
 write.csv(test_site,file='test_site.csv',row.names=FALSE)
 
 # TEST 3: Test of Simulate_CRT()
-set.seed(4321)
+set.seed(1234)
 get_test3 = function(){
     Solarmal_baseline <- read.csv(file = "Solarmal_baseline.csv")
     testLocationsxy <- Convert_LatLong(Solarmal_baseline) #test_site is simulated

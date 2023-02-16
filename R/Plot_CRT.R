@@ -265,7 +265,7 @@ get_Polygon <- function(polygon_type, i, totalClusters = totalClusters, d = d, x
 #' Plot_Contamination(analysis=test_Analyse_CRT)
 
 Plot_Contamination <- function(analysis) {
-  d <- p <- upper <- lower <- contaminationFunction <- NULL
+  d <- average <- upper <- lower <- contaminationFunction <- NULL
   interval <- analysis$contamination$contaminatedInterval
   g <- ggplot2::ggplot(data = analysis$contamination$data,aes(x = d, y = average))
   g <- g + ggplot2::theme_bw()

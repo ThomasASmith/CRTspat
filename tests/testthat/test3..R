@@ -16,4 +16,3 @@ test_that("Simulate_CRT() creates the default simulation", {
  expect_equal(get_test3(),read.csv(file = "test_Simulate_CRT.csv"))
 })
 
-
