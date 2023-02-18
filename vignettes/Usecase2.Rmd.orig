@@ -27,50 +27,53 @@ Trials can be simulated using the `Simulate_CRT` function, which augments a `tri
 #### Example with baseline data provided as proportions
 ```{r example2.r, fig.path=('vignettes/'),echo=TRUE}
 set.seed(1234)
-#   use co-ordinates, cluster and arm assignments, and baseline data from `test5`
-test6b = Simulate_CRT(trial= test5,
-                    efficacy=0.4,
-                    initialPrevalence = 0.5,
-                    generateBaseline=FALSE,
-                    baselineNumerator='base_num',
-                    baselineDenominator='base_denom',
-                    ICC_inp=NULL,
-                    theta_inp=0.8)
+# use co-ordinates, cluster and arm assignments, and pre-calculated transmission surface from Rusinga
+example5 <- readdata("test_Simulate_CRT1.csv")
+example5$num <- example5$denom <- NULL
+example5a <- Simulate_CRT(trial = example5,
+       efficacy = 0.4,
+       initialPrevalence = 0.5,
+       generateBaseline = FALSE,
+       baselineNumerator = "base_num",
+       baselineDenominator = "base_denom",
+       ICC_inp = NULL, theta_inp = 0.8)
 
-results6b=Analyse_CRT(trial=test6b,method='SPDE',inlaMesh = inlaMeshTest)
-Plot_Contamination(analysis=results6b)
-Plot_CRTmap(analysis=results6b,trial=test6b,showProportion = TRUE)
+results5a <- Analyse_CRT(trial = example5a, method = "INLA", inla.mesh = inlaMeshTest)
+Plot_Contamination(analysis = results5a)
+Plot_CRTmap(analysis = results5a, trial = example5a, showPrediction = TRUE)
 ```
 
 #### Example with infectiousness proxy surface generated externally
-```{r example3.r, fig.path=('vignettes/'),echo=TRUE}
+```{r example3.r, fig.path = ('vignettes/'), echo = TRUE}
 set.seed(1234)
-#   use co-ordinates, cluster and arm assignments from `test5` but ignore pre-existing baseline
-test5a = test5[ , !(names(test5) %in% c("base_num","base_denom"))]
-#   infectiousness proxy surface generated as an arbitrary linear function of x co-ordinate
-test5a$infectiousness_proxy = 0.5*test5a$x - min(test5a$x)+1
-test6a = Simulate_CRT(trial= test5a,
-                    efficacy=0.4,
-                    initialPrevalence = 0.5,
-                    generateBaseline=TRUE,
-                    ICC_inp=NULL,
-                    theta_inp=0.5)
-results6a = Analyse_CRT(trial=test6a,method='SPDE',inlaMesh = inlaMeshTest)
-Plot_CRTmap(trial=test6a,analysis=results6a,showProportion = TRUE)
+# use co-ordinates, cluster and arm assignments from `example5` but ignore pre-existing baseline
+example6 <- example5
+example6$base_num <- example5$base_denom <- NULL
+# infectiousness proxy surface generated as an arbitrary linear function of x co-ordinate
+example6$infectiousness_proxy <- 0.5*example5a$x - min(example5a$x)+1
+example6a <- Simulate_CRT(trial = example5a,
+       efficacy = 0.4,
+       initialPrevalence = 0.5,
+       generateBaseline = TRUE,
+       ICC_inp = NULL,
+       theta_inp = 0.5)
+
+results6a <- Analyse_CRT(trial = example5b, method = 'INLA', inla.mesh = inlaMeshTest)
+Plot_CRTmap(trial = example6a, analysis = results6a, showPrediction = TRUE)
 ```
 
 #### Example with baseline generated from user-provided values of the overall initial prevalence and ICC
-```{r example4.r, fig.path=('vignettes/'),echo=TRUE}
+```{r example4.r, fig.path = ('vignettes/'), echo = TRUE}
 set.seed(1234)
-#   use co-ordinates, cluster and arm assignments, and baseline data from `test5`
-test6c = Simulate_CRT(trial= test5,
-                    efficacy=0.4,
-                    initialPrevalence = 0.6,
-                    generateBaseline=TRUE,
-                    baselineNumerator='base_num',
-                    baselineDenominator='base_denom',
-                    ICC_inp=0.08,
-                    theta_inp=0.2)
+# use co-ordinates, cluster and arm assignments, and baseline data from `example5`
+example5c <- Simulate_CRT(trial = example5,
+       efficacy = 0.4,
+       initialPrevalence = 0.6,
+       generateBaseline = TRUE,
+       baselineNumerator = 'base_num',
+       baselineDenominator = 'base_denom',
+       ICC_inp = 0.08,
+       theta_inp = 0.2)
 
-results6c=Analyse_CRT(trial=test6c,method='GEE')
+results6c <- Analyse_CRT(trial = example6c, method = 'GEE')
 ```

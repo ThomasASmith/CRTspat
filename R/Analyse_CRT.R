@@ -53,7 +53,7 @@ Analyse_CRT <- function(
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05, requireBootstrap = FALSE,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
     localisedEffects = FALSE, clusterEffects = FALSE, spatialEffects = FALSE,
-    resamples = 1000, requireMesh = TRUE, inla.mesh = NULL)
+    resamples = 1000, requireMesh = FALSE, inla.mesh = NULL)
     {
     # Test of validity of inputs
     if (!method %in% c("EMP", "T", "ML", "GEE", "INLA"))
@@ -350,14 +350,15 @@ Analyse_CRT <- function(
     } else if (method == "INLA")
     {
         trial <- dplyr::mutate(trial, id =  dplyr::row_number())
-        if (is.null(inla.mesh))
-            {
-            inla.mesh <- createMesh(
-                trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
-                maskbuffer = 0.5, ncells = 50
-            )
+        # If spatial predictions are not required a minimal mesh is generated
+        ncells <- 50
+        if (!requireMesh) ncells <- 5
+        if (is.null(inla.mesh)) {
+                inla.mesh <- createMesh(
+                    trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
+                    maskbuffer = 0.5, ncells = ncells
+                )
         }
-
         y_off <- NULL
         # specify functional form of sigmoid in distance from boundary 'L' inverse logit; 'P' inverse probit; 'X'
         # or 'Z' do not model contamination
@@ -412,6 +413,7 @@ Analyse_CRT <- function(
             ),
             s = inla.mesh$indexs
         )
+
         lc <- NULL
         beta2 <- NA
         if (cfunc %in% c("L", "P"))
@@ -425,12 +427,14 @@ Analyse_CRT <- function(
             trial$pvar <- eval(parse(text = FUN))
 
             effectse$df$pvar <- trial$pvar
+
             x <- inla.mesh$prediction$nearestDiscord * exp(beta2)
-            inla.mesh$prediction$pvar <- ifelse(
-                cfunc == "X", rep(NA, nrow(inla.mesh$prediction)),
-                eval(parse(text = FUN))
-            )
+                inla.mesh$prediction$pvar <- ifelse(
+                    cfunc == "X", rep(NA, nrow(inla.mesh$prediction)),
+                    eval(parse(text = FUN))
+                )
             effectsp$df$pvar <- inla.mesh$prediction$pvar
+
             # set up linear contrasts (not required for cfunc='X' or 'Z')
             if (grepl("pvar", formula_as_text, fixed = TRUE))
                 {
@@ -458,7 +462,7 @@ Analyse_CRT <- function(
             effects = effectsp
         )
 
-        # stk.full comprises both stk.e and stk.p
+        # stk.full comprises both stk.e and stk.p if a prediction mesh is in use
         stk.full <- INLA::inla.stack(stk.e, stk.p)
         cat("INLA analysis                                                 \n")
 
@@ -493,8 +497,8 @@ Analyse_CRT <- function(
 
         # Augment the inla results list with application specific quantities
         index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
-        inla.mesh$prediction$prediction <- invlink(link, inla.result$summary.linear.predictor[index, "0.5quant"])
-
+        inla.mesh$prediction$prediction <-
+                invlink(link, inla.result$summary.linear.predictor[index, "0.5quant"])
         # Compute sample-based confidence limits for intervened outcome and efficacy if intervention effects are
         # estimated
         if (grepl("pvar", formula_as_text, fixed = TRUE) |

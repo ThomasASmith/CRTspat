@@ -21,7 +21,7 @@ Analyse_CRT(
   clusterEffects = FALSE,
   spatialEffects = FALSE,
   resamples = 1000,
-  requireMesh = TRUE,
+  requireMesh = FALSE,
   inla.mesh = NULL
 )
 }

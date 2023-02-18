@@ -77,19 +77,19 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
   if (!"infectiousness_proxy" %in% colnames(trial) & baselineNumerator %in%
       colnames(trial) & baselineDenominator %in% colnames(trial)) {
     trial$infectiousness_proxy <- trial[[baselineNumerator]]/trial[[baselineDenominator]]
+# TODO: replace this with estimation via INLA with a spatial model
+
   } else if ("infectiousness_proxy" %in% colnames(trial)) {
-    # create a baseline dataset using a pre-existing exposure
-    # proxy
+    # create a baseline dataset using a pre-existing exposure proxy
     trial <- syntheticBaseline(bw = NULL, trial = trial, sd = sd, euclid = euclid,
                                initialPrevalence = initialPrevalence)
-  } else if (generateBaseline) {
-    # determine the required smoothing bandwidth by fitting to
-    # the pre-specified ICC
 
+  } else if (generateBaseline) {
+
+    # determine the required smoothing bandwidth by fitting to the pre-specified ICC
     # compute approximate diagonal of clusters
     approx_diag <- sqrt((max(trial$x) - min(trial$x))^2 + (max(trial$y) -
                          min(trial$y))^2)/sqrt(length(unique(trial$cluster)))
-
     cat("Estimating the smoothing required to achieve the target ICC of",
         ICC_inp, "\n")
 
@@ -112,6 +112,7 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
     # create a baseline dataset using the optimized bandwidth
     trial <- syntheticBaseline(bw = bw, trial = trial, sd = sd, euclid = euclid,
                                initialPrevalence = initialPrevalence)
+
   }
 
   trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy,
@@ -185,11 +186,16 @@ distributePositives <- function(trial, initialPrevalence,
   # summarise the numerator values into the original set of locations
   numdf <- dplyr::group_by(triallong, rowno) %>% dplyr::summarise(sumnum = sum(num))
   numdf[[numerator]] <- numdf$sumnum
+
+  # remove any superseded numerator variable
+  trial[[numerator]] <- NULL
+
   # use left_join to merge into the original data frame
   # (records with zero denominator do not appear in numdf)
   trial <- trial %>% dplyr::left_join(numdf, by="rowno")
 
-  # remove temporary variables and replace missing numerators with zero
+  # remove temporary variables and replace missing numerators with zero (because the multinomial sampling
+  # algorithm leaves NA values where no events are assigned)
   trial <- subset(trial, select = -c(rowno, expected_proportion, sumnum))
   if (sum(is.na(trial[[numerator]])) > 0) {
     cat("** Warning: some records have zero denominator after rounding **\n")
@@ -230,8 +236,8 @@ syntheticBaseline <- function(bw, trial, sd, euclid, initialPrevalence) {
     trial$infectiousness_proxy <- KDESmoother(trial$x, trial$y, kernnumber = 200,
                                               bandwidth = bw, low = 0, high = 1)
   }
-  # Smooth the exposure proxy to allow for mosquito movement Note
-  # that the s.d. in each dimension of the 2 d gaussian is
+  # Smooth the exposure proxy to allow for mosquito movement.
+  # the s.d. in each dimension of the 2 d gaussian is
   # sd/sqrt(2) smoothedBaseline is the amount received by the each
   # cluster from the contributions (infectiousness_proxy) of each
   # source
