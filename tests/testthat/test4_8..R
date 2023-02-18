@@ -3,10 +3,10 @@ set.seed(1234)
 test_that("Toy GEE analysis creates correct output", {
    get_test4 = function(extdata){
       trial <- read.csv(file = paste0(extdata,"/test_Simulate_CRT.csv"))
-      testEstimates <- Analyse_CRT(trial = trial,
+      test_Estimates <- Analyse_CRT(trial = trial,
                                    method = 'GEE',excludeBuffer = FALSE,
                                    requireBootstrap = FALSE,alpha = 0.2)
-      value <- testEstimates$contamination$data$positives[4]
+      value <- test_Estimates$contamination$data$positives[4]
       return(value)
    }
    expect_equal(get_test4(extdata), 151)
@@ -15,17 +15,17 @@ test_that("Toy GEE analysis creates correct output", {
 set.seed(1234)
 get_test5 = function(extdata){
    Solarmal_baseline <- read.csv(file = paste0(extdata,"/Solarmal_baseline.csv"))
-   testLocationsLatLong <- Solarmal_baseline[, c('lat','long')]
-   testLocationsxy <- Convert_LatLong(testLocationsLatLong) #test_site is simulated
-   testAnonymisedLocations <- Anonymise_TrialSite(testLocationsxy)
-   testClusters <- DefineClusters(testAnonymisedLocations,h = 50)
-   testArms <- Randomize_CRT(trial = testClusters,matchedPair = FALSE)
-   testBuffer <- Specify_CRTbuffer(trial = testArms, bufferWidth = 0.1)
-   testBuffer$cluster <- as.numeric(testBuffer$cluster)
-   testBuffer$arm <- as.character(testBuffer$arm)
-   return(testBuffer)}
+   test_LocationsLatLong <- Solarmal_baseline[, c('lat','long')]
+   test_Locationsxy <- Convert_LatLong(test_LocationsLatLong) #test_site is simulated
+   test_AnonymisedLocations <- Anonymise_TrialSite(test_Locationsxy)
+   test_clusters <- DefineClusters(test_AnonymisedLocations,h = 50)
+   test_arms <- Randomize_CRT(trial = test_clusters,matchedPair = FALSE)
+   test_buffer <- Specify_CRTbuffer(trial = test_arms, bufferWidth = 0.1)
+   test_buffer$cluster <- as.numeric(test_buffer$cluster)
+   test_buffer$arm <- as.character(test_buffer$arm)
+   return(test_buffer)}
 test_that("Anonymisation, randomization, and creation of buffer produces expected trial", {
-   expect_equal(get_test5(extdata), read.csv(file = paste0(extdata,"/testBuffer.csv")))
+   expect_equal(get_test5(extdata), read.csv(file = paste0(extdata,"/test_Buffer.csv")))
 })
 
 test_that("Analysis using T option gives expected efficacy", {

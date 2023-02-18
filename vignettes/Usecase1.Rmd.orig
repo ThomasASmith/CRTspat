@@ -41,7 +41,7 @@ of test positivity from a baseline survey)
 
 #### Example
 ```{r example1.r, fig.path=('/vignettes/'),echo=TRUE}
-example_locations <- get_example_baseline()
+example_locations <- readdata('example_baseline.csv')
 example_xy <- Convert_LatLong(df = example_locations)
 # Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
 # auxiliary variables

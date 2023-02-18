@@ -45,9 +45,9 @@ set.seed(1234)
 get_test3 = function(){
     Solarmal_baseline <- read.csv(file = "Solarmal_baseline.csv")
     testLocationsxy <- Convert_LatLong(Solarmal_baseline) #test_site is simulated
-    testClusters1 <- DefineClusters(testLocationsxy,h = 50)
-    testArms1 <- Randomize_CRT(trial = testClusters,matchedPair = TRUE)
-    test_Simulate_CRT <- Simulate_CRT(trial = testArms1,
+    test_Clusters1 <- DefineClusters(test_Locationsxy,h = 50)
+    test_Arms1 <- Randomize_CRT(trial = test_Clusters,matchedPair = TRUE)
+    test_Simulate_CRT <- Simulate_CRT(trial = test_Arms1,
                                       theta_inp = 1.2,initialPrevalence = 0.4,
                                       ICC_inp = 0.05,efficacy = 0.4,tol = 0.05)
     test_Simulate_CRT$cluster <- as.numeric(test_Simulate_CRT$cluster)
@@ -61,13 +61,13 @@ write.csv(test_Simulate_CRT,file='test_Simulate_CRT.csv',row.names = FALSE)
 set.seed(1234)
 get_test4 = function(){
   trial <- read.csv(file = "test_Simulate_CRT.csv")
-  testEstimates <- Analyse_CRT(trial = trial,
+  test_Estimates <- Analyse_CRT(trial = trial,
                                method = 'GEE',excludeBuffer = FALSE,
                                requireBootstrap = FALSE,alpha = 0.2)
   # remove the model object before storing as text as this cannot be reloaded and is large
-  testEstimates$model.object <- NULL
-  dput(testEstimates, file = 'test_Analyse_CRT.txt')
-  value <- testEstimates$contamination$data$positives[4]
+  test_Estimates$model.object <- NULL
+  dput(test_Estimates, file = 'test_Analyse_CRT.txt')
+  value <- test_Estimates$contamination$data$positives[4]
   return(value)
 }
 # return value of test is an integer but the output file may be required for other purposes
@@ -78,17 +78,17 @@ test_Analyse_CRT = dget(file = 'test_Analyse_CRT.txt')
 set.seed(1234)
 get_test5 = function(extdata){
   Solarmal_baseline <- read.csv(file = paste0(extdata,"/Solarmal_baseline.csv"))
-  testLocationsLatLong <- Solarmal_baseline[, c('lat','long')]
-  testLocationsxy <- Convert_LatLong(testLocationsLatLong) #test_site is simulated
-  testAnonymisedLocations <- Anonymise_TrialSite(testLocationsxy)
-  testClusters <- DefineClusters(testAnonymisedLocations,h = 50)
-  testArms <- Randomize_CRT(trial = testClusters,matchedPair = FALSE)
-  testBuffer <- Specify_CRTbuffer(trial = testArms, bufferWidth = 0.1)
-  testBuffer$cluster <- as.numeric(testBuffer$cluster)
-  testBuffer$arm <- as.character(testBuffer$arm)
-  return(testBuffer)}
+  test_LocationsLatLong <- Solarmal_baseline[, c('lat','long')]
+  test_Locationsxy <- Convert_LatLong(test_LocationsLatLong) #test_site is simulated
+  test_AnonymisedLocations <- Anonymise_TrialSite(test_Locationsxy)
+  test_Clusters <- DefineClusters(test_AnonymisedLocations,h = 50)
+  test_Arms <- Randomize_CRT(trial = test_Clusters,matchedPair = FALSE)
+  test_Buffer <- Specify_CRTbuffer(trial = test_Arms, bufferWidth = 0.1)
+  test_Buffer$cluster <- as.numeric(test_Buffer$cluster)
+  test_Buffer$arm <- as.character(test_Buffer$arm)
+  return(test_Buffer)}
 
-testBuffer <- get_test5(extdata)
-write.csv(testBuffer,file='testBuffer.csv',row.names=FALSE)
+test_Buffer <- get_test5(extdata)
+write.csv(test_Buffer,file='test_Buffer.csv',row.names=FALSE)
 
 # TESTS 6 - 9 USE THE SAME DATASETS AS EARLIER TESTS

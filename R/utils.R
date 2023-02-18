@@ -33,12 +33,19 @@ Aggregate_CRT <- function(trial, auxiliaries = NULL) {
 #' @param baselineNumerator name of numerator variable for baseline data (if present)
 #' @param baselineDenominator name of denominator variable for baseline data (if present)
 #' @return The input dataframe augmented with variable arm coded 'control' or 'intervention'
+#' @format data.frame:
+#' \itemize{
+#' \item \code{x}: x-coordinates of location
+#' \item \code{y}: y-coordinates of location
+#' \item \code{cluster}: cluster assignment
+#' \item \code{arm}: assignment to trial arm
+#' }
 #' @export
 #'
 #' @examples
 #' #Randomize the clusters in an example trial
 #' set.seed(352)
-#' exampletrial <- Randomize_CRT(trial = readdata('testClusters.csv'))
+#' exampletrial <- Randomize_CRT(trial = readdata('test_Clusters.csv'))
 Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_num", baselineDenominator = "base_denom") {
 
   cluster <- base_num <- base_denom <- NULL
@@ -80,11 +87,20 @@ Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_n
 #' @param trial dataframe containing location coordinates and arm assignments
 #' @param bufferWidth minimum distance between locations in the core areas of opposing arms
 #' @return The input dataframe augmented with distances to the nearest discordant location and a logical indicator of whether the location is in the buffer zone
+#' @format data.frame:
+#' \itemize{
+#' \item \code{x}: x-coordinates of location
+#' \item \code{y}: y-coordinates of location
+#' \item \code{cluster}: cluster assignment
+#' \item \code{arm}: assignment to trial arm
+#' \item \code{nearestDiscord}: distance to nearest discordant location
+#' \item \code{buffer}: logical indicator of whether a point is in the buffer
+#' }
 #' @export
 #'
 #' @examples
 #' #Specify a buffer of 200m
-#' exampletrial <- Specify_CRTbuffer(trial = readdata('testArms.csv'), bufferWidth = 0.2)
+#' exampletrial <- Specify_CRTbuffer(trial = readdata('test_Arms.csv'), bufferWidth = 0.2)
 #'
 Specify_CRTbuffer <- function(trial = trial, bufferWidth = 0) {
   # nearestDiscord: nearest coordinate in the discordant arm, for the control coordinates return the minimal
@@ -222,7 +238,7 @@ DefineClusters <- function(trial = trial, h = NULL, nclusters = NULL, algo = "NN
   if (is.null(h)) {
     h <- ceiling(nrow(coordinates)/nclusters)
   }
-  ############################################################################## derive cluster boundaries
+  # derive cluster boundaries
 
   if (algo == "TSP") {
     TSPoutput <- TSP_ClusterDefinition(coordinates, h, nclusters, reuseTSP)

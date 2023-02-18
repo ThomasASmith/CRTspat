@@ -3,6 +3,17 @@
 \name{Specify_CRTbuffer}
 \alias{Specify_CRTbuffer}
 \title{Specification of buffer zone in a cluster randomized trial}
+\format{
+data.frame:
+\itemize{
+\item \code{x}: x-coordinates of location
+\item \code{y}: y-coordinates of location
+\item \code{cluster}: cluster assignment
+\item \code{arm}: assignment to trial arm
+\item \code{nearestDiscord}: distance to nearest discordant location
+\item \code{buffer}: logical indicator of whether a point is in the buffer
+}
+}
 \usage{
 Specify_CRTbuffer(trial = trial, bufferWidth = 0)
 }
@@ -20,6 +31,6 @@ Locations are added incrementally to the buffer until a predetermined buffering 
 }
 \examples{
 #Specify a buffer of 200m
-exampletrial <- Specify_CRTbuffer(trial = readdata('testArms.csv'), bufferWidth = 0.2)
+exampletrial <- Specify_CRTbuffer(trial = readdata('test_Arms.csv'), bufferWidth = 0.2)
 
 }

@@ -3,6 +3,15 @@
 \name{Randomize_CRT}
 \alias{Randomize_CRT}
 \title{Randomize a two-armed cluster randomized trial}
+\format{
+data.frame:
+\itemize{
+\item \code{x}: x-coordinates of location
+\item \code{y}: y-coordinates of location
+\item \code{cluster}: cluster assignment
+\item \code{arm}: assignment to trial arm
+}
+}
 \usage{
 Randomize_CRT(
   trial,
@@ -29,5 +38,5 @@ The input dataframe augmented with variable arm coded 'control' or 'intervention
 \examples{
 #Randomize the clusters in an example trial
 set.seed(352)
-exampletrial <- Randomize_CRT(trial = readdata('testClusters.csv'))
+exampletrial <- Randomize_CRT(trial = readdata('test_Clusters.csv'))
 }
