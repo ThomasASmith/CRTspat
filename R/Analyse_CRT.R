@@ -429,10 +429,7 @@ Analyse_CRT <- function(
             effectse$df$pvar <- trial$pvar
 
             x <- inla.mesh$prediction$nearestDiscord * exp(beta2)
-                inla.mesh$prediction$pvar <- ifelse(
-                    cfunc == "X", rep(NA, nrow(inla.mesh$prediction)),
-                    eval(parse(text = FUN))
-                )
+            inla.mesh$prediction$pvar <- eval(parse(text = FUN))
             effectsp$df$pvar <- inla.mesh$prediction$pvar
 
             # set up linear contrasts (not required for cfunc='X' or 'Z')
