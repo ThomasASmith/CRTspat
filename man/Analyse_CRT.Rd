@@ -13,7 +13,6 @@ Analyse_CRT(
   denominator = "denom",
   excludeBuffer = FALSE,
   alpha = 0.05,
-  requireBootstrap = FALSE,
   baselineOnly = FALSE,
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom",
@@ -32,8 +31,7 @@ Analyse_CRT(
 options are:
 'EMP'  : empirical,
 'T'   : comparison of cluster means by t-test
-'ML'   : maximum likelihood,
-'GEE'  : generalised estimating equations
+'GEE'  : Generalised Estimating Equations
 'INLA' : INLA}
 
 \item{cfunc}{transformation defining the contamination function
@@ -53,8 +51,6 @@ options are:
 
 \item{alpha}{numeric: confidence level for confidence intervals and credible intervals}
 
-\item{requireBootstrap}{logical: indicator of whether bootstrap confidence intervals are required}
-
 \item{baselineOnly}{logical: indicator of whether required analysis is of efficacy or of baseline only}
 
 \item{baselineNumerator}{string: name of numerator variable for baseline data (if present)}
@@ -67,7 +63,7 @@ options are:
 
 \item{spatialEffects}{logical: indicator of whether the model includes spatial random effects}
 
-\item{resamples}{integer: number of bootstrap samples}
+\item{resamples}{integer: number of samples for sample-based intervals}
 
 \item{requireMesh}{logical: indicator of whether spatial predictions are required}
 

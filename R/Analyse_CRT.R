@@ -6,8 +6,7 @@
 #' options are:
 #' 'EMP'  : empirical,
 #' 'T'   : comparison of cluster means by t-test
-#' 'ML'   : maximum likelihood,
-#' 'GEE'  : generalised estimating equations
+#' 'GEE'  : Generalised Estimating Equations
 #' 'INLA' : INLA
 #' @param cfunc transformation defining the contamination function
 #' options are:
@@ -20,14 +19,13 @@
 #' @param denominator string: name of denominator variable for efficacy data (if present)
 #' @param excludeBuffer logical: indicator of whether any buffer zone (records with buffer=TRUE) should be excluded from analysis
 #' @param alpha numeric: confidence level for confidence intervals and credible intervals
-#' @param requireBootstrap logical: indicator of whether bootstrap confidence intervals are required
 #' @param baselineOnly logical: indicator of whether required analysis is of efficacy or of baseline only
 #' @param baselineNumerator string: name of numerator variable for baseline data (if present)
 #' @param baselineDenominator string: name of denominator variable for baseline data (if present)
 #' @param localisedEffects logical: indicator of whether the model includes local effects with no contamination
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
-#' @param resamples integer: number of bootstrap samples
+#' @param resamples integer: number of samples for sample-based intervals
 #' @param requireMesh logical: indicator of whether spatial predictions are required
 #' @param inla.mesh name of pre-existing INLA input object created by createMesh()
 #' @return list containing the following results of the analysis
@@ -50,7 +48,7 @@
 
 Analyse_CRT <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
-    denominator = "denom", excludeBuffer = FALSE, alpha = 0.05, requireBootstrap = FALSE,
+    denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
     localisedEffects = FALSE, clusterEffects = FALSE, spatialEffects = FALSE,
     resamples = 1000, requireMesh = FALSE, inla.mesh = NULL)
@@ -123,7 +121,6 @@ Analyse_CRT <- function(
     model.object <- list()
     pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contaminationRange = NA)
     int.ests <- list(controlY = NA, interventionY = NA, efficacy = NA)
-    sd <- 0.5/(qnorm(1 - alpha) * sqrt(2))  #initial value used in bootstrap calculations
     description <- ifelse(baselineOnly, list(), get_description(trial))
     # Specify the function used for calculating the linear predictor
     LPfunction <- c(
@@ -142,17 +139,6 @@ Analyse_CRT <- function(
         pt.ests$controlY <- fit$controlY
         pt.ests$interventionY <- fit$interventionY
         pt.ests$efficacy <- fit$efficacy
-        if (requireBootstrap){
-            boot_emp <- boot::boot(
-                data = trial, statistic = BootEmpiricalAnalysis, R = resamples,
-                sim = "parametric", ran.gen = rgen_emp, mle = fit
-            )
-            pt.ests$bootstrapMean_efficacy <- mean(boot_emp$t)
-            int.ests$efficacy <- namedCL(
-                quantile(boot_emp$t, c(alpha/2, 1 - alpha/2)),
-                alpha = alpha
-            )
-        }
     } else if (method == "T"){
         y1 <- arm <- NULL
         clusterSum <- data.frame(
@@ -271,82 +257,7 @@ Analyse_CRT <- function(
             pt.ests$efficacy <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
         }
 
-    } else if (method == "ML")
-    {
-        # ML Methods with contamination functions and logistic link
-
-        par <- SingleTrialAnalysis(trial = trial, FUN2 = FUN2)
-        fit <- FittingResults(trial, par = par, FUN1 = FUN1)
-        pt.ests$controlY <- fit$controlY
-        pt.ests$interventionY <- fit$interventionY
-        pt.ests$efficacy <- fit$efficacy
-        pt.ests$contamination.par <- fit$contamination.par
-        pt.ests <- pt.ests[names(pt.ests) != "model.object"]
-        pt.ests$pr.contaminated <- 1  #None of the ML models include local effects
-        results <- list(
-            description = description, method = method, pt.ests = pt.ests,
-            int.ests = int.ests, model.object = model.object
-        )
-        if (requireBootstrap)
-        {
-            mle <- list(par = par, FUN1 = FUN1, link = "logit")
-            boot_estimates <- data.frame(V1 = c(), V2 = c(), V3 = c(), V4 = c())
-            # resampling can crash because of resamples containing data from only one arm to prevent this
-            # crashing the whole program, bootstrapping is done in batches of 5 resamples using 'try' to avoid
-            # crashing out
-            resamples1 <- 5
-            tries <- 0
-            while (nrow(boot_estimates) <
-                resamples)
-                {
-                # sample a random value each time through the loop so the seed is change
-                boot_output <- try(
-                  expr = boot::boot(
-                    data = trial, statistic = SingleTrialAnalysis, R = resamples1,
-                    sim = "parametric", ran.gen = rgen, mle = mle, FUN2 = FUN2
-                ),
-                  silent = TRUE
-              )
-                if (!substr(boot_output[1], 1, 5) ==
-                  "Error")
-                  {
-                  new_estimates <- as.data.frame(
-                    t(
-                      matrix(
-                        data = unlist(
-                          apply(
-                            as.data.frame(boot_output$t),
-                            1, FittingResults, trial = trial, FUN1 = FUN1
-                        )
-                      ),
-                        ncol = resamples1, nrow = length(fit)
-                    )
-                  )
-                )
-
-                  boot_estimates <- rbind(boot_estimates, new_estimates)
-                }
-                tries <- tries + 5
-                cat(
-                  "\r", nrow(boot_estimates),
-                  " bootstrap samples analysed, out of", tries, " tries    \r"
-              )
-            }
-            colnames(boot_estimates) <- names(fit)
-            bounds <- (apply(
-                boot_estimates, 2, function(x)
-                  {
-                  quantile(
-                    x, c(alpha/2, 0.5, 1 - alpha/2),
-                    alpha = alpha
-                )
-                }
-            ))
-            results <- add_estimates(results = results, bounds = bounds, CLnames = CLnames)
-        }
-
-
-        ############### INLA Methods #################
+        # INLA Methods
     } else if (method == "INLA")
     {
         trial <- dplyr::mutate(trial, id =  dplyr::row_number())
@@ -574,7 +485,7 @@ Analyse_CRT <- function(
         results$pt.ests$contamination.par <- beta2
         results$description <- description
     }
-    if (method %in% c("EMP", "ML", "T", "GEE"))
+    if (method %in% c("EMP", "T", "GEE"))
         {
         # tidy up and consolidate the list of results
         model.object <- pt.ests$model.object
@@ -966,39 +877,7 @@ estimateCLEfficacy <- function(mu, Sigma, alpha, resamples, method, link)
     return(CL)
 }
 
-# functions for analysis of Maximum Likelihood models
-
-rgen <- function(data, mle, link)
-    {
-    par <- mle$par
-    FUN1 <- mle$FUN1
-    # simulate data for numerator y1
-    modelp <- FUN1(par = par, trial = data)
-    transf <- invlink(link = mle$link, x = modelp)
-    data$y1 <- rbinom(
-        length(transf),
-        data$y_off, transf
-    )  #simulate from binomial distribution
-    return(data)
-}
-
-SingleTrialAnalysis <- function(trial, FUN2 = FUN2)
-    {
-
-    GA <- GA::ga(
-        "real-valued", fitness = LogLikelihood, FUN = FUN2, trial = trial,
-        lower = c(-10, -10, -10),
-        upper = c(10, 10, 10),
-        maxiter = 500, run = 50, optim = TRUE, monitor = FALSE
-    )
-    result <- GA@solution
-
-    return(result)
-}
-
-
-
-############################################################################## functions for Empirical Analysis
+# functions for Empirical Analysis
 
 rgen_emp <- function(data, mle)
     {
@@ -1020,19 +899,7 @@ rgen_emp <- function(data, mle)
     return(data)
 }
 
-# standard non-model based analyses
-BootEmpiricalAnalysis <- function(resampledData)
-    {
-    description <- psych::describeBy(resampledData$y1/resampledData$y_off, group = resampledData$arm)
-    # reports summary statistic by a grouping variable
-    pChat <- description$control$mean
-    pIhat <- description$intervention$mean
-    Eshat <- 1 - pIhat/pChat
-
-    return(Eshat)
-}
-
-########## FUNCTIONS FOR SPATIAL PARTIAL DIFFERENTIAL EQUATION MODEL IN INLA
+# FUNCTIONS FOR SPATIAL PARTIAL DIFFERENTIAL EQUATION MODEL IN INLA
 
 #' \\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.
 #' @param trial trial dataframe including locations, clusters, arms, and binary outcomes

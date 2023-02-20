@@ -5,7 +5,7 @@ test_that("Toy GEE analysis creates correct output", {
       trial <- read.csv(file = paste0(extdata,"/test_Simulate_CRT.csv"))
       test_Estimates <- Analyse_CRT(trial = trial,
                                    method = 'GEE',excludeBuffer = FALSE,
-                                   requireBootstrap = FALSE,alpha = 0.2)
+                                   alpha = 0.2)
       value <- test_Estimates$contamination$data$positives[4]
       return(value)
    }
@@ -44,14 +44,5 @@ test_that("Analysis using GEE option gives expected ICC", {
       value <- round(as.numeric(10000 * analysis$pt.ests$ICC))
       return(value)}
    expect_equal(get_test7(extdata), 464)
-})
-
-test_that("Analysis using ML option gives expected contamination range", {
-   get_test8 = function(extdata){
-      trial <- read.csv(file = paste0(extdata,"/test_Simulate_CRT.csv"))
-      analysis <- Analyse_CRT(trial=trial,method = 'ML',link='logit',cfunc='P')
-      value <- round(as.numeric(10000 * analysis$pt.ests$contaminationRange))
-      return(value)}
-   expect_equal(get_test8(extdata), 23563)
 })
 
