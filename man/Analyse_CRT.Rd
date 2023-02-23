@@ -17,7 +17,7 @@ Analyse_CRT(
   baselineNumerator = "base_num",
   baselineDenominator = "base_denom",
   localisedEffects = FALSE,
-  clusterEffects = FALSE,
+  clusterEffects = TRUE,
   spatialEffects = FALSE,
   resamples = 1000,
   requireMesh = FALSE,

@@ -50,11 +50,11 @@ Analyse_CRT <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
-    localisedEffects = FALSE, clusterEffects = FALSE, spatialEffects = FALSE,
+    localisedEffects = FALSE, clusterEffects = TRUE, spatialEffects = FALSE,
     resamples = 1000, requireMesh = FALSE, inla.mesh = NULL)
     {
     # Test of validity of inputs
-    if (!method %in% c("EMP", "T", "ML", "GEE", "INLA"))
+    if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA"))
         {
         cat("Error: Invalid value for statistical method\n")
         return(NULL)
@@ -92,8 +92,9 @@ Analyse_CRT <- function(
         cat("** Note: statistical method does not allow for contamination **\n")
         cfunc <- "X"
     }
+
     if (baselineOnly){
-        if (method %in% c("EMP", "ML", "GEE"))
+        if (method %in% c("EMP", "GEE"))
             {
             method <- "GEE"
             cat("Analysis of baseline only, using GEE\n")
@@ -118,6 +119,35 @@ Analyse_CRT <- function(
             trial <- Specify_CRTbuffer(trial = trial, bufferWidth = 0)
         }
     }
+
+    if (method %in% c("MCMC", "INLA")) {
+        # create model formula for display even though this is only used for INLA models
+
+        fterms <- switch(link,
+                         "identity" = "y1/y_off ~ 0",
+                         "log" = "y1 ~ 0",
+                         "logit" = "y1 ~ 0"
+        )
+        fterms <- c(fterms, switch(
+            cfunc, Z = "b0",
+            X = "b0 + b1",
+            L = "b0 + pvar",
+            P = "b0 + pvar"
+        ))
+
+        if (localisedEffects & cfunc != 'X')
+            fterms <- c(fterms, "b1")
+        if (clusterEffects)
+            fterms <- c(fterms, "f(cluster, model = \"iid\")")
+        if (spatialEffects)
+            fterms <- c(fterms, "f(s, model = spde)")
+        if (link == 'log')
+            fterms <- c(fterms, "f(id, model = \"iid\")")
+
+        # console display of the formula
+        formula_as_text <- paste(fterms, collapse = " + ")
+        cat("Model formula: ", formula_as_text, "\n")
+    }
     model.object <- list()
     pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contaminationRange = NA)
     int.ests <- list(controlY = NA, interventionY = NA, efficacy = NA)
@@ -127,7 +157,7 @@ Analyse_CRT <- function(
         "CalculateNoEffect", "CalculateNoContaminationFunction", "CalculatePiecewiseLinearFunction",
         "CalculateLogisticFunction", "CalculateProbitFunction")[which(cfunc == c("Z", "X", "S", "L", "P"))]
     FUN2 <- FUN1 <- eval(parse(text = LPfunction))
-    # a second 'link' variable is required for the negative binomial case
+
 
     if (method == "EMP"){
         description <- get_description(trial)
@@ -257,9 +287,113 @@ Analyse_CRT <- function(
             pt.ests$efficacy <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
         }
 
-        # INLA Methods
+    # MCMC Methods
+    } else if (method == "MCMC"){
+        nchains <- 2
+        max.iter <- 50000
+        burnin <- 5000
+
+        # JAGS outputs 95% intervals, so alpha is set to 0.05 to avoid confusion
+        alpha <- 0.05
+        cat("* Note: alpha set to 0.05 *\n")
+
+        datajags <- with(trial, list(d = nearestDiscord,
+                                     N = nrow(trial)))
+        if (link == 'identity') {
+            datajags$y <- trial$y1/trial$y_off
+        } else {
+            datajags$y1 <- trial$y1
+            datajags$y_off <- trial$y_off
+        }
+        if (clusterEffects) {
+            datajags$cluster <- as.numeric(as.character(trial$cluster))
+            datajags$ncluster <- max(as.numeric(as.character(trial$cluster)))
+        }
+        # construct the rjags code by concatenating strings
+
+        text1 <- "model{\n
+          for(i in 1:N){\n
+              cont[i] <- ifelse(abs(d[i]) < theta, 1, 0) \n"
+
+        text2 <- switch(cfunc, S = "pvar[i] <- ifelse(d[i] < -ebeta,0,
+                                        ifelse(d[i] > ebeta,1,
+                                        (d[i] + ebeta)/(2*ebeta)))\n",
+                        P = "pvar[i] <- pnorm(d[i],0,ebeta) \n",
+                        L = "pvar[i] <- 1/(1 + exp(-ebeta*d[i])) \n")
+
+        text3 <- switch(link,
+                        "identity" = "y[i] ~ dnorm(lp[i],tau1) \n",
+                        "log" =  "gamma1[i] ~ dnorm(0,tau1) \n
+                                  Expect_y[i] <- exp(lp[i] + gamma1[i]) * y_off[i] \n
+                                  y1[i] ~ dpois(Expect_y[i]) \n",
+                        "logit" = "logitp[i] <- lp[i]  \n
+                                   p[i] <- 1/(1 + exp(-logitp[i])) \n
+                                   y1[i] ~ dbin(p[i],y_off[i]) \n"
+        )
+
+        # construct linear predictor
+        text4 <- "lp[i] <- b0 + b1 * pvar[i]"
+        text5 <- ifelse(clusterEffects,
+            " + gamma[cluster[i]] \n
+            }\n
+            for(ic in 1:ncluster) {\n
+                gamma[ic] ~ dnorm(0, tau)\n
+            }\n
+            tau <- 1/(sigma * sigma) \n
+            sigma ~ dunif(0, 2) \n
+            ", "}\n")
+        text6 <-
+            "beta ~ dnorm(0, 1E-1) \n
+            ebeta <- exp(beta) \n
+            alpha <- 0.05 \n
+            b0 ~ dnorm(0, 1E-2) \n
+            b1 ~ dnorm(0, 1E-2) \n"
+
+        text7 <- switch(link,
+                        "identity" = "yC <- b0 \n
+                                      yI <- b0 + b1 \n
+                                      tau1 <- 1/(sigma1 * sigma1) \n
+                                      sigma1 ~ dunif(0, 2) \n
+                                      Es <- yC - yI \n",
+                        "log" = "yC <- exp(b0) \n
+                                 yI <- exp(b0 + b1) \n
+                                 tau1 <- 1/(sigma1 * sigma1) \n
+                                 sigma1 ~ dunif(0, 2) \n
+                                 Es <- 1 - yI/yC \n",
+                        "logit" = "yC <- 1/(1 + exp(-b0)) \n
+                                   yI <- 1/(1 + exp(-(b0 + b1))) \n
+                                   Es <- 1 - yI/yC \n"
+        )
+
+        # contamination diameter depends on contamination function
+        text8 <- switch(cfunc, S = "theta <- (1 - 0.5 * alpha) * 2 * ebeta \n",
+                               P = "theta <- 2 * qnorm(1 - 0.5 * alpha, 0, ebeta) \n",
+                               L = "theta <- 2 * log((1- 0.5 * alpha)/(0.5 * alpha))/ebeta \n")
+        text9 <- "pcont <- mean(cont)}\n"
+        MCMCmodel <- paste0(text1, text2, text3, text4, text5, text6, text7, text8, text9)
+cat(gsub(" ", "",MCMCmodel))
+        jagsout <- jagsUI::autojags(data = datajags, inits = NULL,
+                                    parameters.to.save = c("Es", "theta", "yC", "yI", "beta", "pcont"),
+                                    model.file = textConnection(MCMCmodel), n.chains = nchains,
+                                    iter.increment = 1000, n.burnin = burnin, max.iter=max.iter)
+        results <- list(model.object = jagsout, pt.ests = list(), int.ests = list(), method = method)
+        results$pt.ests$controlY <- jagsout$q50$yC
+        results$int.ests$controlY <- namedCL(c(jagsout$q2.5$yC, jagsout$q97.5$yC), alpha = alpha)
+        results$pt.ests$interventionY <- jagsout$q50$yI
+        results$int.ests$interventionY <- namedCL(c(jagsout$q2.5$yI, jagsout$q97.5$yI), alpha = alpha)
+        results$pt.ests$efficacy <- jagsout$q50$Es
+        results$int.ests$efficacy <- namedCL(c(jagsout$q2.5$Es, jagsout$q97.5$Es), alpha = alpha)
+        results$pt.ests$contaminationRange <- jagsout$q50$theta
+        results$int.ests$contaminationRange <- namedCL(c(jagsout$q2.5$theta, jagsout$q97.5$theta), alpha = alpha)
+        results$pt.ests$contamination.par <- jagsout$q50$beta
+        results$int.ests$contamination.par <- namedCL(c(jagsout$q2.5$beta, jagsout$q97.5$beta), alpha = alpha)
+        results$pt.ests$pr.contaminated <- jagsout$q50$pcont
+        results$int.ests$pr.contaminated <- namedCL(c(jagsout$q2.5$pcont, jagsout$q97.5$pcont), alpha = alpha)
+        results$pt.ests$DIC <- jagsout$DIC
+    # INLA methods
     } else if (method == "INLA")
-    {
+        {
+
         trial <- dplyr::mutate(trial, id =  dplyr::row_number())
         # If spatial predictions are not required a minimal mesh is generated
         ncells <- 50
@@ -276,32 +410,6 @@ Analyse_CRT <- function(
         FUN <- switch(
             cfunc, L = "invlink(link='logit', x)", P = "stats::pnorm(x)", X = NULL, Z = NULL)
 
-        # create model formula
-        fterms <- switch(link,
-            "identity" = "y1/y_off ~ 0",
-            "log" = "y1 ~ 0",
-            "logit" = "y1 ~ 0"
-        )
-
-        fterms <- c(fterms, switch(
-            cfunc, Z = "b0",
-            X = "b0 + b1",
-            L = "b0 + pvar",
-            P = "b0 + pvar"
-        ))
-
-        if (localisedEffects & cfunc != 'X')
-            fterms <- c(fterms, "b1")
-        if (clusterEffects)
-            fterms <- c(fterms, "f(cluster, model = \"iid\")")
-        if (spatialEffects)
-            fterms <- c(fterms, "f(s, model = spde)")
-        if (link == 'log')
-            fterms <- c(fterms, "f(id, model = \"iid\")")
-
-        # console display of the formula
-        formula_as_text <- paste(fterms, collapse = " + ")
-        cat(formula_as_text, "\n")
         formula <- stats::as.formula(formula_as_text)
 
         spde <- inla.mesh$spde
@@ -326,20 +434,20 @@ Analyse_CRT <- function(
         )
 
         lc <- NULL
-        beta2 <- NA
+        beta <- NA
         if (cfunc %in% c("L", "P"))
             {
             cat("Estimating scale parameter for contamination range", "\n")
-            beta2 <- stats::optimize(
+            beta <- stats::optimize(
                 f = estimateContamination, interval = c(-10, 10),
                 trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula,
                 tol = 0.1, link = link)$minimum
-            x <- trial$nearestDiscord * exp(beta2)
+            x <- trial$nearestDiscord * exp(beta)
             trial$pvar <- eval(parse(text = FUN))
 
             effectse$df$pvar <- trial$pvar
 
-            x <- inla.mesh$prediction$nearestDiscord * exp(beta2)
+            x <- inla.mesh$prediction$nearestDiscord * exp(beta)
             inla.mesh$prediction$pvar <- eval(parse(text = FUN))
             effectsp$df$pvar <- inla.mesh$prediction$pvar
 
@@ -482,15 +590,13 @@ Analyse_CRT <- function(
             results$pt.ests$pr.contaminated <- NA
             results$int.ests$pr.contaminated <- c(NA, NA)
         }
-        results$pt.ests$contamination.par <- beta2
+        results$pt.ests$contamination.par <- beta
         results$description <- description
     }
     if (method %in% c("EMP", "T", "GEE"))
         {
         # tidy up and consolidate the list of results
         model.object <- pt.ests$model.object
-        pt.ests <- pt.ests[names(pt.ests) !=
-            "GAsolution3"]
         pt.ests <- pt.ests[names(pt.ests) !=
             "model.object"]
         results <- list(
@@ -1019,11 +1125,11 @@ calcNearestDiscord <- function(x, trial , prediction , distM)
     return(nearestDiscord)
 }
 
-# Use profiling to estimate beta2
+# Use profiling to estimate beta
 estimateContamination <- function(
-    beta2 = beta2, trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula, link = link){
+    beta = beta, trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula, link = link){
     y1 <- y0 <- y_off <- NULL
-    x <- trial$nearestDiscord * exp(beta2)
+    x <- trial$nearestDiscord * exp(beta)
     trial$pvar <- eval(parse(text = FUN))
 
     stk.e <- INLA::inla.stack(
@@ -1065,9 +1171,9 @@ estimateContamination <- function(
             control.compute = list(dic = TRUE)
         )
     }
-    # The DIC is penalised to allow for estimation of beta2
+    # The DIC is penalised to allow for estimation of beta
     loss <- result.e$dic$family.dic + 2
-    cat("\rDIC: ", loss, " Contamination parameter: ", beta2, "  \r")
+    cat("\rDIC: ", loss, " Contamination parameter: ", beta, "  \r")
     return(loss)
 }
 
