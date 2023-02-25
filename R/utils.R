@@ -292,7 +292,7 @@ Convert_LatLong <- function(df, latvar = "lat", longvar = "long") {
 }
 
 
-#' Anonymise locations in a trial site
+#' Anonymise locations of a trial site
 #'
 #' \code{Anonymise_TrialSite} carries out rotation of x,y coordinates a random angle about a random origin. Coordinates centred on the origin are returned.
 #'
