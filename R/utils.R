@@ -20,6 +20,7 @@ Aggregate_CRT <- function(trial, auxiliaries = NULL) {
       df[[varName]] <- df1$sumVar
     }
   }
+  class(df) <- c('CRT')
   return(df)
 }
 
@@ -75,6 +76,7 @@ Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_n
     arm <- ifelse(rand_numbers > median(rand_numbers), 1, 0)
   }
   trial$arm <- factor(arm[trial$cluster[]], levels = c(0, 1), labels = c("control", "intervention"))
+  class(trial) <- c('CRT')
   return(trial)
 }
 
@@ -105,7 +107,8 @@ Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_n
 Specify_CRTbuffer <- function(trial = trial, bufferWidth = 0) {
   # nearestDiscord: nearest coordinate in the discordant arm, for the control coordinates return the minimal
   # distance with a minus sign
-  dist_trial <- as.matrix(dist(trial[, c("x", "y")], method = "euclidean"))
+  class(trial) <- "data.frame"
+  dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
   discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
   discord_dist_trial <- ifelse(discord, dist_trial, Inf)
   trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial, MARGIN = 2, min), apply(discord_dist_trial,
@@ -114,7 +117,7 @@ Specify_CRTbuffer <- function(trial = trial, bufferWidth = 0) {
   discord_distance <- ifelse(discord, 0.2 * round(abs(5 * dist_trial), digits = 1), Inf)
   # round off distances to nearest 20m to speed up calculation
   discord_distance <- if (min(abs(discord_distance)) < bufferWidth) {
-    trial$buffer <- FALSE
+    trial$buffer <- rep(FALSE,length(trial$x))
     pbuff <- nbuff <- width <- 0
     while (width < bufferWidth) {
       # round off distances to nearest 50m to speed up calculation
@@ -130,6 +133,7 @@ Specify_CRTbuffer <- function(trial = trial, bufferWidth = 0) {
     }
     cat("\rLocations in buffer:", nbuff, "of", nrow(trial), "(", round(nbuff * 100/nrow(trial), digits = 1), "%)\n\n")
   }
+  class(trial) <- c('CRT')
   return(trial)
 }
 
@@ -252,6 +256,7 @@ DefineClusters <- function(trial = trial, h = NULL, nclusters = NULL, algo = "NN
     stop("unknown method")
   }
 
+  class(trial) <- c('CRT')
   return(trial)
 }
 
@@ -282,6 +287,7 @@ Convert_LatLong <- function(df, latvar = "lat", longvar = "long") {
   df <- df[, !(names(df) %in% drops)]
   df$y <- R * (latradians - meanlat) * cos(longradians)
   df$x <- R * (longradians - meanlong)
+  class(df) <- c('CRT')
   return(df)
 }
 
@@ -320,6 +326,7 @@ Anonymise_TrialSite <- function(trial = NULL) {
   trial$x <- recentred[1, ]
   trial$y <- recentred[2, ]
 
+  class(trial) <- c('CRT')
   return(trial)
 }
 

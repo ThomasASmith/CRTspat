@@ -14,7 +14,6 @@ Imports:
     ggplot2,
     stats,
     spatstat.geom,
-    psych,
     utils,
     geepack,
     MASS,

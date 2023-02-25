@@ -23,6 +23,7 @@ get_test5 = function(extdata){
    test_buffer <- Specify_CRTbuffer(trial = test_arms, bufferWidth = 0.1)
    test_buffer$cluster <- as.numeric(test_buffer$cluster)
    test_buffer$arm <- as.character(test_buffer$arm)
+   class(test_buffer) <- "data.frame"
    return(test_buffer)}
 test_that("Anonymisation, randomization, and creation of buffer produces expected trial", {
    expect_equal(get_test5(extdata), read.csv(file = paste0(extdata,"/test_Buffer.csv")))
@@ -32,9 +33,9 @@ test_that("Analysis using T option gives expected efficacy", {
    get_test6 = function(extdata){
       trial <- read.csv(file = paste0(extdata,"/test_Simulate_CRT.csv"))
       analysis <- Analyse_CRT(trial=trial,method = 'T',link='identity')
-      value <- round(as.numeric(10000 * analysis$pt.ests$efficacy))
+      value <- round(as.numeric(10000 * analysis$pt.ests$effect.size))
       return(value)}
-   expect_equal(get_test6(extdata), 1998)
+   expect_equal(get_test6(extdata), 709)
 })
 
 test_that("Analysis using GEE option gives expected ICC", {

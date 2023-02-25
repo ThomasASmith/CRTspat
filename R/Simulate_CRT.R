@@ -46,6 +46,8 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
 # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
   cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
   bw <- NULL
+  # several operations require the input data as dataframe
+  class(trial) <- "data.frame"
   trial$arm <- as.factor(trial$arm)
   trial$cluster <- as.factor(trial$cluster)
 
@@ -117,7 +119,7 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
 
   trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy,
                            initialPrevalence = initialPrevalence, denominator = denominator)
-
+  class(trial) <- "CRT"
   return(trial)
 }
 

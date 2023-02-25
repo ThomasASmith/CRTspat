@@ -15,6 +15,7 @@ test_that("Simulate_CRT() creates the default simulation", {
    test_Simulate_CRT$RDT_test_result <- NULL
    test_Simulate_CRT$X <- NULL
    rownames(test_Simulate_CRT) <- NULL
+   class(test_Simulate_CRT) <- "data.frame"
  return(test_Simulate_CRT)}
  expect_equal(get_test3(extdata),read.csv(file = paste0(extdata,"/test_Simulate_CRT1.csv")))
 })

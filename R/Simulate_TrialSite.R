@@ -28,6 +28,7 @@ Simulate_TrialSite <- function(
   hhID <- c(1:households)
   x <- p$x[seq(1:households)]
   y <- p$y[seq(1:households)]
-  coordinates <- data.frame(x=x,y=y)
+  coordinates <- data.frame(x = x,y = y)
+  class(coordinates) <- "CRT"
 return(coordinates)}
 

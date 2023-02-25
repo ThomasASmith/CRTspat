@@ -17,6 +17,7 @@ test_that("Design_CRT() creates the default trial", {
     df$cluster <- as.numeric(df$cluster)
     df$arm <- as.character(df$arm)
     row.names(df) <- NULL
+    class(df) <- "data.frame"
     return(df)
   }
   expect_equal(get_test1(),read.csv(file = paste0(extdata,"/test_design.csv")))
@@ -24,5 +25,10 @@ test_that("Design_CRT() creates the default trial", {
 
 set.seed(1234)
 test_that("Simulate_TrialSite() creates the default site", {
-  expect_equal(Simulate_TrialSite(),read.csv(file = paste0(extdata,"/test_site.csv")))
+  get_test2 = function(){
+    trial <- Simulate_TrialSite()
+    class(trial) <- "data.frame"
+    return(trial)
+  }
+  expect_equal(get_test2(),read.csv(file = paste0(extdata,"/test_site.csv")))
 })

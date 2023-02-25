@@ -1,25 +1,29 @@
 #' Analysis of cluster randomized trial with contamination
 #'
-#' \\code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
-#' @param trial trial dataframe including locations, clusters, arms, and outcomes
-#' @param method statistical method used to analyse trial.
-#' options are:
-#' 'EMP'  : empirical,
-#' 'T'   : comparison of cluster means by t-test
-#' 'GEE'  : Generalised Estimating Equations
-#' 'INLA' : INLA
+#' \\code{Analyse_CRT} carries out a statistical analysis of a cluster randomized trial (CRT).
+#' @param trial dataframe: including locations, clusters, arms, and outcomes
+#' @param method statistical method with options:
+#' 'EMP' - empirical;
+#' 'T' - comparison of cluster means by t-test;
+#' 'GEE' - Generalised Estimating Equations;
+#' 'INLA' - Integrated Nested Laplace Approximation (INLA);
+#' 'MCMC' - Markov chain Monte Carlo using JAGS.
 #' @param cfunc transformation defining the contamination function
 #' options are:
-#' 'S': piecewise linear (slope),
-#' 'L': inverse logistic (sigmoid),
-#' 'P': inverse probit,
-#' 'X': contamination not modelled'
-#' @param link string: link function- options are 'logit' (the default), 'log', and 'identity'
-#' @param numerator string: name of numerator variable for efficacy data (if present)
-#' @param denominator string: name of denominator variable for efficacy data (if present)
+#' 'X': contamination not modelled- the only valid value of 'cfunc' for methods 'EMP,'T' and 'GEE';
+#' 'L': inverse logistic (sigmoid)- the default for 'INLA' and 'MCMC' methods;
+#' 'P': inverse probit (error function)- available with 'INLA' and 'MCMC' methods;
+#' 'S': piecewise linear- only available with the 'MCMC' method
+#' @param link link function- options are:
+#' 'logit': (the default). The 'numerator', has a binomial distribution with denominator 'denominator'.
+#' 'log': The 'numerator' is Poisson distributed with an offset of log('denominator').
+#' With the 'INLA' and 'MCMC' methods 'iid' random effects are used to model extra-Poisson variation.
+#' 'identity': The outcome is 'numerator'/'denominator'. Normally distributed error function.
+#' @param numerator string: name of numerator variable for outcome (if present)
+#' @param denominator string: name of denominator variable for outcome data (if present)
 #' @param excludeBuffer logical: indicator of whether any buffer zone (records with buffer=TRUE) should be excluded from analysis
 #' @param alpha numeric: confidence level for confidence intervals and credible intervals
-#' @param baselineOnly logical: indicator of whether required analysis is of efficacy or of baseline only
+#' @param baselineOnly logical: indicator of whether required analysis is of effect size or of baseline only
 #' @param baselineNumerator string: name of numerator variable for baseline data (if present)
 #' @param baselineDenominator string: name of denominator variable for baseline data (if present)
 #' @param localisedEffects logical: indicator of whether the model includes local effects with no contamination
@@ -51,7 +55,7 @@ Analyse_CRT <- function(
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
     localisedEffects = FALSE, clusterEffects = TRUE, spatialEffects = FALSE,
-    resamples = 1000, requireMesh = FALSE, inla.mesh = NULL)
+    resamples = 10000, requireMesh = FALSE, inla.mesh = NULL)
     {
     # Test of validity of inputs
     if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA"))
@@ -72,8 +76,10 @@ Analyse_CRT <- function(
 
     cluster <- NULL
 
-    if ("buffer" %in% colnames(trial) &
-        excludeBuffer)
+    # Any descriptors in the CRT object are not used in the analysis
+    class(trial) <- "data.frame"
+
+    if ("buffer" %in% colnames(trial) & excludeBuffer)
         {
         trial <- trial[!trial$buffer, ]
     }
@@ -87,14 +93,11 @@ Analyse_CRT <- function(
     # trial needs to be ordered for some analyses
     trial <- trial[order(trial$cluster), ]
 
-    if (method %in% c("EMP", "T", "GEE"))
-        {
-        cat("** Note: statistical method does not allow for contamination **\n")
-        cfunc <- "X"
-    }
+    # Some statistical methods do not allow for contamination
+    if (method %in% c("EMP", "T", "GEE")) cfunc <- "X"
 
     if (baselineOnly){
-        if (method %in% c("EMP", "GEE"))
+        if (method %in% c("EMP", "T", "GEE", "MCMC"))
             {
             method <- "GEE"
             cat("Analysis of baseline only, using GEE\n")
@@ -149,9 +152,9 @@ Analyse_CRT <- function(
         cat("Model formula: ", formula_as_text, "\n")
     }
     model.object <- list()
-    pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contaminationRange = NA)
-    int.ests <- list(controlY = NA, interventionY = NA, efficacy = NA)
-    description <- ifelse(baselineOnly, list(), get_description(trial))
+    pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contamination.interval = NA)
+    int.ests <- list(controlY = NA, interventionY = NA, effect.size = NA)
+    description <- get_description(trial=trial, link=link, baselineOnly)
     # Specify the function used for calculating the linear predictor
     LPfunction <- c(
         "CalculateNoEffect", "CalculateNoContaminationFunction", "CalculatePiecewiseLinearFunction",
@@ -160,15 +163,10 @@ Analyse_CRT <- function(
 
 
     if (method == "EMP"){
-        description <- get_description(trial)
-        fit <- list(
-            controlY = unname(description$ratios[1]),
-            interventionY = unname(description$ratios[2]),
-            efficacy = unname(description$efficacy),
-            contaminationRange = NA)
-        pt.ests$controlY <- fit$controlY
-        pt.ests$interventionY <- fit$interventionY
-        pt.ests$efficacy <- fit$efficacy
+        pt.ests$controlY <- unname(description$controlY)
+        pt.ests$interventionY <- unname(description$interventionY)
+        pt.ests$effect.size <- unname(description$effect.size)
+        pt.ests$contamination.interval <- NA
     } else if (method == "T"){
         y1 <- arm <- NULL
         clusterSum <- data.frame(
@@ -203,11 +201,14 @@ Analyse_CRT <- function(
         Sigma <- matrix(
             data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
             nrow = 2, ncol = 2)
-        pt.ests$efficacy <- 1 - pt.ests$interventionY/pt.ests$controlY
-        int.ests$efficacy <- estimateCLEfficacy(
-            mu = c(analysisC$estimate, analysisI$estimate),
-            Sigma = Sigma, alpha = alpha, resamples = resamples, method = method,
-            link = link)
+        if (link == 'identity'){
+            pt.ests$effect.size <- pt.ests$controlY - pt.ests$interventionY
+            int.ests$effect.size <- unlist(model.object$conf.int)
+        }
+        if (link %in% c("logit","log")){
+            pt.ests$effect.size <- 1 - pt.ests$interventionY/pt.ests$controlY
+            int.ests$effect.size <- 1 - exp(-unlist(model.object$conf.int))
+        }
     } else if (method == "GEE") {
         # GEE analysis of cluster effects
 
@@ -262,8 +263,8 @@ Analyse_CRT <- function(
         pt.ests$DesignEffect <- 1 + (clusterSize - 1) * pt.ests$ICC  #Design Effect
         int.ests$DesignEffect <- 1 + (clusterSize - 1) * int.ests$ICC
 
-        # Estimation of efficacy does not apply if analysis is of baseline only (cfunc='Z')
-        pt.ests$efficacy <- 0
+        # Estimation of effect.size does not apply if analysis is of baseline only (cfunc='Z')
+        pt.ests$effect.size <- NA
         if (cfunc == "X")
         {
             lp_yI <- summary_fit$coefficients[1, 1] + summary_fit$coefficients[2,
@@ -277,14 +278,14 @@ Analyse_CRT <- function(
                 invlink(link, c(lp_yI - z * se_lp_yI, lp_yI + z * se_lp_yI)),
                 alpha = alpha
             )
-            int.ests$efficacy <- estimateCLEfficacy(
+            int.ests$effect.size <- estimateCLeffect.size(
                 mu = summary_fit$coefficients[, 1], Sigma = fit$geese$vbeta,
                 alpha = alpha, resamples = resamples, method = method,
                 link = link
             )
 
             pt.ests$interventionY <- invlink(link, lp_yI)
-            pt.ests$efficacy <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
+            pt.ests$effect.size <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
         }
 
     # MCMC Methods
@@ -371,7 +372,6 @@ Analyse_CRT <- function(
                                L = "theta <- 2 * log((1- 0.5 * alpha)/(0.5 * alpha))/ebeta \n")
         text9 <- "pcont <- mean(cont)}\n"
         MCMCmodel <- paste0(text1, text2, text3, text4, text5, text6, text7, text8, text9)
-cat(gsub(" ", "",MCMCmodel))
         jagsout <- jagsUI::autojags(data = datajags, inits = NULL,
                                     parameters.to.save = c("Es", "theta", "yC", "yI", "beta", "pcont"),
                                     model.file = textConnection(MCMCmodel), n.chains = nchains,
@@ -381,15 +381,16 @@ cat(gsub(" ", "",MCMCmodel))
         results$int.ests$controlY <- namedCL(c(jagsout$q2.5$yC, jagsout$q97.5$yC), alpha = alpha)
         results$pt.ests$interventionY <- jagsout$q50$yI
         results$int.ests$interventionY <- namedCL(c(jagsout$q2.5$yI, jagsout$q97.5$yI), alpha = alpha)
-        results$pt.ests$efficacy <- jagsout$q50$Es
-        results$int.ests$efficacy <- namedCL(c(jagsout$q2.5$Es, jagsout$q97.5$Es), alpha = alpha)
-        results$pt.ests$contaminationRange <- jagsout$q50$theta
-        results$int.ests$contaminationRange <- namedCL(c(jagsout$q2.5$theta, jagsout$q97.5$theta), alpha = alpha)
+        results$pt.ests$effect.size <- jagsout$q50$Es
+        results$int.ests$effect.size <- namedCL(c(jagsout$q2.5$Es, jagsout$q97.5$Es), alpha = alpha)
+        results$pt.ests$contamination.interval <- jagsout$q50$theta
+        results$int.ests$contamination.interval <- namedCL(c(jagsout$q2.5$theta, jagsout$q97.5$theta), alpha = alpha)
         results$pt.ests$contamination.par <- jagsout$q50$beta
         results$int.ests$contamination.par <- namedCL(c(jagsout$q2.5$beta, jagsout$q97.5$beta), alpha = alpha)
         results$pt.ests$pr.contaminated <- jagsout$q50$pcont
         results$int.ests$pr.contaminated <- namedCL(c(jagsout$q2.5$pcont, jagsout$q97.5$pcont), alpha = alpha)
         results$pt.ests$DIC <- jagsout$DIC
+        results$model.object$MCMCmodel <- MCMCmodel
     # INLA methods
     } else if (method == "INLA")
         {
@@ -515,7 +516,7 @@ cat(gsub(" ", "",MCMCmodel))
         index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
         inla.mesh$prediction$prediction <-
                 invlink(link, inla.result$summary.linear.predictor[index, "0.5quant"])
-        # Compute sample-based confidence limits for intervened outcome and efficacy if intervention effects are
+        # Compute sample-based confidence limits for intervened outcome and effect.size if intervention effects are
         # estimated
         if (grepl("pvar", formula_as_text, fixed = TRUE) |
             grepl("b1", formula_as_text, fixed = TRUE))
@@ -545,7 +546,7 @@ cat(gsub(" ", "",MCMCmodel))
                 sample$interventionY <- invlink(link, sample$b0 + sample$pvar)
                 sample$pr.contaminated <- 1
             }
-            sample$efficacy <- 1 - sample$interventionY/sample$controlY
+            sample$effect.size <- 1 - sample$interventionY/sample$controlY
             bounds <- (apply(
                 sample, 2, function(x)
                   {
@@ -563,7 +564,7 @@ cat(gsub(" ", "",MCMCmodel))
               )
             )
             bounds <- data.frame(
-                controlY = controlY, interventionY = controlY, efficacy = rep(0, 3),
+                controlY = controlY, interventionY = controlY, effect.size = rep(0, 3),
                 pr.contaminated = rep(0, 3)
             )
         }
@@ -608,25 +609,30 @@ cat(gsub(" ", "",MCMCmodel))
     {
         results$contamination <- getContaminationCurve(trial = trial, pt.ests = results$pt.ests,
                                                        FUN1 = FUN1, link = link, alpha = alpha)
-        results$pt.ests$contaminationRange <- results$contamination$contaminationRange
-        results$contamination$contaminationRange <- NULL
+        results$pt.ests$contamination.interval <- results$contamination$contamination.interval
+        results$contamination$contamination.interval <- NULL
     } else
     {
-        results$pt.ests$contaminationRange <- NA
+        results$pt.ests$contamination.interval <- NA
     }
     ## Output to screen
 
     cat(
-        "Analysis model: ", method, "Link function: ", link, "Contamination option: ",
-        cfunc, "\n"
+        "Analysis model: ", method, "\nLink function: ", link, "\n"
     )
+    cat(switch(cfunc,
+           Z = "No comparison of arms \n",
+           X = "No modelling of contamination \n",
+           S = "Piecewise linear function for contamination\n",
+           P = "Error function model for contamination\n",
+           L = "Sigmoid (logistic) function for contamination\n"))
     CLtext <- paste0(" (", 100 * (1 - alpha), "% CL: ")
     cat(
-        "Estimate-      Control: ", results$pt.ests$controlY,
+        "Estimates:     Control: ", results$pt.ests$controlY,
         CLtext, unlist(results$int.ests$controlY),
         ")\n"
     )
-    if (results$pt.ests$efficacy != 0)
+    if (results$pt.ests$effect.size != 0)
     {
         if (!is.null(results$pt.ests$interventionY))
             {
@@ -635,8 +641,9 @@ cat(gsub(" ", "",MCMCmodel))
                 CLtext, unlist(results$int.ests$interventionY),
                 ")\n"
             )
+            effect.measure <- ifelse(link == 'identity', "Effect size: ","Efficacy:    ")
             cat(
-                "Efficacy: ", results$pt.ests$efficacy, CLtext, unlist(results$int.ests$efficacy),
+                effect.measure, results$pt.ests$effect.size, CLtext, unlist(results$int.ests$effect.size),
                 ")\n"
             )
         }
@@ -657,10 +664,10 @@ cat(gsub(" ", "",MCMCmodel))
             ")\n"
         )
     }
-    if (!is.na(results$pt.ests$contaminationRange))
+    if (!is.na(results$pt.ests$contamination.interval))
         {
         cat(
-            "Contamination Range: ", results$pt.ests$contaminationRange,
+            "Contamination Range: ", results$pt.ests$contamination.interval,
             "\n"
         )
     }
@@ -684,7 +691,7 @@ add_estimates <- function(results, bounds, CLnames)
     {
     results$pt.ests$controlY <- bounds[2, "controlY"]
     results$pt.ests$interventionY <- bounds[2, "interventionY"]
-    results$pt.ests$efficacy <- bounds[2, "efficacy"]
+    results$pt.ests$effect.size <- bounds[2, "effect.size"]
 
     # Extract interval estimates
     results$int.ests$controlY <- stats::setNames(
@@ -695,9 +702,9 @@ add_estimates <- function(results, bounds, CLnames)
         bounds[c(1, 3),
             "interventionY"], CLnames
     )
-    results$int.ests$efficacy <- stats::setNames(
+    results$int.ests$effect.size <- stats::setNames(
         bounds[c(1, 3),
-            "efficacy"], CLnames
+            "effect.size"], CLnames
     )
     return(results)
 }
@@ -742,7 +749,7 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link, alpha)
                invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par1)))
 
     # estimate contamination range The absolute values of the limits are used so that a positive range is
-    # obtained even with negative efficacy
+    # obtained even with negative effect.size
     thetaL <- thetaU <- NA
     if (abs(limits0[1] - curve[1000]) >
         0.025 * abs(limits0[1] - limits0[2]))
@@ -770,17 +777,17 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link, alpha)
         thetaL <- min(trial$nearestDiscord)
 
     # contamination range
-    contaminatedInterval <- c(thetaL, thetaU)
+    contamination.limits <- c(thetaL, thetaU)
     if (thetaL > thetaU)
-        contaminatedInterval <- c(thetaU, thetaL)
-    contaminationRange <- thetaU - thetaL
+        contamination.limits <- c(thetaU, thetaL)
+    contamination.interval <- thetaU - thetaL
     if (Cp == 0)
-        contaminationRange <- NA
+        contamination.interval <- NA
     # To remove warnings from plotting ensure that contamination interval is non-zero
-    if (is.na(contaminationRange) ||
-        contaminationRange == 0)
+    if (is.na(contamination.interval) ||
+        contamination.interval == 0)
         {
-        contaminatedInterval <- c(-1e-04, 1e-04)
+        contamination.limits <- c(-1e-04, 1e-04)
     }
     # categorisation of trial data for plotting
     trial$cats <- cut(
@@ -792,6 +799,7 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link, alpha)
         labels = FALSE
     )
 
+    # calculate for log link
     data <- data.frame(
         trial %>%
             group_by(cats) %>%
@@ -805,17 +813,31 @@ getContaminationCurve <- function(trial, pt.ests, FUN1, link, alpha)
             )
     )
     if (link == 'logit') {
-        # proportions and binomial confidence intervals by category
+        # overwrite with proportions and binomial confidence intervals by category
         data$average <- data$positives/data$total
         data$upper <- with(data, average -
                                qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
         data$lower <- with(data, average +
                                qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
     }
+    if (link == 'identity') {
+        # overall means and t-based confidence intervals by category
+        data <- trial %>%
+            group_by(cats) %>%
+            dplyr::summarize(
+                positives = sum(y1),
+                total = sum(y_off),
+                d = median(nearestDiscord),
+                average = mean(x=y1/y_off),
+                lower = Tinterval(y1/y_off, alpha = alpha, option = 'L'),
+                upper = Tinterval(y1/y_off, alpha = alpha, option = 'U')
+            )
+    }
 
     returnList <- list(
         FittedCurve = data.frame(d = d, contaminationFunction = curve),
-        contaminationRange = contaminationRange, contaminatedInterval = contaminatedInterval,
+        contamination.interval = contamination.interval,
+        contamination.limits = contamination.limits,
         data = data
     )
     return(returnList)
@@ -857,17 +879,37 @@ invlink <- function(link = link, x = x)
     return(value)
 }
 
-# Minimal data description and crude efficacy estimate
-get_description <- function(trial)
+# Minimal data description and crude effect.size estimate
+get_description <- function(trial, link, baselineOnly)
     {
-    positives <- tapply(trial$y1, trial$arm, FUN = sum)
-    totals <- tapply(trial$y_off, trial$arm, FUN = sum)
-    ratios <- positives/totals
-    efficacy <- 1 - ratios[2]/ratios[1]
-    description <- list(
-        positives = positives, totals = totals, ratios = ratios, efficacy = efficacy,
-        method = "DE"
-    )
+    if(baselineOnly){
+        description <- list(
+            sum.numerators = sum(trial$y1),
+            sum.denominators = sum(trial$y_off),
+            controlY = sum.numerators/sum.denominators,
+            interventionY = NULL,
+            effect.size = NULL,
+            nclusters = max(as.numeric(as.character(trial$cluster))),
+            locations = nrow(trial)
+        )
+    } else {
+        sum.numerators <- tapply(trial$y1, trial$arm, FUN = sum)
+        sum.denominators <- tapply(trial$y_off, trial$arm, FUN = sum)
+        ratio <- sum.numerators/sum.denominators
+        effect.size <- switch(link,
+               "identity" = ratio[2] - ratio[1],
+               "log" = 1 - ratio[2]/ratio[1],
+               "logit" =  1 - ratio[2]/ratio[1])
+        description <- list(
+            sum.numerators = sum.numerators,
+            sum.denominators = sum.denominators,
+            controlY = ratio[1],
+            interventionY = ratio[2],
+            effect.size = effect.size,
+            nclusters = max(as.numeric(as.character(trial$cluster))),
+            locations = nrow(trial)
+        )
+    }
     return(description)
 }
 
@@ -892,15 +934,14 @@ FittingResults <- function(trial, FUN1, par)
     {
     controlY <- invlink(link = "logit", x = par[1])
     interventionY <- invlink(link = "logit", x = (par[2] + par[1]))
-    efficacy <- (controlY - interventionY)/controlY
+    effect.size <- (controlY - interventionY)/controlY
     pt.ests <- list(
-        controlY = controlY, interventionY = interventionY, efficacy = efficacy,
+        controlY = controlY, interventionY = interventionY, effect.size = effect.size,
         contamination.par = par[3]
     )
     return(pt.ests)
 }
 
-###########################################################################
 # Contributions to the linear predictor for different contamination functions
 
 CalculateNoEffect <- function(par, trial)
@@ -918,10 +959,10 @@ CalculateNoContaminationFunction <- function(par, trial)
 }
 
 
-# piecewise linear model (on the logit scale)
+# piecewise linear model
 CalculatePiecewiseLinearFunction <- function(par, trial)
     {
-    # constrain the slope parameter to be positive (par[2] is positive if efficacy is negative)
+    # constrain the slope parameter to be positive (par[2] is positive if effect.size is negative)
     theta <- exp(par[3])
     lp <- ifelse(
         trial$nearestDiscord > -theta, par[1] + par[2] * (theta + trial$nearestDiscord)/(2 *
@@ -932,7 +973,7 @@ CalculatePiecewiseLinearFunction <- function(par, trial)
 }
 
 
-# sigmoid (logit) function (on the logit scale)
+# sigmoid (logit) function
 CalculateLogisticFunction <- function(par, trial)
     {
     theta <- exp(par[3])
@@ -940,7 +981,7 @@ CalculateLogisticFunction <- function(par, trial)
     return(lp)
 }
 
-# inverse probit function (on the logit scale)
+# inverse probit function
 CalculateProbitFunction <- function(par, trial)
     {
     theta <- exp(par[3])
@@ -959,7 +1000,7 @@ noLabels <- function(x)
     return(xclean)
 }
 
-estimateCLEfficacy <- function(mu, Sigma, alpha, resamples, method, link)
+estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
     {
 
     # Use resampling approach to avoid need for Taylor approximation use at least 10000 samples (this is very
@@ -983,29 +1024,7 @@ estimateCLEfficacy <- function(mu, Sigma, alpha, resamples, method, link)
     return(CL)
 }
 
-# functions for Empirical Analysis
-
-rgen_emp <- function(data, mle)
-    {
-
-    description <- psych::describeBy(data$y1/data$y_off, group = data$arm)
-    pChat <- description$control$mean
-    pIhat <- description$intervention$mean
-
-    # simulate data for numerator num
-    modelp <- ifelse(
-        as.numeric(data$arm) -
-            1 > 0, pIhat, pChat
-    )
-    data$y1 <- rbinom(
-        length(modelp),
-        data$y_off, modelp
-    )  #simulate from Binomial distribution
-
-    return(data)
-}
-
-# FUNCTIONS FOR SPATIAL PARTIAL DIFFERENTIAL EQUATION MODEL IN INLA
+# functions for INLA analysis
 
 #' \\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.
 #' @param trial trial dataframe including locations, clusters, arms, and binary outcomes
@@ -1196,3 +1215,16 @@ Williams <- function(x, alpha, option){
     return(returnvalue)
 }
 
+# T-based confidence intervals
+
+Tinterval <- function(x, alpha, option){
+    if(length(x) < 3){
+        value <- NA
+    } else {
+        t <- stats::t.test(x = x, conf.level = 1 - alpha)
+        value <- switch(option,
+                L = t$conf.int[1],
+                U = t$conf.int[2])
+    }
+    returnvalue <- as.numeric(value)
+}

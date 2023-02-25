@@ -45,7 +45,7 @@ Plot_CRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundari
   slot <- cluster <- x <- y <- long <- lat <- prediction <- nearestDiscord <- NULL
 
   # The voronoi functions requires input as a data.frame not a tibble
-  trial <- as.data.frame(trial)
+  class(trial) <- "data.frame"
 
   # The plotting routines require unique locations
   trial <- Aggregate_CRT(trial = trial)
@@ -56,6 +56,7 @@ Plot_CRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundari
   }
 
   # remove any buffer zones
+  class(trial) <- "data.frame"
   if (!is.null(trial$buffer)) {
     trial <- trial[!trial$buffer, ]
   }
@@ -205,7 +206,7 @@ Plot_CRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundari
   }
   if (showContamination) {
     # augment the prediction grid with a classifier of whether the point is within the contamination interval
-    range <- analysis$contamination$contaminatedInterval
+    range <- analysis$contamination$contamination.limits
     analysis$inla.mesh$prediction$contaminated <- ifelse(dplyr::between(analysis$inla.mesh$prediction$nearestDiscord,
                                                                        range[1], range[2]), TRUE, FALSE)
     g <- g + ggplot2::geom_raster(data = analysis$inla.mesh$prediction[analysis$inla.mesh$prediction$contaminated,
@@ -267,7 +268,7 @@ get_Polygon <- function(polygon_type, i, totalClusters = totalClusters, d = d, x
 
 Plot_Contamination <- function(analysis) {
   d <- average <- upper <- lower <- contaminationFunction <- NULL
-  interval <- analysis$contamination$contaminatedInterval
+  interval <- analysis$contamination$contamination.limits
   g <- ggplot2::ggplot(data = analysis$contamination$data,aes(x = d, y = average))
   g <- g + ggplot2::theme_bw()
   g <- g + ggplot2::geom_point(size = 2)

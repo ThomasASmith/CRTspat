@@ -88,6 +88,9 @@ Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
   # (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
   trial <- Specify_CRTbuffer(trial=trial,bufferWidth=postulatedContaminationRange)
 
+  # set the class to data.frame
+  class(trial) <- "data.frame"
+
   output = list(pC = pC,
                 alpha = alpha,
                 n_ind=n_ind,
@@ -123,7 +126,7 @@ Design_CRT = function(  alpha = 0.05,  #Step A: confidence level
 # Characteristics of a trial design
 describeTrial = function(trial,pC, d, desiredPower, n_ind, sigma2, Zsig, ICC){
 
-  arm=unique(trial[c("cluster", "arm")])[,2] #assignments
+  arm=unique(cbind(trial$cluster,trial$arm))[,2] #assignments
 
   k = length(arm)/2 # number of clusters assigned to each arm
 

@@ -19,39 +19,43 @@ Analyse_CRT(
   localisedEffects = FALSE,
   clusterEffects = TRUE,
   spatialEffects = FALSE,
-  resamples = 1000,
+  resamples = 10000,
   requireMesh = FALSE,
   inla.mesh = NULL
 )
 }
 \arguments{
-\item{trial}{trial dataframe including locations, clusters, arms, and outcomes}
+\item{trial}{dataframe: including locations, clusters, arms, and outcomes}
 
-\item{method}{statistical method used to analyse trial.
-options are:
-'EMP'  : empirical,
-'T'   : comparison of cluster means by t-test
-'GEE'  : Generalised Estimating Equations
-'INLA' : INLA}
+\item{method}{statistical method with options:
+'EMP' - empirical;
+'T' - comparison of cluster means by t-test;
+'GEE' - Generalised Estimating Equations;
+'INLA' - Integrated Nested Laplace Approximation (INLA);
+'MCMC' - Markov chain Monte Carlo using JAGS.}
 
 \item{cfunc}{transformation defining the contamination function
 options are:
-'S': piecewise linear (slope),
-'L': inverse logistic (sigmoid),
-'P': inverse probit,
-'X': contamination not modelled'}
+'X': contamination not modelled- the only valid value of 'cfunc' for methods 'EMP,'T' and 'GEE';
+'L': inverse logistic (sigmoid)- the default for 'INLA' and 'MCMC' methods;
+'P': inverse probit (error function)- available with 'INLA' and 'MCMC' methods;
+'S': piecewise linear- only available with the 'MCMC' method}
 
-\item{link}{string: link function- options are 'logit' (the default), 'log', and 'identity'}
+\item{link}{link function- options are:
+'logit': (the default). The 'numerator', has a binomial distribution with denominator 'denominator'.
+'log': The 'numerator' is Poisson distributed with an offset of log('denominator').
+With the 'INLA' and 'MCMC' methods 'iid' random effects are used to model extra-Poisson variation.
+'identity': The outcome is 'numerator'/'denominator'. Normally distributed error function.}
 
-\item{numerator}{string: name of numerator variable for efficacy data (if present)}
+\item{numerator}{string: name of numerator variable for outcome (if present)}
 
-\item{denominator}{string: name of denominator variable for efficacy data (if present)}
+\item{denominator}{string: name of denominator variable for outcome data (if present)}
 
 \item{excludeBuffer}{logical: indicator of whether any buffer zone (records with buffer=TRUE) should be excluded from analysis}
 
 \item{alpha}{numeric: confidence level for confidence intervals and credible intervals}
 
-\item{baselineOnly}{logical: indicator of whether required analysis is of efficacy or of baseline only}
+\item{baselineOnly}{logical: indicator of whether required analysis is of effect size or of baseline only}
 
 \item{baselineNumerator}{string: name of numerator variable for baseline data (if present)}
 
@@ -81,7 +85,7 @@ list containing the following results of the analysis
 }
 }
 \description{
-\\code{Analyse_CRT} returns outputs from a statistical analysis of a cluster randomized trial (CRT).
+\\code{Analyse_CRT} carries out a statistical analysis of a cluster randomized trial (CRT).
 }
 \examples{
 # Standard GEE analysis of test dataset ignoring contamination
