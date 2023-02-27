@@ -21,7 +21,7 @@
 #' \item \code{y}: y-coordinates of location
 #' \item \code{cluster}: assignment to cluster
 #' \item \code{arm}: assignment to trial arm
-#' \item \code{infectiousness_proxy}: infectiousness proxy
+#' \item \code{propensity}: propensity of location
 #' \item \code{base_denom}: denominator for baseline
 #' \item \code{base_num}: numerator for baseline
 #' \item \code{nearestDiscord}: distance to nearest discordant location
@@ -46,8 +46,9 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
 # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
   cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
   bw <- NULL
-  # several operations require the input data as dataframe
-  class(trial) <- "data.frame"
+  # several operations require the input data as data.frame. Descriptors will be replaced
+  trial <- convertCRTtodataframe(CRT = trial)
+
   trial$arm <- as.factor(trial$arm)
   trial$cluster <- as.factor(trial$cluster)
 
@@ -76,12 +77,12 @@ Simulate_CRT <- function(trial = NULL, efficacy = 0, initialPrevalence = NULL,
 
   # generate baseline data if required and exposure proxy if this is not provided
 
-  if (!"infectiousness_proxy" %in% colnames(trial) & baselineNumerator %in%
+  if (!"propensity" %in% colnames(trial) & baselineNumerator %in%
       colnames(trial) & baselineDenominator %in% colnames(trial)) {
-    trial$infectiousness_proxy <- trial[[baselineNumerator]]/trial[[baselineDenominator]]
+    trial$propensity <- trial[[baselineNumerator]]/trial[[baselineDenominator]]
 # TODO: replace this with estimation via INLA with a spatial model
 
-  } else if ("infectiousness_proxy" %in% colnames(trial)) {
+  } else if ("propensity" %in% colnames(trial)) {
     # create a baseline dataset using a pre-existing exposure proxy
     trial <- syntheticBaseline(bw = NULL, trial = trial, sd = sd, euclid = euclid,
                                initialPrevalence = initialPrevalence)
@@ -128,14 +129,14 @@ assignPositives <- function(trial, euclid, sd, efficacy, initialPrevalence, deno
 
   # Indicator of whether the source is intervened is
   # (as.numeric(trial$arm[i]) - 1 smoothedIntervened is the value
-  # of infectiousness_proxy decremented by the effect of
+  # of propensity decremented by the effect of
   # intervention and smoothed to allow for mosquito movement
 
   if (sd > 0) {
-    smoothedIntervened <- gauss(sd, euclid) %*% (trial$infectiousness_proxy *
+    smoothedIntervened <- gauss(sd, euclid) %*% (trial$propensity *
                                                    (1 - efficacy * (as.numeric(trial$arm) - 1)))
   } else {
-    smoothedIntervened <- trial$infectiousness_proxy * (1 - efficacy *
+    smoothedIntervened <- trial$propensity * (1 - efficacy *
                                                           (as.numeric(trial$arm) - 1))
   }
   # distances to nearest discordant households
@@ -235,18 +236,18 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, euclid,
 # assign initial pattern if it does not exist
 syntheticBaseline <- function(bw, trial, sd, euclid, initialPrevalence) {
   if (!is.null(bw)) {
-    trial$infectiousness_proxy <- KDESmoother(trial$x, trial$y, kernnumber = 200,
+    trial$propensity <- KDESmoother(trial$x, trial$y, kernnumber = 200,
                                               bandwidth = bw, low = 0, high = 1)
   }
   # Smooth the exposure proxy to allow for mosquito movement.
   # the s.d. in each dimension of the 2 d gaussian is
   # sd/sqrt(2) smoothedBaseline is the amount received by the each
-  # cluster from the contributions (infectiousness_proxy) of each
+  # cluster from the contributions (propensity) of each
   # source
   if (sd > 0) {
-    smoothedBaseline <- gauss(sd, euclid) %*% trial$infectiousness_proxy
+    smoothedBaseline <- gauss(sd, euclid) %*% trial$propensity
   } else {
-    smoothedBaseline <- trial$infectiousness_proxy
+    smoothedBaseline <- trial$propensity
   }
 
   trial <- distributePositives(trial = trial,

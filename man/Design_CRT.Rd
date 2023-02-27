@@ -5,71 +5,65 @@
 \title{Design a CRT of a malaria intervention with contamination}
 \usage{
 Design_CRT(
+  trial,
   alpha = 0.05,
   desiredPower = 0.8,
   effect,
   ICC,
   pC,
-  postulatedContaminationRange = 0,
-  coordinates,
+  buffer.width = 0,
   h,
   algo = "kmeans",
-  reuseTSP = FALSE
+  outcome.type = outcome.type
 )
 }
 \arguments{
+\item{trial}{dataframe or CRT object containing Cartesian coordinates of locations in columns 'x' and 'y'.
+Units are expected to be km.}
+
 \item{alpha}{confidence level}
 
 \item{desiredPower}{desired power}
 
 \item{effect}{required effect size}
 
-\item{ICC}{Intra-Cluster Correlation obtained from other studies}
+\item{ICC}{Intra-Cluster Correlation}
 
 \item{pC}{baseline prevalence}
 
-\item{postulatedContaminationRange}{contamination range in km, obtained from other studies}
-
-\item{coordinates}{dataframe containing coordinates of households. Columns 'x' and 'y' should contain Cartesian (x,y) coordinates. Units are expected to be km.}
+\item{buffer.width}{required buffer width in km}
 
 \item{h}{proposal for the number of coordinates in each cluster}
 
-\item{algo}{algorithm for cluster boundaries, choose between
-"TSP": travelling salesman problem heuristic;
-"NN": nearest neighbor;
-"kmeans": kmeans algorithm}
+\item{algo}{algorithm used to determine cluster boundaries, options are-
+'TSP': travelling salesman problem heuristic;
+'NN': nearest neighbor;
+'kmeans': kmeans}
 
-\item{reuseTSP}{indicator of whether a pre-existing path should be used by the TSP algorithm}
+\item{outcome.type}{options are 'Continuous', 'Count or rate', 'Proportion', 'Dichotomous'}
 }
 \value{
-A list comprising a list the following elements:
+A CRT object comprising the input data, cluster and arm assignments, trial description and results of power calculations
 \itemize{
-\item \code{arm}: vector of assignments to trial arms
-\item \code{alpha}: confidence level
-\item \code{power}: power
-\item \code{seed}: random number seed
-\item \code{effect}: Required effect size
-\item \code{ICC}: Intra-Cluster Correlation obtained from other studies
-\item \code{DE}: calculated Design Effect
-\item \code{pC}: baseline prevalence
-\item \code{cont}: contamination range in km, obtained from other studies
-\item \code{coordinate_source}: filename for coordinates of households
-\item \code{h}: proposal for the number of coordinates in each cluster
-\item \code{algo}: algorithm used for cluster boundaries
-\item \code{n_ind}: algorithm used for cluster boundaries
-\item \code{assignments}: data frame containing locations and cluster assignments
-\item \code{min_c}: minimum number of clusters required
+\item \code{arm}: arm assignment
+\item \code{cluster}: cluster assignment
+\item \code{buffer}: indicator of whether the location is in the buffer between arms
+\item \code{input.parameters} list of input parameters
+\item \code{CRT.design.full} list of calculated filename for coordinates of households
 }
 }
 \description{
-\code{Design_CRT} estimates the required number of clusters and the extent of contamination between arms for a CRT with the input set of locations.
-Outputs are:
+\code{Design_CRT} estimates the required number of clusters and the extent of contamination between arms for a CRT
+with the input set of locations. Outputs are:
 (i) Estimates of the required numbers of clusters.
-(ii) A proposal for the cluster and arm assignments to the input coordinates. (A warning is output if the number of locations is too small to allow randomisation of sufficient clusters).
-(iii) the proportion of households in the input geography falling within the core of the clusters (i.e. outside the contamination range of locations in the opposite arm)
+(ii) A proposal for the cluster and arm assignments to the input coordinates.
+(A warning is output if the number of locations is too small to allow randomisation of sufficient clusters).
+(iii) the proportion of households in the input geography falling within the core of the clusters
+(i.e. outside the contamination range of locations in the opposite arm)
 }
 \examples{
 
-exampleDesign = Design_CRT(coordinates=readdata('test_site.csv'),
-                ICC=0.10, effect=0.4, pC=0.35, postulatedContaminationRange=0.25, h=100)
+exampleDesign = Design_CRT(trial=readdata('test_site.csv'),
+                ICC=0.10, effect=0.4, pC=0.35, desiredPower = 0.8, algo = "kmeans",
+                buffer.width=0.25, h=100, outcome.type ="Dichotomous")
 }

@@ -51,7 +51,7 @@ A trial simulation object comprising a data frame containing the following numer
 \item \code{y}: y-coordinates of location
 \item \code{cluster}: assignment to cluster
 \item \code{arm}: assignment to trial arm
-\item \code{infectiousness_proxy}: infectiousness proxy
+\item \code{propensity}: propensity of location
 \item \code{base_denom}: denominator for baseline
 \item \code{base_num}: numerator for baseline
 \item \code{nearestDiscord}: distance to nearest discordant location

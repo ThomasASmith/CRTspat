@@ -70,14 +70,10 @@ Analyse_CRT <- function(
     }
 
     # MAIN FUNCTION CODE STARTS HERE
-    cat(
-        "\n=====================    ANALYSIS OF CLUSTER RANDOMISED TRIAL    =================\n"
-    )
 
     cluster <- NULL
 
-    # Any descriptors in the CRT object are not used in the analysis
-    class(trial) <- "data.frame"
+    trial <- convertCRTtodataframe(CRT = trial)
 
     if ("buffer" %in% colnames(trial) & excludeBuffer)
         {
@@ -123,6 +119,11 @@ Analyse_CRT <- function(
         }
     }
 
+    # store options here- noting that the model formula depends on allowable values of other options
+    options <- list(method = method, link = link, cfunc = cfunc,
+                    alpha = alpha, baselineOnly = baselineOnly,
+                    ftext = NULL)
+
     if (method %in% c("MCMC", "INLA")) {
         # create model formula for display even though this is only used for INLA models
 
@@ -146,10 +147,7 @@ Analyse_CRT <- function(
             fterms <- c(fterms, "f(s, model = spde)")
         if (link == 'log')
             fterms <- c(fterms, "f(id, model = \"iid\")")
-
-        # console display of the formula
-        formula_as_text <- paste(fterms, collapse = " + ")
-        cat("Model formula: ", formula_as_text, "\n")
+        options$ftext <- paste(fterms, collapse = " + ")
     }
     model.object <- list()
     pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contamination.interval = NA)
@@ -234,6 +232,8 @@ Analyse_CRT <- function(
                 data = trial, family = gaussian
             )
         }
+        options$ftext <- paste(fterms, collapse = " + ")
+
         summary_fit <- summary(fit)
 
         z <- -qnorm(alpha/2)  #standard deviation score for calculating confidence intervals
@@ -276,13 +276,12 @@ Analyse_CRT <- function(
 
             int.ests$interventionY <- namedCL(
                 invlink(link, c(lp_yI - z * se_lp_yI, lp_yI + z * se_lp_yI)),
-                alpha = alpha
-            )
+                alpha = alpha)
+
             int.ests$effect.size <- estimateCLeffect.size(
                 mu = summary_fit$coefficients[, 1], Sigma = fit$geese$vbeta,
                 alpha = alpha, resamples = resamples, method = method,
-                link = link
-            )
+                link = link)
 
             pt.ests$interventionY <- invlink(link, lp_yI)
             pt.ests$effect.size <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
@@ -376,21 +375,21 @@ Analyse_CRT <- function(
                                     parameters.to.save = c("Es", "theta", "yC", "yI", "beta", "pcont"),
                                     model.file = textConnection(MCMCmodel), n.chains = nchains,
                                     iter.increment = 1000, n.burnin = burnin, max.iter=max.iter)
-        results <- list(model.object = jagsout, pt.ests = list(), int.ests = list(), method = method)
-        results$pt.ests$controlY <- jagsout$q50$yC
-        results$int.ests$controlY <- namedCL(c(jagsout$q2.5$yC, jagsout$q97.5$yC), alpha = alpha)
-        results$pt.ests$interventionY <- jagsout$q50$yI
-        results$int.ests$interventionY <- namedCL(c(jagsout$q2.5$yI, jagsout$q97.5$yI), alpha = alpha)
-        results$pt.ests$effect.size <- jagsout$q50$Es
-        results$int.ests$effect.size <- namedCL(c(jagsout$q2.5$Es, jagsout$q97.5$Es), alpha = alpha)
-        results$pt.ests$contamination.interval <- jagsout$q50$theta
-        results$int.ests$contamination.interval <- namedCL(c(jagsout$q2.5$theta, jagsout$q97.5$theta), alpha = alpha)
-        results$pt.ests$contamination.par <- jagsout$q50$beta
-        results$int.ests$contamination.par <- namedCL(c(jagsout$q2.5$beta, jagsout$q97.5$beta), alpha = alpha)
-        results$pt.ests$pr.contaminated <- jagsout$q50$pcont
-        results$int.ests$pr.contaminated <- namedCL(c(jagsout$q2.5$pcont, jagsout$q97.5$pcont), alpha = alpha)
-        results$pt.ests$DIC <- jagsout$DIC
-        results$model.object$MCMCmodel <- MCMCmodel
+        analysis <- list(model.object = jagsout, pt.ests = list(), int.ests = list())
+        analysis$pt.ests$controlY <- jagsout$q50$yC
+        analysis$int.ests$controlY <- namedCL(c(jagsout$q2.5$yC, jagsout$q97.5$yC), alpha = alpha)
+        analysis$pt.ests$interventionY <- jagsout$q50$yI
+        analysis$int.ests$interventionY <- namedCL(c(jagsout$q2.5$yI, jagsout$q97.5$yI), alpha = alpha)
+        analysis$pt.ests$effect.size <- jagsout$q50$Es
+        analysis$int.ests$effect.size <- namedCL(c(jagsout$q2.5$Es, jagsout$q97.5$Es), alpha = alpha)
+        analysis$pt.ests$contamination.interval <- jagsout$q50$theta
+        analysis$int.ests$contamination.interval <- namedCL(c(jagsout$q2.5$theta, jagsout$q97.5$theta), alpha = alpha)
+        analysis$pt.ests$contamination.par <- jagsout$q50$beta
+        analysis$int.ests$contamination.par <- namedCL(c(jagsout$q2.5$beta, jagsout$q97.5$beta), alpha = alpha)
+        analysis$pt.ests$pr.contaminated <- jagsout$q50$pcont
+        analysis$int.ests$pr.contaminated <- namedCL(c(jagsout$q2.5$pcont, jagsout$q97.5$pcont), alpha = alpha)
+        analysis$pt.ests$DIC <- jagsout$DIC
+        analysis$model.object$MCMCmodel <- MCMCmodel
     # INLA methods
     } else if (method == "INLA")
         {
@@ -411,7 +410,7 @@ Analyse_CRT <- function(
         FUN <- switch(
             cfunc, L = "invlink(link='logit', x)", P = "stats::pnorm(x)", X = NULL, Z = NULL)
 
-        formula <- stats::as.formula(formula_as_text)
+        formula <- stats::as.formula(options$ftext)
 
         spde <- inla.mesh$spde
 
@@ -453,14 +452,14 @@ Analyse_CRT <- function(
             effectsp$df$pvar <- inla.mesh$prediction$pvar
 
             # set up linear contrasts (not required for cfunc='X' or 'Z')
-            if (grepl("pvar", formula_as_text, fixed = TRUE))
+            if (grepl("pvar", options$ftext, fixed = TRUE))
                 {
                 lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1)
-                if (grepl("b1", formula_as_text, fixed = TRUE))
+                if (grepl("b1", options$ftext, fixed = TRUE))
                   {
                   lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1, b1 = 1)
                 }
-            } else if (grepl("b1", formula_as_text, fixed = TRUE))
+            } else if (grepl("b1", options$ftext, fixed = TRUE))
                 {
                 lc <- INLA::inla.make.lincomb(b0 = 1, b1 = 1)
             }
@@ -481,7 +480,6 @@ Analyse_CRT <- function(
 
         # stk.full comprises both stk.e and stk.p if a prediction mesh is in use
         stk.full <- INLA::inla.stack(stk.e, stk.p)
-        cat("INLA analysis                                                 \n")
 
         if (link == "identity") {
             inla.result <- INLA::inla(
@@ -518,8 +516,8 @@ Analyse_CRT <- function(
                 invlink(link, inla.result$summary.linear.predictor[index, "0.5quant"])
         # Compute sample-based confidence limits for intervened outcome and effect.size if intervention effects are
         # estimated
-        if (grepl("pvar", formula_as_text, fixed = TRUE) |
-            grepl("b1", formula_as_text, fixed = TRUE))
+        if (grepl("pvar", options$ftext, fixed = TRUE) |
+            grepl("b1", options$ftext, fixed = TRUE))
                 {
             # Specify the means of the variables
             mu <- inla.result$summary.lincomb.derived$mean
@@ -568,145 +566,59 @@ Analyse_CRT <- function(
                 pr.contaminated = rep(0, 3)
             )
         }
-        results <- list(
+        analysis <- list(
             model.object = inla.result, inla.mesh = inla.mesh, pt.ests = list(),
-            int.ests = list(), method = method
-        )
+            int.ests = list())
 
-        results <- add_estimates(results = results, bounds = bounds, CLnames = CLnames)
-        results$int.ests$pr.contaminated <- stats::setNames(
+        analysis <- add_estimates(analysis = analysis, bounds = bounds, CLnames = CLnames)
+        analysis$int.ests$pr.contaminated <- stats::setNames(
             bounds[c(1, 3),
                 "pr.contaminated"], CLnames
         )
-        results$pt.ests$pr.contaminated <- bounds[2, "pr.contaminated"]
+        analysis$pt.ests$pr.contaminated <- bounds[2, "pr.contaminated"]
 
-        results$passed.face.validity.check <- TRUE
-        if (results$pt.ests$pr.contaminated < 0 | results$pt.ests$pr.contaminated >
+        analysis$passed.face.validity.check <- TRUE
+        if (analysis$pt.ests$pr.contaminated < 0 | analysis$pt.ests$pr.contaminated >
             1)
             {
             cat(
                 "** Warning: different signs for main effect and contamination: face validity check fails **\n"
             )
-            results$passed.face.validity.check <- FALSE
-            results$pt.ests$pr.contaminated <- NA
-            results$int.ests$pr.contaminated <- c(NA, NA)
+            analysis$passed.face.validity.check <- FALSE
+            analysis$pt.ests$pr.contaminated <- NA
+            analysis$int.ests$pr.contaminated <- c(NA, NA)
         }
-        results$pt.ests$contamination.par <- beta
-        results$description <- description
+        analysis$pt.ests$contamination.par <- beta
+
+        # The contamination parameter is not estimated by INLA but should be considered in the DIC
+        analysis$model.object$dic$dic <- analysis$model.object$dic$dic + 2
+
+        analysis$description <- description
     }
     if (method %in% c("EMP", "T", "GEE"))
         {
-        # tidy up and consolidate the list of results
+        # tidy up and consolidate the list of analysis
         model.object <- pt.ests$model.object
         pt.ests <- pt.ests[names(pt.ests) !=
             "model.object"]
-        results <- list(
-            description = description, method = method, pt.ests = pt.ests,
+        analysis <- list(
+            description = description, pt.ests = pt.ests,
             int.ests = int.ests, model.object = model.object
         )
     }
     if (cfunc != "Z")
     {
-        results$contamination <- getContaminationCurve(trial = trial, pt.ests = results$pt.ests,
+        analysis$contamination <- getContaminationCurve(trial = trial, pt.ests = analysis$pt.ests,
                                                        FUN1 = FUN1, link = link, alpha = alpha)
-        results$pt.ests$contamination.interval <- results$contamination$contamination.interval
-        results$contamination$contamination.interval <- NULL
+        analysis$pt.ests$contamination.interval <- analysis$contamination$contamination.interval
+        analysis$contamination$contamination.interval <- NULL
     } else
     {
-        results$pt.ests$contamination.interval <- NA
+        analysis$pt.ests$contamination.interval <- NA
     }
-    ## Output to screen
-
-    cat(
-        "Analysis model: ", method, "\nLink function: ", link, "\n"
-    )
-    cat(switch(cfunc,
-           Z = "No comparison of arms \n",
-           X = "No modelling of contamination \n",
-           S = "Piecewise linear function for contamination\n",
-           P = "Error function model for contamination\n",
-           L = "Sigmoid (logistic) function for contamination\n"))
-    CLtext <- paste0(" (", 100 * (1 - alpha), "% CL: ")
-    cat(
-        "Estimates:     Control: ", results$pt.ests$controlY,
-        CLtext, unlist(results$int.ests$controlY),
-        ")\n"
-    )
-    if (results$pt.ests$effect.size != 0)
-    {
-        if (!is.null(results$pt.ests$interventionY))
-            {
-            cat(
-                "          Intervention: ", results$pt.ests$interventionY,
-                CLtext, unlist(results$int.ests$interventionY),
-                ")\n"
-            )
-            effect.measure <- ifelse(link == 'identity', "Effect size: ","Efficacy:    ")
-            cat(
-                effect.measure, results$pt.ests$effect.size, CLtext, unlist(results$int.ests$effect.size),
-                ")\n"
-            )
-        }
-        if (!is.na(results$pt.ests$pr.contaminated))
-            {
-            cat(
-                "Proportion of effect subject to contamination: ", results$pt.ests$pr.contaminated,
-                CLtext, unlist(results$int.ests$pr.contaminated),
-                ")\n"
-            )
-        }
-    }
-    if (!is.null(pt.ests$ICC))
-        {
-        cat(
-            "Estimated intracluster correlation (ICC): ", results$pt.ests$ICC,
-            CLtext, unlist(results$int.ests$ICC),
-            ")\n"
-        )
-    }
-    if (!is.na(results$pt.ests$contamination.interval))
-        {
-        cat(
-            "Contamination Range: ", results$pt.ests$contamination.interval,
-            "\n"
-        )
-    }
-    if (!is.null(results$model.object$dic$dic) &
-        cfunc %in% c("L", "P"))
-            {
-        # The contamination parameter is not estimated by INLA but should be considered in the DIC
-        results$model.object$dic$dic <- results$model.object$dic$dic + 2
-        cat(
-            "DIC: ", results$model.object$dic$dic, " including penalty for the contamination parameter\n"
-        )
-    } else if (!is.null(results$model.object$dic$dic))
-        {
-        cat("DIC: ", results$model.object$dic$dic, "\n")
-    }
-    return(results)
-}
-
-# Add estimates to results list
-add_estimates <- function(results, bounds, CLnames)
-    {
-    results$pt.ests$controlY <- bounds[2, "controlY"]
-    results$pt.ests$interventionY <- bounds[2, "interventionY"]
-    results$pt.ests$effect.size <- bounds[2, "effect.size"]
-
-    # Extract interval estimates
-    results$int.ests$controlY <- stats::setNames(
-        bounds[c(1, 3),
-            "controlY"], CLnames
-    )
-    results$int.ests$interventionY <- stats::setNames(
-        bounds[c(1, 3),
-            "interventionY"], CLnames
-    )
-    results$int.ests$effect.size <- stats::setNames(
-        bounds[c(1, 3),
-            "effect.size"], CLnames
-    )
-    return(results)
+    analysis$options <- options
+    class(analysis) <- "CRTanalysis"
+    return(analysis)
 }
 
 getContaminationCurve <- function(trial, pt.ests, FUN1, link, alpha)
@@ -1192,8 +1104,31 @@ estimateContamination <- function(
     }
     # The DIC is penalised to allow for estimation of beta
     loss <- result.e$dic$family.dic + 2
-    cat("\rDIC: ", loss, " Contamination parameter: ", beta, "  \r")
+    cat("\rDIC: ", loss, " Contamination scale parameter: ", beta, "  \r")
     return(loss)
+}
+
+# Add estimates to analysis list
+add_estimates <- function(analysis, bounds, CLnames)
+{
+    analysis$pt.ests$controlY <- bounds[2, "controlY"]
+    analysis$pt.ests$interventionY <- bounds[2, "interventionY"]
+    analysis$pt.ests$effect.size <- bounds[2, "effect.size"]
+
+    # Extract interval estimates
+    analysis$int.ests$controlY <- stats::setNames(
+        bounds[c(1, 3),
+               "controlY"], CLnames
+    )
+    analysis$int.ests$interventionY <- stats::setNames(
+        bounds[c(1, 3),
+               "interventionY"], CLnames
+    )
+    analysis$int.ests$effect.size <- stats::setNames(
+        bounds[c(1, 3),
+               "effect.size"], CLnames
+    )
+return(analysis)
 }
 
 # Williams mean and confidence intervals
@@ -1228,3 +1163,78 @@ Tinterval <- function(x, alpha, option){
     }
     returnvalue <- as.numeric(value)
 }
+
+
+#' Summarise analysis
+#'
+#' \code{summary.CRTanalysis} generates a summary description of an analysis of a CRT
+#' @param ... other arguments
+#' @param object name of analysis
+#' @export
+summary.CRTanalysis <- function(object, ...) {
+    cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
+    cat(
+        "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n"
+    )
+    if (!is.null(object$options$ftext))
+        cat("Model formula: ", object$options$ftext, "\n")
+    cat(switch(object$options$cfunc,
+               Z = "No comparison of arms \n",
+               X = "No modelling of contamination \n",
+               S = "Piecewise linear function for contamination\n",
+               P = "Error function model for contamination\n",
+               L = "Sigmoid (logistic) function for contamination\n"))
+    CLtext <- paste0(" (", 100 * (1 - object$options$alpha), "% CL: ")
+    cat(
+        "Estimates:     Control: ", object$pt.ests$controlY,
+        CLtext, unlist(object$int.ests$controlY),
+        ")\n"
+    )
+    if (object$pt.ests$effect.size != 0)
+    {
+        if (!is.null(object$pt.ests$interventionY))
+        {
+            cat(
+                "          Intervention: ", object$pt.ests$interventionY,
+                CLtext, unlist(object$int.ests$interventionY),
+                ")\n"
+            )
+            effect.measure <- ifelse(object$options$link == 'identity', "Effect size: ","  Efficacy:  ")
+            cat("          ",
+                effect.measure, object$pt.ests$effect.size, CLtext, unlist(object$int.ests$effect.size),
+                ")\n"
+            )
+        }
+        if (!is.na(object$pt.ests$pr.contaminated))
+        {
+            cat(
+                "Proportion of effect subject to contamination: ", object$pt.ests$pr.contaminated,
+                CLtext, unlist(object$int.ests$pr.contaminated),")\n"
+            )
+        }
+    }
+    if (!is.null(object$pt.ests$ICC))
+    {
+        cat(
+            "Intracluster correlation (ICC): ", object$pt.ests$ICC,
+            CLtext, unlist(object$int.ests$ICC),")\n"
+        )
+    }
+    if (!is.na(object$pt.ests$contamination.interval))
+    {
+        cat(
+            "Contamination Range: ", object$pt.ests$contamination.interval,"\n"
+        )
+    }
+    if (!is.null(object$model.object$dic$dic) &
+        object$options$cfunc %in% c("L", "P"))
+    {
+        cat(
+            "DIC: ", object$model.object$dic$dic, " including penalty for the contamination scale parameter\n"
+        )
+    } else if (!is.null(object$model.object$dic$dic))
+    {
+        cat("DIC: ", object$model.object$dic$dic, "\n")
+    }
+}
+

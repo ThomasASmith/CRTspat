@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{Anonymise_TrialSite}
 \alias{Anonymise_TrialSite}
-\title{Anonymise locations in a trial site}
+\title{Anonymise locations of a trial site}
 \usage{
 Anonymise_TrialSite(trial = NULL)
 }

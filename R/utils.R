@@ -1,11 +1,13 @@
 #' Aggregate multiple cluster randomized trial (CRT) records with identical location
 #'
-#' \code{Aggregate_CRT} aggregates data for binomial outcomes a trial dataframe contains multiple records with the same location, and outputs a dataframe with unique locations.
-#' @param trial a dataframe containing locations (x,y) and optionally numerators, and corresponding denominators
+#' \code{Aggregate_CRT} aggregates data from a CRT object or data.frame containing multiple records with the same location,
+#' and outputs a dataframe with unique locations.
+#' @param trial a data.frame containing locations (x,y) and optionally numerators, and corresponding denominators
 #' @param auxiliaries a vector of the names of auxiliary variables to be summed across locations
-#' @return A dataframe with unique locations in which the numerators and denominators are summed over the locations
+#' @return A CRT object with unique locations in which the numerators and denominators are summed over the locations
 #' @export
 Aggregate_CRT <- function(trial, auxiliaries = NULL) {
+  trial <- convertCRTtodataframe(trial)
   x <- y <- NULL
   df <- trial %>%
     distinct(x, y, .keep_all = TRUE)
@@ -29,12 +31,12 @@ Aggregate_CRT <- function(trial, auxiliaries = NULL) {
 #'
 #' \code{Randomize_CRT} carries out randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
 #'
-#' @param trial dataframe containing locations and cluster assignments
+#' @param trial a CRT object or data.frame containing locations and cluster assignments
 #' @param matchedPair logical: indicator of whether pair-matching on the baseline data should be used in randomization
 #' @param baselineNumerator name of numerator variable for baseline data (if present)
 #' @param baselineDenominator name of denominator variable for baseline data (if present)
 #' @return The input dataframe augmented with variable arm coded 'control' or 'intervention'
-#' @format data.frame:
+#' @format CRT object:
 #' \itemize{
 #' \item \code{x}: x-coordinates of location
 #' \item \code{y}: y-coordinates of location
@@ -49,6 +51,7 @@ Aggregate_CRT <- function(trial, auxiliaries = NULL) {
 #' exampletrial <- Randomize_CRT(trial = readdata('test_Clusters.csv'))
 Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_num", baselineDenominator = "base_denom") {
 
+  trial <- convertCRTtodataframe(trial)
   cluster <- base_num <- base_denom <- NULL
   trial$cluster <- as.factor(trial$cluster)
   # Randomization, assignment to arms
@@ -76,7 +79,8 @@ Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_n
     arm <- ifelse(rand_numbers > median(rand_numbers), 1, 0)
   }
   trial$arm <- factor(arm[trial$cluster[]], levels = c(0, 1), labels = c("control", "intervention"))
-  class(trial) <- c('CRT')
+  class(trial) <- 'CRT'
+  trial$CRT.design.full <- describeTrial(trial, input.parameters = NULL)
   return(trial)
 }
 
@@ -344,4 +348,13 @@ readdata <- function(filename) {
   if (unlist(gregexpr('.txt', fname)) > 0) robject <- dget(file = paste0(extdata,'/',fname))
   if (unlist(gregexpr('.csv', fname)) > 0) robject <- read.csv(file = paste0(extdata,'/',fname))
 return(robject)
+}
+
+convertCRTtodataframe <- function(CRT){
+  CRT$CRT.design.full <- NULL
+  CRT$CRT.design.core <- NULL
+  CRT$input.parameters <- NULL
+  trial <- CRT
+  class(trial) <- "data.frame"
+  return(trial)
 }
