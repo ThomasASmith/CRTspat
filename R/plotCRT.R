@@ -1,6 +1,6 @@
 #' Map of CRT trial area
 #'
-#' \code{Plot_CRTmap} returns a graphics object created using ggplot2.
+#' \code{plotCRTmap} returns a graphics object created using ggplot2.
 #' Cartesian (x,y) coordinates are used. Units are expected to be km.
 #'
 #' @param trial standard deviation of random displacement from each settlement cluster center
@@ -25,20 +25,20 @@
 #'
 #' @examples
 #' #Plot locations only
-#' Plot_CRTmap(trial = readdata('test_CRT2.csv'), showArms=FALSE,showClusterBoundaries=FALSE,
+#' plotCRTmap(trial = readdata('test_CRT2.csv'), showArms=FALSE,showClusterBoundaries=FALSE,
 #'            colourClusters=FALSE, maskbuffer=0.2)
 #'
 #' #Plot clusters in colour
-#' Plot_CRTmap(trial=readdata('test_CRT2.csv'), showArms=FALSE, colourClusters=TRUE,
+#' plotCRTmap(trial=readdata('test_CRT2.csv'), showArms=FALSE, colourClusters=TRUE,
 #'           labelsize=2, maskbuffer=0.2)
 #'
 #' #Plot arms
-#' Plot_CRTmap(trial=readdata('test_CRT2.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
+#' plotCRTmap(trial=readdata('test_CRT2.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
 #'
 #' #Plot distance to nearest discordant location
 #'
 
-Plot_CRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
+plotCRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
                         colourClusters = TRUE, showArms = TRUE, analysis = NULL, showDistance = FALSE, showPrediction = FALSE, showContamination = FALSE,
                         cpalette = NULL, maskbuffer = 0.2, labelsize = 4, legend.position = NULL){
 
@@ -48,11 +48,11 @@ Plot_CRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundari
   class(trial) <- "data.frame"
 
   # The plotting routines require unique locations
-  trial <- Aggregate_CRT(trial = trial)
+  trial <- aggregateCRT(trial = trial)
 
   # The plotting routines use (x,y) coordinates
   if (is.null(trial$x)) {
-    trial <- Convert_LatLong(trial)
+    trial <- convert.latlong.xy(trial)
   }
 
   # remove any buffer zones
@@ -256,7 +256,7 @@ get_Polygon <- function(polygon_type, i, totalClusters = totalClusters, d = d, x
 }
 
 
-#' \code{Plot_Contamination} returns a plot of an estimated contamination function along with
+#' \code{plotContamination} returns a plot of an estimated contamination function along with
 #' the average and interval estimates for the outcome by distance from the arm boundary
 #' @param analysis list of analysis output produced by Analyse_CRT
 #' @return graphics object produced by the ggplot2 package
@@ -264,9 +264,9 @@ get_Polygon <- function(polygon_type, i, totalClusters = totalClusters, d = d, x
 #' @export
 #'
 #' @examples
-#' Plot_Contamination(analysis = readdata('test_Analyse_CRT.txt'))
+#' plotContamination(analysis = readdata('test_Analyse_CRT.txt'))
 
-Plot_Contamination <- function(analysis) {
+plotContamination <- function(analysis) {
   d <- average <- upper <- lower <- contaminationFunction <- NULL
   interval <- analysis$contamination$contamination.limits
   g <- ggplot2::ggplot(data = analysis$contamination$data,aes(x = d, y = average))
@@ -284,7 +284,7 @@ Plot_Contamination <- function(analysis) {
 }
 
 
-#' \code{Plot_DataByDistance} returns a stacked bar chart of the grouped data
+#' \code{plotDataByDistance} returns a stacked bar chart of the grouped data
 #' the outcome grouped by distance from the arm boundary
 #' @param trial a dataframe containing locations (x,y), cluster assignments, and arm assignments
 #' @param num name of numerator variable
@@ -295,9 +295,9 @@ Plot_Contamination <- function(analysis) {
 #' @export
 #'
 #' @examples
-#' Plot_DataByDistance(trial=readdata('test_Simulate_CRT.csv'))
+#' plotDataByDistance(trial=readdata('test_Simulate_CRT.csv'))
 
-Plot_DataByDistance <- function(trial = trial, num = num, denom = denom,
+plotDataByDistance <- function(trial = trial, num = num, denom = denom,
                                 cpalette = c("#D55E00", "#0072A7")) {
   outcome <- positives <- negatives <- frequency <- dcat <- NULL
   analysis <- Analyse_CRT(trial = trial, method = "EMP")

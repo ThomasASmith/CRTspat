@@ -1,6 +1,6 @@
 #' Design a CRT of a malaria intervention with contamination
 #'
-#' \code{Design_CRT} estimates the required number of clusters and the extent of contamination between arms for a CRT
+#' \code{designCRT} estimates the required number of clusters and the extent of contamination between arms for a CRT
 #' with the input set of locations. Outputs are:
 #' (i) Estimates of the required numbers of clusters.
 #' (ii) A proposal for the cluster and arm assignments to the input coordinates.
@@ -32,10 +32,10 @@
 #' @export
 #' @examples
 #'
-#' exampleDesign = Design_CRT(trial=readdata('test_site.csv'),
+#' exampleDesign = designCRT(trial=readdata('test_site.csv'),
 #'                 ICC=0.10, effect=0.4, pC=0.35, desiredPower = 0.8, algorithm = 'kmeans',
 #'                 buffer.width=0.25, h=100, outcome.type ='Dichotomous')
-Design_CRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, ICC,
+designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, ICC,
     pC, buffer.width = 0, h, algorithm = "kmeans", outcome.type = outcome.type) {
 
     input.parameters <- list(pC = pC, alpha = alpha, desiredPower = desiredPower,
