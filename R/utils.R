@@ -14,7 +14,7 @@
 #'  }
 #' @export
 aggregateCRT <- function(trial, auxiliaries = NULL) {
-    trial <- convertCRTtodataframe(trial)
+    trial <- convertCRT.data.frame(trial)
     x <- y <- NULL
     df <- trial %>%
         distinct(x, y, .keep_all = TRUE)
@@ -29,7 +29,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
             df[[varName]] <- df1$sumVar
         }
     }
-    CRT <- convertTrialtoCRT(trial = df, input.parameters = NULL)
+    CRT <- convert.data.frame.CRT(trial = df, input.parameters = NULL)
     return(CRT)
 }
 
@@ -62,20 +62,20 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #' exampletrial <- specify.buffer(trial = readdata('test_Arms.csv'), buffer.width = 0.2)
 #'
 specify.buffer <- function(trial, buffer.width = 0) {
-  trial <- convertCRTtodataframe(trial)
+  trial <- convertCRT.data.frame(trial)
   # nearestDiscord: nearest coordinate in the discordant arm, for the
   # control coordinates return the minimal distance with a minus sign
   if (is.null(trial$nearestDiscord)) trial$nearestDiscord <- get_nearestDiscord(trial)
   if (buffer.width > 0) {
     trial$buffer <- (abs(trial$nearestDiscord) < buffer.width)
   }
-  CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+  CRT <- convert.data.frame.CRT(trial, input.parameters = NULL)
   return(CRT)
 }
 
 #' Randomize a two-armed cluster randomized trial
 #'
-#' \code{Randomize_CRT} carries out randomization of clusters for a CRT and
+#' \code{randomizeCRT} carries out randomization of clusters for a CRT and
 #' augments the trial dataframe with assignments to arms \cr
 #'
 #'
@@ -104,12 +104,12 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #' @examples
 #' #Randomize the clusters in an example trial
 #' set.seed(352)
-#' example.CRT <- Randomize_CRT(trial = readdata('test_Clusters.csv'), matchedPair = TRUE)
+#' example.CRT <- randomizeCRT(trial = readdata('test_Clusters.csv'), matchedPair = TRUE)
 
-Randomize_CRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_num",
+randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_num",
     baselineDenominator = "base_denom") {
 
-    trial <- convertCRTtodataframe(trial)
+    trial <- convertCRT.data.frame(trial)
 
     # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
     if(is.null(trial[[baselineNumerator]]) & matchedPair) {
@@ -150,14 +150,14 @@ Randomize_CRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_
     trial$arm <- factor(arm[trial$cluster[]], levels = c(0, 1), labels = c("control",
         "intervention"))
     trial$nearestDiscord <- get_nearestDiscord(trial)
-    CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+    CRT <- convert.data.frame.CRT(trial, input.parameters = NULL)
     return(CRT)
 }
 
 
 
-convertTrialtoCRT <- function(trial, input.parameters){
-  trial <- convertCRTtodataframe(trial)
+convert.data.frame.CRT <- function(trial, input.parameters){
+  trial <- convertCRT.data.frame(trial)
   CRT.design.full <- describeTrial(trial, input.parameters = input.parameters)
   if (!is.null(trial$buffer)) {
     CRT.design.core <- describeTrial(trial = trial[trial$buffer == FALSE, ],
@@ -215,7 +215,7 @@ return(CRT)}
 
 specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorithm = "NN",
     reuseTSP = FALSE) {
-     trial <- convertCRTtodataframe(trial)
+     trial <- convertCRT.data.frame(trial)
 
 
     # Local data from study area (ground survey and/or satellite
@@ -245,7 +245,7 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
         stop("unknown method")
     }
 
-    CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+    CRT <- convert.data.frame.CRT(trial, input.parameters = NULL)
     return(CRT)
 }
 
@@ -280,7 +280,7 @@ convert.latlong.xy <- function(df, latvar = "lat", longvar = "long") {
     df <- df[, !(names(df) %in% drops)]
     df$y <- R * (latradians - meanlat) * cos(longradians)
     df$x <- R * (longradians - meanlong)
-    CRT <- convertTrialtoCRT(df, input.parameters = NULL)
+    CRT <- convert.data.frame.CRT(df, input.parameters = NULL)
     return(CRT)
 }
 
@@ -307,7 +307,7 @@ convert.latlong.xy <- function(df, latvar = "lat", longvar = "long") {
 anonymize.site <- function(trial) {
     # Local data from study area (ground survey and/or satellite
     # images) random rotation angle
-    trial <- convertCRTtodataframe(trial)
+    trial <- convertCRT.data.frame(trial)
     theta <- 2 * pi * runif(n = 1)
     x <- trial$x
     y <- trial$y
@@ -329,17 +329,19 @@ anonymize.site <- function(trial) {
     trial$x <- recentred[1, ]
     trial$y <- recentred[2, ]
 
-    CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+    CRT <- convert.data.frame.CRT(trial, input.parameters = NULL)
     return(CRT)
 }
 
 
 #' Read test dataset
 #'
-#' \code{readdata} reads a file from package library of .csv or .txt test datasets
+#' \code{readdata} reads a file from the package library of test datasets
 #'
-#' @param filename name of text file stored within the package
+#' @param \code{filename} name of text file stored within the package
 #' @return R object corresponding to the text file
+#' @details The input file name should include the extension (either .csv or .txt).
+#' The resulting object is a data.frame if the extension is .csv.
 #' @export
 readdata <- function(filename) {
     fname <- eval(filename)
@@ -351,7 +353,15 @@ readdata <- function(filename) {
     return(robject)
 }
 
-convertCRTtodataframe <- function(CRT) {
+#' Convert object of C3 class CRT to a data.frame
+#'
+#' \code{convertCRT.data.frame} removes lists of descriptors and summary statistics
+#'
+#' @param CRT name of CRT object
+#' @return data.frame with one row for each location
+#' @details \code{convertCRT.data.frame} removes lists of descriptors and summary statistics
+#' @export
+convertCRT.data.frame <- function(CRT) {
     CRT$CRT.design.full <- NULL
     CRT$CRT.design.core <- NULL
     CRT$input.parameters <- NULL

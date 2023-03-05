@@ -46,13 +46,13 @@ designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, ICC,
     CRT <- specify.clusters(trial = trial, h = h, algorithm = algorithm, reuseTSP = FALSE)
 
     # Step K: Random assignment of clusters to arms
-    CRT <- Randomize_CRT(CRT)
+    CRT <- randomizeCRT(CRT)
 
     # augment the trial data frame with distance to nearest discordant
     # coordinate (specifyBuffer assigns a buffer only if a buffer.width> 0 is input)
 
     CRT <- specify.buffer(trial = CRT, buffer.width = buffer.width)
-    CRT <- convertTrialtoCRT(CRT, input.parameters = input.parameters)
+    CRT <- convert.data.frame.CRT(CRT, input.parameters = input.parameters)
     return(CRT)
 }
 
@@ -62,7 +62,7 @@ describeTrial <- function(trial, input.parameters = NULL) {
 
     # set the class to data.frame (removing the descriptors) so that
     # the function works both for data.frame and CRT input
-    trial <- convertCRTtodataframe(trial)
+    trial <- convertCRT.data.frame(trial)
 
     sd_distance <- mean_h <- sd_h <- min_k <- clustersRequired <- DE <- power <- NULL
     CRT.design <- list(locations = nrow(trial))
@@ -89,12 +89,12 @@ describeTrial <- function(trial, input.parameters = NULL) {
 
         if (!is.null(input.parameters)) {
 
-            CRT.power <- CRT.power(locations = CRT.design$locations, ICC = input.parameters$ICC,
+            calculateCRTpower <- calculateCRTpower(locations = CRT.design$locations, ICC = input.parameters$ICC,
                 pC = input.parameters$pC, effect = input.parameters$effect,
                 outcome.type = input.parameters$outcome.type, alpha = input.parameters$alpha,
                 desiredPower = input.parameters$desiredPower, mean_h = mean_h,
                 sd_h = sd_h)
-            CRT.design <- CRT.power$CRT.design.full
+            CRT.design <- calculateCRTpower$CRT.design.full
         }
     }
     CRT.design$mean_h <- mean_h
@@ -230,7 +230,7 @@ summary.CRT <- function(object, ...) {
 
 #' Power and sample size calculations for a CRT
 #'
-#' \code{CRT.power} carries out power and sample-size calculations for a CRT
+#' \code{calculateCRTpower} carries out power and sample-size calculations for a CRT
 #' The output is a CRT object containing values for:
 #' - The required numbers of clusters to achieve the specified power.
 #' - The design effect based on the input ICC.
@@ -252,9 +252,9 @@ summary.CRT <- function(object, ...) {
 #' @export
 #' @examples
 #'
-#' examplePower = CRT.power(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
+#' examplePower = calculateCRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
 #'     outcome.type = 'Dichotomous', desiredPower = 0.8, pC=0.35, mean_h=100, sd_h=5)
-CRT.power <- function(locations, ICC, effect, alpha, outcome.type, desiredPower,
+calculateCRTpower <- function(locations, ICC, effect, alpha, outcome.type, desiredPower,
     pC, mean_h, sd_h) {
     # TODO: add non-binomial outcomes
 

@@ -2,7 +2,7 @@ set.seed(1234)
 test_that("Toy GEE analysis creates correct output", {
    get_test4 = function(){
       trial <- readdata("test_Simulate_CRT.csv")
-      test_Estimates <- Analyse_CRT(trial = trial,
+      test_Estimates <- analyseCRT(trial = trial,
                                    method = 'GEE',excludeBuffer = FALSE,
                                    alpha = 0.2)
       value <- test_Estimates$contamination$data$positives[4]
@@ -18,7 +18,7 @@ get_test5 = function(){
    test.locationsxy <- convert.latlong.xy(test.locationsLatLong) #test_site is simulated
    test.anonymizedlocations <- anonymize.site(test.locationsxy)
    test.clusters <- specify.clusters(test.anonymizedlocations,h = 50)
-   test.arms <- Randomize_CRT(trial = test.clusters,matchedPair = FALSE)
+   test.arms <- randomizeCRT(trial = test.clusters,matchedPair = FALSE)
    test.buffer <- specify.buffer(trial = test.arms, buffer.width = 0.1)
    test.buffer$cluster <- as.numeric(test.buffer$cluster)
    test.buffer$arm <- as.character(test.buffer$arm)
@@ -37,7 +37,7 @@ extdata <- system.file("extdata",package = 'CRTspillover')
 test_that("Analysis using T option gives expected efficacy", {
    get_test6 = function(extdata){
       trial <- read.csv(file = paste0(extdata,"/test_Simulate_CRT.csv"))
-      analysis <- Analyse_CRT(trial=trial,method = 'T',link='identity')
+      analysis <- analyseCRT(trial=trial,method = 'T',link='identity')
       value <- round(as.numeric(10000 * analysis$pt.ests$effect.size))
       return(value)}
    expect_equal(get_test6(extdata), 709)
@@ -46,7 +46,7 @@ test_that("Analysis using T option gives expected efficacy", {
 test_that("Analysis using GEE option gives expected ICC", {
    get_test7 = function(extdata){
       trial <- read.csv(file = paste0(extdata,"/test_Simulate_CRT.csv"))
-      analysis <- Analyse_CRT(trial=trial,method = 'GEE',link='log')
+      analysis <- analyseCRT(trial=trial,method = 'GEE',link='log')
       value <- round(as.numeric(10000 * analysis$pt.ests$ICC))
       return(value)}
    expect_equal(get_test7(extdata), 464)

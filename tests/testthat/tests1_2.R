@@ -28,10 +28,10 @@ test_that("designCRT() creates the default trial", {
 })
 
 set.seed(1234)
-test_that("Simulate_TrialSite() creates the default site", {
+test_that("simulateSite() creates the default site", {
   get_test2 = function(){
-    trial <- Simulate_TrialSite()
-    class(trial) <- "data.frame"
+    CRT <- simulateSite()
+    trial <- convertCRT.data.frame(CRT)
     return(trial)
   }
   expect_equal(get_test2(),readdata("test_site.csv"))

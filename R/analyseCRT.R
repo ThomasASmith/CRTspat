@@ -1,6 +1,6 @@
 #' Analysis of cluster randomized trial with contamination
 #'
-#' \\code{Analyse_CRT} carries out a statistical analysis of a cluster randomized trial (CRT).
+#' \\code{analyseCRT} carries out a statistical analysis of a cluster randomized trial (CRT).
 #' @param trial dataframe: including locations, clusters, arms, and outcomes
 #' @param method statistical method with options:
 #' 'EMP' - empirical;
@@ -48,9 +48,9 @@
 #'
 #' @examples
 #' # Standard GEE analysis of test dataset ignoring contamination
-#' exampleGEE=Analyse_CRT(trial=readdata('test_Simulate_CRT.csv'),method='GEE')
+#' exampleGEE=analyseCRT(trial=readdata('test_Simulate_CRT.csv'),method='GEE')
 
-Analyse_CRT <- function(
+analyseCRT <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
@@ -73,7 +73,7 @@ Analyse_CRT <- function(
 
     cluster <- NULL
 
-    trial <- convertCRTtodataframe(CRT = trial)
+    trial <- convertCRT.data.frame(CRT = trial)
 
     if ("buffer" %in% colnames(trial) & excludeBuffer)
         {

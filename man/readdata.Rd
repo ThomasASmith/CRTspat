@@ -7,11 +7,15 @@
 readdata(filename)
 }
 \arguments{
-\item{filename}{name of text file stored within the package}
+\item{\code{filename}}{name of text file stored within the package}
 }
 \value{
 R object corresponding to the text file
 }
 \description{
-\code{readdata} reads a file from package library of .csv or .txt test datasets
+\code{readdata} reads a file from the package library of test datasets
+}
+\details{
+The input file name should include the extension (either .csv or .txt).
+The resulting object is a data.frame if the extension is .csv.
 }
