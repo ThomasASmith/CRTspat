@@ -1,337 +1,336 @@
-#' Aggregate multiple cluster randomized trial (CRT) records with identical location
+#' Aggregate data across records with duplicated locations
 #'
-#' \code{Aggregate_CRT} aggregates data from a CRT object or data.frame containing multiple records with the same location,
-#' and outputs a dataframe with unique locations.
-#' @param trial a data.frame containing locations (x,y) and optionally numerators, and corresponding denominators
-#' @param auxiliaries a vector of the names of auxiliary variables to be summed across locations
-#' @return A CRT object with unique locations in which the numerators and denominators are summed over the locations
+#' \code{aggregateCRT} aggregates data from a \code{CRT} object or data.frame
+#' containing multiple records with the same location, and outputs a list of S3 class \code{CRT}
+#' containing single values for each location, for both the coordinates and the auxiliary variables.
+#' @param trial a data.frame containing locations (x,y) and other variables to be summed
+#' @param auxiliaries a vector of the names of auxiliary variables to be summed across each location
+#' @returns A list with class \code{CRT} containing the following components:
+#'  \tabular{llll}{
+#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site\cr
+#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{...};   \tab numeric vectors \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
+#'  }
 #' @export
-Aggregate_CRT <- function(trial, auxiliaries = NULL) {
-  trial <- convertCRTtodataframe(trial)
-  x <- y <- NULL
-  df <- trial %>%
-    distinct(x, y, .keep_all = TRUE)
-  df <- df[order(df$x, df$y), ]
-  if (!is.null(auxiliaries)) {
-    for (i in 1:length(auxiliaries)) {
-      varName <- auxiliaries[i]
-      df1 <- trial %>%
-        group_by(x, y) %>%
-        summarize(sumVar = sum(get(varName), na.rm = TRUE), .groups = "drop")
-      df1 <- df1[order(df1$x, df1$y), ]
-      df[[varName]] <- df1$sumVar
+aggregateCRT <- function(trial, auxiliaries = NULL) {
+    trial <- convertCRTtodataframe(trial)
+    x <- y <- NULL
+    df <- trial %>%
+        distinct(x, y, .keep_all = TRUE)
+    df <- df[order(df$x, df$y), ]
+    if (!is.null(auxiliaries)) {
+        for (i in 1:length(auxiliaries)) {
+            varName <- auxiliaries[i]
+            df1 <- trial %>%
+                group_by(x, y) %>%
+                summarize(sumVar = sum(get(varName), na.rm = TRUE), .groups = "drop")
+            df1 <- df1[order(df1$x, df1$y), ]
+            df[[varName]] <- df1$sumVar
+        }
     }
-  }
-  class(df) <- c('CRT')
-  return(df)
+    CRT <- convertTrialtoCRT(trial = df, input.parameters = NULL)
+    return(CRT)
 }
-
-
-#' Randomize a two-armed cluster randomized trial
-#'
-#' \code{Randomize_CRT} carries out randomization of clusters for a CRT and augments the trial dataframe with assignments to arms
-#'
-#' @param trial a CRT object or data.frame containing locations and cluster assignments
-#' @param matchedPair logical: indicator of whether pair-matching on the baseline data should be used in randomization
-#' @param baselineNumerator name of numerator variable for baseline data (if present)
-#' @param baselineDenominator name of denominator variable for baseline data (if present)
-#' @return The input dataframe augmented with variable arm coded 'control' or 'intervention'
-#' @format CRT object:
-#' \itemize{
-#' \item \code{x}: x-coordinates of location
-#' \item \code{y}: y-coordinates of location
-#' \item \code{cluster}: cluster assignment
-#' \item \code{arm}: assignment to trial arm
-#' }
-#' @export
-#'
-#' @examples
-#' #Randomize the clusters in an example trial
-#' set.seed(352)
-#' exampletrial <- Randomize_CRT(trial = readdata('test_Clusters.csv'))
-Randomize_CRT <- function(trial, matchedPair = TRUE, baselineNumerator = "base_num", baselineDenominator = "base_denom") {
-
-  trial <- convertCRTtodataframe(trial)
-  cluster <- base_num <- base_denom <- NULL
-  trial$cluster <- as.factor(trial$cluster)
-  # Randomization, assignment to arms
-  nclusters <- length(unique(trial$cluster))
-  if((nclusters %% 2) == 1 & matchedPair){
-    cat("** Warning: odd number of clusters: assignments are not matched on baseline data **\n")
-    matchedPair <- FALSE
-  }
-  # uniformly distributed numbers, take mean and boolean of that
-  rand_numbers <- runif(nclusters, 0, 1)
-  if (!is.null(trial[[baselineNumerator]]) & matchedPair) {
-    trial$base_num <- trial[[baselineNumerator]]
-    trial$base_denom <- trial[[baselineDenominator]]
-    cdf <- data.frame(trial %>%
-                        group_by(cluster) %>%
-                        dplyr::summarize(positives = sum(base_num), total = sum(base_denom)))
-    cdf$p <- cdf$positives/cdf$total
-    cdf <- cdf[order(cdf$p), ]
-    cdf$pair <- rep(seq(1, nclusters/2), 2)
-    cdf$rand_numbers <- rand_numbers
-    cdf <- cdf[with(cdf, order(pair, rand_numbers)), ]
-    cdf$arm <- rep(c(1, 0), nclusters/2)
-    arm <- cdf$arm[order(cdf$cluster)]
-  } else {
-    arm <- ifelse(rand_numbers > median(rand_numbers), 1, 0)
-  }
-  trial$arm <- factor(arm[trial$cluster[]], levels = c(0, 1), labels = c("control", "intervention"))
-  class(trial) <- 'CRT'
-  trial$CRT.design.full <- describeTrial(trial, input.parameters = NULL)
-  return(trial)
-}
-
 
 #' Specification of buffer zone in a cluster randomized trial
 #'
-#' \code{Specify_CRTbuffer} specifies a buffer zone in a cluster randomized trial (CRT) with geographical clustering by adding a flag to mark locations that are within a specified distance of locations in the opposite arm.
-#' Locations are added incrementally to the buffer until a predetermined buffering distance is achieved.
+#' \code{specify.buffer} specifies a buffer zone in a cluster randomized
+#' trial (CRT) by specifying which locations are within a defined distance of
+#' those in the opposite arm.
 #'
-#' @param trial dataframe containing location coordinates and arm assignments
-#' @param bufferWidth minimum distance between locations in the core areas of opposing arms
-#' @return The input dataframe augmented with distances to the nearest discordant location and a logical indicator of whether the location is in the buffer zone
-#' @format data.frame:
-#' \itemize{
-#' \item \code{x}: x-coordinates of location
-#' \item \code{y}: y-coordinates of location
-#' \item \code{cluster}: cluster assignment
-#' \item \code{arm}: assignment to trial arm
-#' \item \code{nearestDiscord}: distance to nearest discordant location
-#' \item \code{buffer}: logical indicator of whether a point is in the buffer
-#' }
+#' @param trial a \code{CRT} object or \code{data.frame} containing locations in (x,y) coordinates; cluster
+#'   assignments (factor \code{cluster}); and arm assignments (factor \code{arm})
+#' @param buffer.width minimum distance between locations in the core areas of
+#'   opposing arms (km)
+#' @returns A list of class \code{CRT} containing the following components:
+#'  \tabular{llll}{
+#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site,
+#'  cluster assignments, and randomization.\cr
+#'  \code{CRT.design.core}:   \tab list \tab summary statistics describing the core area \cr
+#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{cluster}: \tab factor \tab assignments to cluster of each location  \cr
+#'  \code{arm}: \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
+#'  \code{nearestDiscord}: \tab numeric vector \tab Euclidean distance to nearest discordant location (km) \cr
+#'  \code{buffer}: \tab logical \tab indicator of whether the point is within the buffer \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  }
 #' @export
-#'
 #' @examples
 #' #Specify a buffer of 200m
-#' exampletrial <- Specify_CRTbuffer(trial = readdata('test_Arms.csv'), bufferWidth = 0.2)
+#' exampletrial <- specify.buffer(trial = readdata('test_Arms.csv'), buffer.width = 0.2)
 #'
-Specify_CRTbuffer <- function(trial = trial, bufferWidth = 0) {
-  # nearestDiscord: nearest coordinate in the discordant arm, for the control coordinates return the minimal
-  # distance with a minus sign
-  class(trial) <- "data.frame"
-  dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
-  discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
-  discord_dist_trial <- ifelse(discord, dist_trial, Inf)
-  trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial, MARGIN = 2, min), apply(discord_dist_trial,
-                                                                                                            MARGIN = 2, min))
-  # Find the row and column numbers of the nearest discordant pair of neighbours
-  discord_distance <- ifelse(discord, 0.2 * round(abs(5 * dist_trial), digits = 1), Inf)
-  # round off distances to nearest 20m to speed up calculation
-  discord_distance <- if (min(abs(discord_distance)) < bufferWidth) {
-    trial$buffer <- rep(FALSE,length(trial$x))
-    pbuff <- nbuff <- width <- 0
-    while (width < bufferWidth) {
-      # round off distances to nearest 50m to speed up calculation
-      width <- min(abs(discord_distance))
-      neighbours <- which(abs(discord_distance) == min(abs(discord_distance)))
-      trial$buffer[neighbours%%nrow(trial)] <- TRUE
-
-      # Set distances for buffered locations to inf to exclude them from further iterations
-      discord_distance <- ifelse(abs(discord_distance) == width, Inf, discord_distance)
-      nbuff <- sum(ifelse(trial$buffer, 1, 0))
-      cat("\rAdded", nbuff - pbuff, "locations to buffer (", width, "km) ")
-      pbuff <- nbuff
-    }
-    cat("\rLocations in buffer:", nbuff, "of", nrow(trial), "(", round(nbuff * 100/nrow(trial), digits = 1), "%)\n\n")
+specify.buffer <- function(trial, buffer.width = 0) {
+  trial <- convertCRTtodataframe(trial)
+  # nearestDiscord: nearest coordinate in the discordant arm, for the
+  # control coordinates return the minimal distance with a minus sign
+  if (is.null(trial$nearestDiscord)) trial$nearestDiscord <- get_nearestDiscord(trial)
+  if (buffer.width > 0) {
+    trial$buffer <- (abs(trial$nearestDiscord) < buffer.width)
   }
-  class(trial) <- c('CRT')
-  return(trial)
+  CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+  return(CRT)
 }
 
-#' Assign locations to clusters in a cluster randomized trial
+#' Randomize a two-armed cluster randomized trial
 #'
-#' \code{DefineClusters} algorithmically assigns locations to clusters in a CRT with geographical clustering, by one of three algorithms:
-#' (i) Nearest neighbour (NN): (assigns equal numbers of locations to each cluster)
-#' (ii) kmeans clustering (kmeans) : (aims to partition locations so that each belongs to the cluster with the nearest centroid)
-#' (iii) travelling salesman problem heuristic : assigns locations sequentially along a travelling salesman path
+#' \code{Randomize_CRT} carries out randomization of clusters for a CRT and
+#' augments the trial dataframe with assignments to arms \cr
 #'
-#' @param trial dataframe containing (x,y) coordinates of households
-#' @param h proposal for the number of locations in each cluster
-#' @param nclusters number of clusters
-#' @param algo algorithm for cluster boundaries, options are: 'TSP': travelling salesman problem heuristic; 'NN': nearest neighbor; 'kmeans': kmeans algorithm
-#' @param reuseTSP indicator of whether a pre-existing path should be used by the TSP algorithm
-#' @return The input coordinates as a dataframe augmented with the following attributes
-#' \itemize{
-#' \item \code{x}: x coordinates
-#' \item \code{y}: y coordinates
-#' \item \code{cluster}: cluster assignments
-#' \item \code{h}: number of households in each cluster
-#' \item \code{algo}: algorithm used for cluster boundaries
-#' \item \code{path}: TSP path (if algo = 'TSP')
+#'
+#' @param trial a \code{CRT} object or \code{data.frame} containing locations in (x,y) coordinates; cluster
+#'   assignments (factor \code{cluster}); optionally: specification of a buffer zone (logical \code{buffer});
+#'   any other variables required for subsequent analysis.
+#' @param matchedPair logical: indicator of whether pair-matching on the
+#'   baseline data should be used in randomization
+#' @param baselineNumerator name of numerator variable for baseline data (required for
+#'   matched-pair randomization)
+#' @param baselineDenominator name of denominator variable for baseline data (required for
+#'   matched-pair randomization)
+#' @returns A list of class \code{CRT} containing the following components:
+#'  \tabular{llll}{
+#'  \code{CRT.design.full}:   \tab list \tab summary statistics of the site \cr
+#'  \code{CRT.design.core}:   \tab list \tab summary statistics of the core area (if a buffer is present)\cr
+#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{cluster}: \tab factor \tab assignments to cluster of each location  \cr
+#'  \code{pair}: \tab factor \tab assignments to matched pair of each location  \cr
+#'  (if \code{matchedPair} randomisation was carried out) \cr
+#'  \code{arm}: \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  }
+#' @export
+#' @examples
+#' #Randomize the clusters in an example trial
+#' set.seed(352)
+#' example.CRT <- Randomize_CRT(trial = readdata('test_Clusters.csv'), matchedPair = TRUE)
+
+Randomize_CRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_num",
+    baselineDenominator = "base_denom") {
+
+    trial <- convertCRTtodataframe(trial)
+
+    # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
+    if(is.null(trial[[baselineNumerator]]) & matchedPair) {
+        cat("** Warning: no baseline data for matching. Unmatched randomisation **\n")
+        matchedPair <- FALSE
+    }
+    trial$arm <- NULL
+    trial$pair <-NULL
+
+    pair <- cluster <- base_num <- base_denom <- NULL
+    trial$cluster <- as.factor(trial$cluster)
+    # Randomization, assignment to arms
+    nclusters <- length(unique(trial$cluster))
+    if ((nclusters%%2) == 1 & matchedPair) {
+        cat("** Warning: odd number of clusters: assignments are not matched on baseline data **\n")
+        matchedPair <- FALSE
+    }
+    # uniformly distributed numbers, take mean and boolean of that
+    rand_numbers <- runif(nclusters, 0, 1)
+    if (matchedPair) {
+        trial$base_num <- trial[[baselineNumerator]]
+        trial$base_denom <- trial[[baselineDenominator]]
+        cdf <- data.frame(trial %>%
+            group_by(cluster) %>%
+            dplyr::summarize(positives = sum(base_num), total = sum(base_denom)))
+        cdf$p <- cdf$positives/cdf$total
+        cdf <- cdf[order(cdf$p), ]
+        cdf$pair <- rep(seq(1, nclusters/2), 2)
+        cdf$rand_numbers <- rand_numbers
+        cdf <- cdf[with(cdf, order(pair, rand_numbers)), ]
+        cdf$arm <- rep(c(1, 0), nclusters/2)
+        arm <- cdf$arm[order(cdf$cluster)]
+        pair <- cdf$pair[order(cdf$cluster)]
+    } else {
+        arm <- ifelse(rand_numbers > median(rand_numbers), 1, 0)
+    }
+    if (matchedPair) trial$pair <- factor(pair[trial$cluster[]])
+    trial$arm <- factor(arm[trial$cluster[]], levels = c(0, 1), labels = c("control",
+        "intervention"))
+    trial$nearestDiscord <- get_nearestDiscord(trial)
+    CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+    return(CRT)
+}
+
+
+
+convertTrialtoCRT <- function(trial, input.parameters){
+  trial <- convertCRTtodataframe(trial)
+  CRT.design.full <- describeTrial(trial, input.parameters = input.parameters)
+  if (!is.null(trial$buffer)) {
+    CRT.design.core <- describeTrial(trial = trial[trial$buffer == FALSE, ],
+                    input.parameters = input.parameters)
+  } else {
+    CRT.design.core <- NULL
+  }
+  class(trial) <- "CRT"
+  CRT <- trial
+  CRT$CRT.design.full <-  CRT.design.full
+  CRT$CRT.design.core <-  CRT.design.core
+  CRT$input.parameters <- input.parameters
+return(CRT)}
+
+
+
+#' Assign locations to clusters
+#'
+#' \code{specify.clusters} algorithmically assigns locations to clusters by grouping them geographically
+#'
+#' @param trial A CRT object or data.frame containing (x,y) coordinates of
+#'   households
+#' @param h integer: proposal for the number of locations in each cluster
+#' @param nclusters integer: number of clusters
+#' @param algorithm algorithm for cluster boundaries, options are:
+#' \code{NN} (the default),  \code{kmeans},  \code{TSP}
+#' @param reuseTSP logical: indicator of whether a pre-existing path should be used by
+#'   the TSP algorithm
+#' @returns A list of class \code{CRT} containing the following components:
+#'  \tabular{llll}{
+#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site and cluster assignments.\cr
+#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{cluster}: \tab factor \tab assignments to cluster of each location  \cr
+#'  \code{path}: \tab numeric \tab travelling salesman path (created only if the TSP algorithm is used) \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  }
+#' @details Clustering is carried out using one of three algorithms:
+#' \tabular{llll}{
+#' \code{NN}\tab Nearest neighbour:\tab assigns equal numbers of locations to each cluster \cr
+#' \code{kmeans}\tab kmeans clustering  :\tab aims to partition locations so that each
+#' belongs to the cluster with the nearest centroid \cr
+#' \code{TSP} \tab travelling salesman problem heuristic :\tab Assigns locations sequentially
+#' along a travelling salesman path.The \code{reuseTSP} parameter is used to allow the path to be reused
+#' for creating alternative allocations with different cluster sizes. \cr
 #' }
+#' Either \code{nclusters} or \code{h} must be specified. If both are specified
+#' the input value of \code{nclusters} is ignored.\cr
 #' @export
 #'
 #' @examples
 #' #Assign clusters to the test trial dataset averaging h = 40 using the kmeans algorithm
-#' exampletrial <- DefineClusters(trial = readdata('test_site.csv'), h = 40, algo = 'kmeans')
+#' exampletrial <- specify.clusters(trial = readdata('test_site.csv'),
+#'                             h = 40, algorithm = 'kmeans', reuseTSP = FALSE)
 
-DefineClusters <- function(trial = trial, h = NULL, nclusters = NULL, algo = "NN", reuseTSP = FALSE) {
+specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorithm = "NN",
+    reuseTSP = FALSE) {
+     trial <- convertCRTtodataframe(trial)
 
-  TSP_ClusterDefinition <- function(coordinates, h, nclusters, reuseTSP) {
 
-    if (!"path" %in% colnames(coordinates) | !reuseTSP) {
-      # Code originally from Silkey and Smith, SolarMal
+    # Local data from study area (ground survey and/or satellite
+    # images)
+    coordinates <- data.frame(x = as.numeric(as.character(trial$x)), y = as.numeric(as.character(trial$y)))
 
-      # Order the coordinates along an optimised travelling salesman path
-      dist_coordinates <- dist(coordinates, method = "euclidean")
-      tsp_coordinates <- TSP::TSP(dist_coordinates)  # object of class TSP
-      tsp_coordinates <- TSP::insert_dummy(tsp_coordinates)
-      tour <- TSP::solve_TSP(tsp_coordinates, "repetitive_nn")  #solves TSP, expensive
-      path <- TSP::cut_tour(x = tour, cut = "dummy")
-      coordinates$path <- path
-
+    # the number of clusters and the target cluster size must be integers.
+    # cluster size can only be exactly equal to the input value of h if this is a factor of
+    # the number of locations
+    if (is.null(nclusters)) {
+        nclusters <- ceiling(nrow(coordinates)/h)
     }
-    # order coordinates
-    coordinates$order <- seq(1:nrow(coordinates))
-    coordinates <- coordinates[order(coordinates$path), ]
-
-    n1 <- (nclusters - 1) * h
-    nclusters_1 <- nclusters - 1
-    # The last cluster may be a different size (if h is not a factor of the population size) )
-    coordinates$cluster <- NA
-    coordinates$cluster[1:n1] <- c(rep(1:nclusters_1, each = h))  #add cluster assignment
-    coordinates$cluster[which(is.na(coordinates$cluster))] <- nclusters
-    coordinates <- coordinates[order(coordinates$order), ]
-    return(coordinates)
-  }
-
-  NN_ClusterDefinition <- function(coordinates, h, nclusters) {
-
-    # algorithm is inspired by this website: ??? (comment from Lea)
-
-    # initialize cluster, calculate euclidean distance
-    dist_coordinates <- as.matrix(dist(coordinates, method = "euclidean"))
-    coordinates$cluster <- NA
-
-    nclusters_1 <- nclusters - 1
-    for (i in 1:nclusters_1) {
-
-      # find unassigned coordinates
-      cluster_unassigned <- which(is.na(coordinates$cluster))
-      dist_coordinates_unassigned <- dist_coordinates[cluster_unassigned, cluster_unassigned]
-      cluster_na <- rep(NA, length(cluster_unassigned))
-
-      # find the coordinate furthest away from all the others
-      index <- which.max(rowSums(dist_coordinates_unassigned))
-
-      # find the n nearest neighbors of index
-      cluster_na[head(order(dist_coordinates_unassigned[index, ]), h)] <- i
-      coordinates$cluster[cluster_unassigned] <- cluster_na
+    if (is.null(h)) {
+        h <- ceiling(nrow(coordinates)/nclusters)
     }
-    # The last cluster may be a different size (if h is not a factor of the population size) )
-    coordinates$cluster[which(is.na(coordinates$cluster))] <- nclusters
+    # derive cluster boundaries
 
-    return(coordinates)
-  }
+    if (algorithm == "TSP") {
+        TSPoutput <- TSP_ClusterDefinition(coordinates, h, nclusters, reuseTSP)
+        trial$path <- TSPoutput$path
+        trial$cluster <- TSPoutput$cluster
+    } else if (algorithm == "NN") {
+        trial$cluster <- NN_ClusterDefinition(coordinates, h, nclusters)$cluster
+    } else if (algorithm == "kmeans") {
+        trial$cluster <- kmeans_ClusterDefinition(coordinates, nclusters)$cluster
+    } else {
+        stop("unknown method")
+    }
 
-  kmeans_ClusterDefinition <- function(coordinates, nclusters) {
-
-    # kmeans as implemented in R base
-    km <- kmeans(x = coordinates, centers = nclusters)
-    coordinates$cluster <- km$cluster
-
-    return(coordinates)
-  }
-
-  # Local data from study area (ground survey and/or satellite images)
-  coordinates <- data.frame(x = as.numeric(as.character(trial$x)), y = as.numeric(as.character(trial$y)))
-
-  # the number of clusters and the target cluster size must be integers.  cluster size may vary slightly
-  if (is.null(nclusters)) {
-    nclusters <- ceiling(nrow(coordinates)/h)
-  }
-  if (is.null(h)) {
-    h <- ceiling(nrow(coordinates)/nclusters)
-  }
-  # derive cluster boundaries
-
-  if (algo == "TSP") {
-    TSPoutput <- TSP_ClusterDefinition(coordinates, h, nclusters, reuseTSP)
-    trial$path <- TSPoutput$path
-    trial$cluster <- TSPoutput$cluster
-  } else if (algo == "NN") {
-    trial$cluster <- NN_ClusterDefinition(coordinates, h, nclusters)$cluster
-  } else if (algo == "kmeans") {
-    trial$cluster <- kmeans_ClusterDefinition(coordinates, nclusters)$cluster
-  } else {
-    stop("unknown method")
-  }
-
-  class(trial) <- c('CRT')
-  return(trial)
+    CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+    return(CRT)
 }
 
 
 #' Convert lat long co-ordinates to x,y
 #'
-#' \code{Convert_LatLong} converts co-ordinates expressed as decimal degrees into x,y using the equirectangular projection (valid for small areas).
-#' Coordinates centred on the origin are returned.
-#'
+#' \code{convert.latlong.xy} converts co-ordinates expressed as decimal degrees
+#' into x,y
 #' @param df data frame containing latitudes and longitudes in decimal degrees
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
-#' @return The input dataframe with the lat-long coordinates replaced with Cartesian coordinates in units of km, centred on (0,0)
-#' \itemize{
-#' \item \code{x}: x co-ordinates
-#' \item \code{y}: y co-ordinates
-#' }
+#' @details An object containing the input locations replaced with Cartesian
+#'   coordinates in units of km, centred on (0,0). Other data are unchanged.
+#'   The equirectangular projection (valid for small areas) is used.
+#' @returns A list of class \code{CRT} containing the following components:
+#'  \tabular{llll}{
+#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site \cr
+#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  }
 #' @export
-Convert_LatLong <- function(df, latvar = "lat", longvar = "long") {
-  colnames(df)[colnames(df) == latvar] <- "lat"
-  colnames(df)[colnames(df) == longvar] <- "long"
-  R <- 6371  # radius of the earth
-  latradians <- with(df, pi/180 * lat)
-  longradians <- with(df, pi/180 * long)
-  meanlat <- mean(latradians)
-  meanlong <- mean(longradians)
-  drops <- c("lat", "long")
-  df <- df[, !(names(df) %in% drops)]
-  df$y <- R * (latradians - meanlat) * cos(longradians)
-  df$x <- R * (longradians - meanlong)
-  class(df) <- c('CRT')
-  return(df)
+convert.latlong.xy <- function(df, latvar = "lat", longvar = "long") {
+    colnames(df)[colnames(df) == latvar] <- "lat"
+    colnames(df)[colnames(df) == longvar] <- "long"
+    R <- 6371  # radius of the earth
+    latradians <- with(df, pi/180 * lat)
+    longradians <- with(df, pi/180 * long)
+    meanlat <- mean(latradians)
+    meanlong <- mean(longradians)
+    drops <- c("lat", "long")
+    df <- df[, !(names(df) %in% drops)]
+    df$y <- R * (latradians - meanlat) * cos(longradians)
+    df$x <- R * (longradians - meanlong)
+    CRT <- convertTrialtoCRT(df, input.parameters = NULL)
+    return(CRT)
 }
 
 
-#' Anonymise locations of a trial site
+#' Anonymize locations of a trial site
 #'
-#' \code{Anonymise_TrialSite} carries out rotation of x,y coordinates a random angle about a random origin. Coordinates centred on the origin are returned.
-#'
-#' @param trial dataframe with Cartesian co-ordinates of households (columns x and y)
-#' @return data.frame with modified co-ordinates of households (other columns remain unchanged)
+#' \code{anonymize.site} carries out rotation of x,y coordinates a random angle
+#' about a random origin.
+#' @param trial CRT object or trial data.frame with Cartesian co-ordinates of
+#'   households (columns x and y)
+#' @return object with re-centred co-ordinates the origin (other data are
+#'   unchanged)
+#' @format CRT object:
+#' \itemize{
+#' \item \code{CRT.design.full}: list of characteristics of the full area
+#' \item \code{x}: x-coordinates of location
+#' \item \code{y}: y-coordinates of location
+#' }
 #' @export
-#'
 #' @examples
 #' #Rotate and reflect test site locations
-#' transformedTestlocations <- Anonymise_TrialSite(trial = readdata('test_site.csv'))
+#' transformedTestlocations <- anonymize.site(trial = readdata('test_site.csv'))
 
-Anonymise_TrialSite <- function(trial = NULL) {
-  # Local data from study area (ground survey and/or satellite images) random rotation angle
-  theta <- 2 * pi * runif(n = 1)
-  x <- trial$x
-  y <- trial$y
-  rangex <- max(x) - min(x)
-  rangey <- max(y) - min(y)
-  translation <- c(rangex * rnorm(n = 1), rangey * rnorm(n = 1))
+anonymize.site <- function(trial) {
+    # Local data from study area (ground survey and/or satellite
+    # images) random rotation angle
+    trial <- convertCRTtodataframe(trial)
+    theta <- 2 * pi * runif(n = 1)
+    x <- trial$x
+    y <- trial$y
+    rangex <- max(x) - min(x)
+    rangey <- max(y) - min(y)
+    translation <- c(rangex * rnorm(n = 1), rangey * rnorm(n = 1))
 
-  xy <- t(matrix(c(x, y), ncol = 2, nrow = length(x)))
-  xytranslated <- xy + translation
+    xy <- t(matrix(c(x, y), ncol = 2, nrow = length(x)))
+    xytranslated <- xy + translation
 
-  rotation <- matrix(c(cos(theta), sin(theta), -sin(theta), cos(theta)), nrow = 2, ncol = 2)
+    rotation <- matrix(c(cos(theta), sin(theta), -sin(theta), cos(theta)),
+        nrow = 2, ncol = 2)
 
-  # Rotate
-  xytrans <- rotation %*% xytranslated
+    # Rotate
+    xytrans <- rotation %*% xytranslated
 
-  # Recentre on origin
-  recentred <- xytrans - c(mean(xytrans[1, ]), mean(xytrans[2, ]))
-  trial$x <- recentred[1, ]
-  trial$y <- recentred[2, ]
+    # Recentre on origin
+    recentred <- xytrans - c(mean(xytrans[1, ]), mean(xytrans[2, ]))
+    trial$x <- recentred[1, ]
+    trial$y <- recentred[2, ]
 
-  class(trial) <- c('CRT')
-  return(trial)
+    CRT <- convertTrialtoCRT(trial, input.parameters = NULL)
+    return(CRT)
 }
 
 
@@ -343,18 +342,101 @@ Anonymise_TrialSite <- function(trial = NULL) {
 #' @return R object corresponding to the text file
 #' @export
 readdata <- function(filename) {
-  fname <- eval(filename)
-  extdata <- system.file("extdata",package = 'CRTspillover')
-  if (unlist(gregexpr('.txt', fname)) > 0) robject <- dget(file = paste0(extdata,'/',fname))
-  if (unlist(gregexpr('.csv', fname)) > 0) robject <- read.csv(file = paste0(extdata,'/',fname))
-return(robject)
+    fname <- eval(filename)
+    extdata <- system.file("extdata", package = "CRTspillover")
+    if (unlist(gregexpr(".txt", fname)) > 0)
+        robject <- dget(file = paste0(extdata, "/", fname))
+    if (unlist(gregexpr(".csv", fname)) > 0)
+        robject <- read.csv(file = paste0(extdata, "/", fname), row.names = NULL)
+    return(robject)
 }
 
-convertCRTtodataframe <- function(CRT){
-  CRT$CRT.design.full <- NULL
-  CRT$CRT.design.core <- NULL
-  CRT$input.parameters <- NULL
-  trial <- CRT
-  class(trial) <- "data.frame"
-  return(trial)
+convertCRTtodataframe <- function(CRT) {
+    CRT$CRT.design.full <- NULL
+    CRT$CRT.design.core <- NULL
+    CRT$input.parameters <- NULL
+    trial <- CRT
+    class(trial) <- "data.frame"
+    return(trial)
+}
+
+# compute vector of distances to nearest discordant location
+get_nearestDiscord <- function(trial){
+  dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
+  discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
+  discord_dist_trial <- ifelse(discord, dist_trial, Inf)
+  nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
+                                                          MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
+  return(nearestDiscord)
+}
+
+TSP_ClusterDefinition <- function(coordinates, h, nclusters, reuseTSP) {
+
+  if (!"path" %in% colnames(coordinates) | !reuseTSP) {
+    # Code originally from Silkey and Smith, SolarMal
+
+    # Order the coordinates along an optimised travelling
+    # salesman path
+    dist_coordinates <- dist(coordinates, method = "euclidean")
+    tsp_coordinates <- TSP::TSP(dist_coordinates)  # object of class TSP
+    tsp_coordinates <- TSP::insert_dummy(tsp_coordinates)
+    tour <- TSP::solve_TSP(tsp_coordinates, "repetitive_nn")  #solves TSP, expensive
+    path <- TSP::cut_tour(x = tour, cut = "dummy")
+    coordinates$path <- path
+
+  }
+  # order coordinates
+  coordinates$order <- seq(1:nrow(coordinates))
+  coordinates <- coordinates[order(coordinates$path), ]
+
+  n1 <- (nclusters - 1) * h
+  nclusters_1 <- nclusters - 1
+  # The last cluster may be a different size (if h is not a
+  # factor of the population size) )
+  coordinates$cluster <- NA
+  coordinates$cluster[1:n1] <- c(rep(1:nclusters_1, each = h))  #add cluster assignment
+  coordinates$cluster[which(is.na(coordinates$cluster))] <- nclusters
+  coordinates <- coordinates[order(coordinates$order), ]
+  return(coordinates)
+}
+
+NN_ClusterDefinition <- function(coordinates, h, nclusters) {
+
+  # algorithm is inspired by this website: ??? (comment from Lea)
+
+  # initialize cluster, calculate euclidean distance
+  dist_coordinates <- as.matrix(dist(coordinates, method = "euclidean"))
+  coordinates$cluster <- NA
+
+  nclusters_1 <- nclusters - 1
+  for (i in 1:nclusters_1) {
+
+    # find unassigned coordinates
+    cluster_unassigned <- which(is.na(coordinates$cluster))
+    dist_coordinates_unassigned <- dist_coordinates[cluster_unassigned,
+                                                    cluster_unassigned]
+    cluster_na <- rep(NA, length(cluster_unassigned))
+
+    # find the coordinate furthest away from all the others
+    index <- which.max(rowSums(dist_coordinates_unassigned))
+
+    # find the n nearest neighbors of index
+    cluster_na[head(order(dist_coordinates_unassigned[index, ]),
+                    h)] <- i
+    coordinates$cluster[cluster_unassigned] <- cluster_na
+  }
+  # The last cluster may be a different size (if h is not a
+  # factor of the population size) )
+  coordinates$cluster[which(is.na(coordinates$cluster))] <- nclusters
+
+  return(coordinates)
+}
+
+kmeans_ClusterDefinition <- function(coordinates, nclusters) {
+
+  # kmeans as implemented in R base
+  km <- kmeans(x = coordinates, centers = nclusters)
+  coordinates$cluster <- km$cluster
+
+  return(coordinates)
 }

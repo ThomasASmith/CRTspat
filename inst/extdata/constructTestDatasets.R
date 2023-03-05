@@ -83,7 +83,7 @@ get_test5 = function(extdata){
   test_AnonymisedLocations <- Anonymise_TrialSite(test_Locationsxy)
   test_Clusters <- DefineClusters(test_AnonymisedLocations,h = 50)
   test_Arms <- Randomize_CRT(trial = test_Clusters,matchedPair = FALSE)
-  test_Buffer <- Specify_CRTbuffer(trial = test_Arms, bufferWidth = 0.1)
+  test_Buffer <- Specify_CRTbuffer(trial = test_Arms, buffer.Width = 0.1)
   test_Buffer$cluster <- as.numeric(test_Buffer$cluster)
   test_Buffer$arm <- as.character(test_Buffer$arm)
   return(test_Buffer)}

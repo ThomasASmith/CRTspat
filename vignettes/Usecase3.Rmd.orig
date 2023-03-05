@@ -72,7 +72,7 @@ set.seed(1234)
 nclusters = 20
 ICC = 0.08
 theta = 0.2
-test7a = DefineClusters(trial=test3, nclusters=nclusters, algo='NN')
+test7a = specify.clusters(trial=test3, nclusters=nclusters, algo='kmeans')
 test7b = Randomize_CRT(test7a)
 test7c = Simulate_CRT(trial= test7b,
                     efficacy=0.4,

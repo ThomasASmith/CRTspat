@@ -51,7 +51,7 @@ The package functions are as follows:
 |_Convert_LatLong_|conversion of latlong geolocations to cartesian coordinates|geolocations in lat-long |locations in x,y format (columns 'x','y')|
 |_Anonymise_TrialSite()_|anonymisation of locations (while preserving distances)|locations in x,y format (columns 'x','y') |locations in x,y format (columns 'x','y')|
 |_Design_CRT()_|determination of required number of clusters|locations in x,y format (columns 'x','y') | Estimated minimum number of clusters; Cluster assignments|
-|_DefineClusters()_|algorithmic assignment of clusters|locations in x,y format (columns 'x','y') |assignment of clusters (column 'cluster')|
+|_specify.clusters()_|algorithmic assignment of clusters|locations in x,y format (columns 'x','y') |assignment of clusters (column 'cluster')|
 |_Randomize_CRT()_|randomization|assignment of clusters (column 'cluster')|assignment of arms (column 'arm')|
 |_Simulate_CRT()_|simulation of outcomes|cluster and arm assignments|simulated proportions by record|
 |_Specify_CRTbuffer_|specification of buffer zones |assignment of arms (column 'arm')|assignment of buffer (column 'buffer')|

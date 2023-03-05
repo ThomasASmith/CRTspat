@@ -13,7 +13,7 @@ Design_CRT(
   pC,
   buffer.width = 0,
   h,
-  algo = "kmeans",
+  algorithm = "kmeans",
   outcome.type = outcome.type
 )
 }
@@ -35,7 +35,7 @@ Units are expected to be km.}
 
 \item{h}{proposal for the number of coordinates in each cluster}
 
-\item{algo}{algorithm used to determine cluster boundaries, options are-
+\item{algorithm}{algorithm used to determine cluster boundaries, options are-
 'TSP': travelling salesman problem heuristic;
 'NN': nearest neighbor;
 'kmeans': kmeans}
@@ -64,6 +64,6 @@ with the input set of locations. Outputs are:
 \examples{
 
 exampleDesign = Design_CRT(trial=readdata('test_site.csv'),
-                ICC=0.10, effect=0.4, pC=0.35, desiredPower = 0.8, algo = "kmeans",
-                buffer.width=0.25, h=100, outcome.type ="Dichotomous")
+                ICC=0.10, effect=0.4, pC=0.35, desiredPower = 0.8, algorithm = 'kmeans',
+                buffer.width=0.25, h=100, outcome.type ='Dichotomous')
 }

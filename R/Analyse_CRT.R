@@ -113,10 +113,8 @@ Analyse_CRT <- function(
         trial$y_off <- trial[[denominator]]
 
         # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant
-        # coordinate (specifyBuffer assigns a buffer only if a buffer width is > 0 is input)
-        if (is.null(trial$nearestDiscord)){
-            trial <- Specify_CRTbuffer(trial = trial, bufferWidth = 0)
-        }
+        # coordinate
+        if (is.null(trial$nearestDiscord)) trial$nearestDiscord <- get_nearestDiscord(trial)
     }
 
     # store options here- noting that the model formula depends on allowable values of other options

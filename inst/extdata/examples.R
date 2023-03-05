@@ -12,7 +12,7 @@ INLAresults$PointEstimates$efficacy
 INLAresults$IntervalEstimates$efficacy
 INLAresults$PointEstimates$contamination$contaminationRange
 
-test6 <-Specify_CRTbuffer(trial = test5, bufferWidth = 0.5)
+test6 <-Specify_CRTbuffer(trial = test5, buffer.Width = 0.5)
 trial <-test_Simulate_CRT
 method <- 'GEE'
 requireBootstrap <- FALSE
