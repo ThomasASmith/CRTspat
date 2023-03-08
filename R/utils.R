@@ -4,12 +4,12 @@
 #' containing multiple records with the same location, and outputs a list of S3 class \code{CRT}
 #' containing single values for each location, for both the coordinates and the auxiliary variables.
 #' @param trial a data.frame containing locations (x,y) and other variables to be summed
-#' @param auxiliaries a vector of the names of auxiliary variables to be summed across each location
+#' @param auxiliaries vector of the names of auxiliary variables to be summed across each location
 #' @returns A list with class \code{CRT} containing the following components:
 #'  \tabular{llll}{
-#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site\cr
-#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
-#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site\cr
+#'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{...};   \tab numeric vectors \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
 #'  }
 #' @export
@@ -39,21 +39,21 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #' trial (CRT) by specifying which locations are within a defined distance of
 #' those in the opposite arm.
 #'
-#' @param trial a \code{CRT} object or \code{data.frame} containing locations in (x,y) coordinates; cluster
-#'   assignments (factor \code{cluster}); and arm assignments (factor \code{arm})
+#' @param trial an object of class \code{CRT} or a data frame containing locations in (x,y) coordinates, cluster
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).
 #' @param buffer.width minimum distance between locations in the core areas of
 #'   opposing arms (km)
-#' @returns A list of class \code{CRT} containing the following components:
+#' @returns an object of class \code{CRT} comprising the following components:
 #'  \tabular{llll}{
-#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site,
+#'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\cr
-#'  \code{CRT.design.core}:   \tab list \tab summary statistics describing the core area \cr
-#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
-#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
-#'  \code{cluster}: \tab factor \tab assignments to cluster of each location  \cr
-#'  \code{arm}: \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
-#'  \code{nearestDiscord}: \tab numeric vector \tab Euclidean distance to nearest discordant location (km) \cr
-#'  \code{buffer}: \tab logical \tab indicator of whether the point is within the buffer \cr
+#'  \code{CRT.design.core}   \tab list \tab summary statistics describing the core area \cr
+#'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+#'  \code{arm} \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
+#'  \code{nearestDiscord} \tab numeric vector \tab Euclidean distance to nearest discordant location (km) \cr
+#'  \code{buffer} \tab logical \tab indicator of whether the point is within the buffer \cr
 #'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
 #'  }
 #' @export
@@ -78,9 +78,8 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #' \code{randomizeCRT} carries out randomization of clusters for a CRT and
 #' augments the trial dataframe with assignments to arms \cr
 #'
-#'
-#' @param trial a \code{CRT} object or \code{data.frame} containing locations in (x,y) coordinates; cluster
-#'   assignments (factor \code{cluster}); optionally: specification of a buffer zone (logical \code{buffer});
+#' @param trial an object of class \code{CRT} or a data frame containing locations in (x,y) coordinates, cluster
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.
 #' @param matchedPair logical: indicator of whether pair-matching on the
 #'   baseline data should be used in randomization
@@ -90,14 +89,14 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #'   matched-pair randomization)
 #' @returns A list of class \code{CRT} containing the following components:
 #'  \tabular{llll}{
-#'  \code{CRT.design.full}:   \tab list \tab summary statistics of the site \cr
-#'  \code{CRT.design.core}:   \tab list \tab summary statistics of the core area (if a buffer is present)\cr
-#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
-#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
-#'  \code{cluster}: \tab factor \tab assignments to cluster of each location  \cr
-#'  \code{pair}: \tab factor \tab assignments to matched pair of each location  \cr
+#'  \code{CRT.design.full}   \tab list \tab summary statistics of the site \cr
+#'  \code{CRT.design.core}   \tab list \tab summary statistics of the core area (if a buffer is present)\cr
+#'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+#'  \code{pair} \tab factor \tab assignments to matched pair of each location  \cr
 #'  (if \code{matchedPair} randomisation was carried out) \cr
-#'  \code{arm}: \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
+#'  \code{arm} \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
 #'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
 #'  }
 #' @export
@@ -188,11 +187,11 @@ return(CRT)}
 #'   the TSP algorithm
 #' @returns A list of class \code{CRT} containing the following components:
 #'  \tabular{llll}{
-#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site and cluster assignments.\cr
-#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
-#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
-#'  \code{cluster}: \tab factor \tab assignments to cluster of each location  \cr
-#'  \code{path}: \tab numeric \tab travelling salesman path (created only if the TSP algorithm is used) \cr
+#'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site and cluster assignments.\cr
+#'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+#'  \code{path} \tab numeric \tab travelling salesman path (created only if the TSP algorithm is used) \cr
 #'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
 #'  }
 #' @details Clustering is carried out using one of three algorithms:
@@ -262,9 +261,9 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
 #'   The equirectangular projection (valid for small areas) is used.
 #' @returns A list of class \code{CRT} containing the following components:
 #'  \tabular{llll}{
-#'  \code{CRT.design.full}:   \tab list \tab summary statistics describing the site \cr
-#'  \code{x}: \tab numeric vector \tab x-coordinates of locations \cr
-#'  \code{y}: \tab numeric vector \tab y-coordinates of locations \cr
+#'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site \cr
+#'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
+#'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
 #'  }
 #' @export
@@ -295,9 +294,9 @@ convert.latlong.xy <- function(df, latvar = "lat", longvar = "long") {
 #'   unchanged)
 #' @format CRT object:
 #' \itemize{
-#' \item \code{CRT.design.full}: list of characteristics of the full area
-#' \item \code{x}: x-coordinates of location
-#' \item \code{y}: y-coordinates of location
+#' \item \code{CRT.design.full} list of characteristics of the full area
+#' \item \code{x} x-coordinates of location
+#' \item \code{y} y-coordinates of location
 #' }
 #' @export
 #' @examples
@@ -338,7 +337,7 @@ anonymize.site <- function(trial) {
 #'
 #' \code{readdata} reads a file from the package library of test datasets
 #'
-#' @param \code{filename} name of text file stored within the package
+#' @param filename name of text file stored within the package
 #' @return R object corresponding to the text file
 #' @details The input file name should include the extension (either .csv or .txt).
 #' The resulting object is a data.frame if the extension is .csv.
