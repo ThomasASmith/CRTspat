@@ -17,17 +17,16 @@ rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 -->
 
-### Use Case 1: Algorithmic definition of clusters and of buffer zones
+### Use Case 1: Algorithmic definition of clusters and of buffer zones for a CRT
 
-The package requires as input the co-ordinates for the spatial units that are to be randomized. These should be provided as Cartesian point co-ordinates with centroid (0,0). The units to be randomized will usually be households, but the algorithms can be used to generate clusters with equal geographical areas by randomizing pixels. The `Convert_LatLong` function is available to convert co-ordinates provided as decimal degrees into Cartesian co-ordinates with units of km. (If the input co-ordinates are provided using a different projection then they must be converted externally to the package).
+Input to the `CRTspillover` package is in the form of a data frame with one record for each location. Most of the functions of the package return a list of S3 class `CRT`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. objects of class `CRT` can also be used as input to `CRTspillover` functions.
 
-+ The `Aggregate_CRT` function is used to aggregate records with the same co-ordinates. If the input database contains outcome data (e.g. if it contains baseline survey results), these should be provided in the form of a numerator `num` and denominator ´denom´ for each record. These values will be summed by `Aggregate_CRT` over all records with the same co-ordinates.
+After each step, `summary` can be used to provide a description of the output `CRT` object and `plotCRTmap` can be used to output a map of the locations, clusters, arms, buffer zones or other geographically structured analysis results.
 
-+ The `Plot_CRTmap` function outputs a map of:
-  + the assignment to arms, if this has been defined;
-  + the clusters if they have been defined;
-  + and of the locations only if no clusters have been defined.
-The `maskbuffer` parameter specifies the width (in km) of the coloured area drawn around the households.
+The starting point for the analyses is the co-ordinates for the spatial units that are to be randomized.
+ These can be provided as lat-long coordinates, as Cartesian point co-ordinates with centroid (0,0). Simulated co-ordinate sets can also be generated *de novo* (function `simulateSite`). The `convert.latlong.xy` function is available to convert co-ordinates provided as decimal degrees into Cartesian co-ordinates with units of km. (If the input co-ordinates are provided using a different projection then they must be converted externally to the package).
+
++ In general the package functions do not expect to find repeated values for outcomes for the same location. The `aggregateCRT` function is used to aggregate data with the same co-ordinates so that this condition is satisfied. In particular, if the input database contains outcome data (e.g. if it contains baseline survey results), these should be provided in the form of a numerator `base_num` and denominator ´base_denom´ for each record. These values will be summed by `aggregateCRT` over all records with the same co-ordinates. An object of class `CRT` is output.
 
 + The `specify.clusters` function carries out algorithmic assignment of clusters and outputs a `trial` data frame augmented with the cluster assignments. One of three different algorithms must be selected:
   + `algo="NN"` implements a [nearest neighbour algorithm](https://en.wikipedia.org/wiki/Nearest-neighbor_chain_algorithm) which takes a collection of points as input, and creates clusters of points by repeatedly merging in points to form larger clusters. This is the default option.
@@ -36,23 +35,29 @@ The `maskbuffer` parameter specifies the width (in km) of the coloured area draw
 Irrespective of the algorithm, the target number of points allocated to each cluster is specified by the parameter `h`.
 + The `Randomize_CRT` function carries out a simple randomization of clusters to arms, and outputs a `trial` data frame augmented with the assignments. (If baseline data are available matched pair randomization is available as an option)
 
+The units to be randomized will usually be households, but the algorithms can be used to generate clusters with equal geographical areas by randomizing pixels.
+
 The example uses locations from Rusinga Island, Kenya. (The example dataset also contains multiple records
 of test positivity from a baseline survey)
 
 #### Example
 ```{r example1.r, fig.path=('/vignettes/'),echo=TRUE}
 example_locations <- readdata('example_baseline.csv')
-example_xy <- Convert_LatLong(df = example_locations)
+# assign the denominator to the baseline data
+example_locations$base_denom <- 1
+# convert to Euclidean coordinates
+example_xy <- convert.latlong.xy(df = example_locations)
+summary(example_xy)
 # Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
 # auxiliary variables
-example_xy$base_num <- example_xy$RDT_test_result
-example_xy <- with(example_xy, example_xy[, c("x", "y", "base_num")])
-example_xy$base_denom <- 1
-example_aggregated <- Aggregate_CRT(trial = example_xy, auxiliaries = c("base_num", "base_denom"))
+example_aggregated <- aggregateCRT(trial = example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
+summary(example_aggregated)
 # Plot map of locations
-Plot_CRTmap(example_aggregated, maskbuffer = 0.5)
-example_clustered <- specify.clusters(trial = example_aggregated, h = 50, algo = 'NN')
-Plot_CRTmap(example_clustered, maskbuffer = 0.5)
-example_randomized <- Randomize_CRT(trial = example_clustered, matchedPair = TRUE)
-Plot_CRTmap(trial <- example_randomized,maskbuffer=0.5,legend.position=c(0.2,0.8))
+plotCRTmap(example_aggregated, maskbuffer = 0.5)
+example_clustered <- specify.clusters(trial = example_aggregated, h = 50, algorithm = 'NN')
+summary(example_clustered)
+plotCRTmap(example_clustered, maskbuffer = 0.5)
+example_randomized <- randomizeCRT(trial = example_clustered, matchedPair = TRUE)
+summary(example_randomized)
+plotCRTmap(trial = example_randomized,maskbuffer=0.5,legend.position=c(0.2,0.8))
 ```

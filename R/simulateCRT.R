@@ -17,9 +17,9 @@
 #' @export
 #' @examples
 #' # Generate a simulated area with 10,000 locations
-#' example_area = simulateSite(geoscale = 2, locations=10000, kappa=3, mu=40)
+#' example_area = simulateSite(geoscale = 1, locations=10000, kappa=3, mu=40)
 simulateSite <- function(geoscale, locations, kappa, mu) {
-    scaling = geoscale * 20
+    scaling = geoscale * 10
     # Poisson point pattern with Thomas algorithm
     p <- spatstat.random::rThomas(kappa, geoscale, mu, win = spatstat.geom::owin(c(0, scaling), c(0, scaling)))
     # expected number of points: kappa*mu*scaling^2
@@ -28,7 +28,7 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
     hhID <- c(1:locations)
     x <- p$x[seq(1:locations)]
     y <- p$y[seq(1:locations)]
-    coordinates <- data.frame(x = x, y = y)
+    coordinates <- data.frame(x = x - mean(x), y = y - mean(y))
     CRT <- convert.data.frame.CRT(coordinates, input.parameters = NULL)
     return(CRT)
 }
@@ -133,12 +133,12 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBaseline = TRUE,
                         matchedPair = TRUE, scale='proportion', baselineNumerator = "base_num",
                         baselineDenominator = "base_denom", denominator = NULL, ICC_inp = NULL,
-                        sd = NULL, theta_inp = NULL, tol = 1e-04) {
+                        sd = NULL, theta_inp = NULL, tol = 1e-04, vr = 0.5) {
 
     # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
     cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
     bw <- NULL
-    # several operations require the input data as data.frame. Descriptors will be replaced
+    # several operations require the input data as a data frame. Descriptors will be replaced
     trial <- convertCRT.data.frame(CRT = trial)
 
     trial$arm <- as.factor(trial$arm)
@@ -203,8 +203,8 @@ simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBas
 
     trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy, outcome0 = outcome0,
         denominator = denominator)
-    class(trial) <- "CRT"
-    return(trial)
+    CRT <- convert.data.frame.CRT(trial, input.parameters = NULL)
+    return(CRT)
 }
 
 # Assign expected proportions to each location assuming a fixed efficacy.

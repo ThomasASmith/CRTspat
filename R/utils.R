@@ -1,16 +1,16 @@
 #' Aggregate data across records with duplicated locations
 #'
-#' \code{aggregateCRT} aggregates data from a \code{CRT} object or data.frame
+#' \code{aggregateCRT} aggregates data from a \code{CRT} object or data frame
 #' containing multiple records with the same location, and outputs a list of S3 class \code{CRT}
 #' containing single values for each location, for both the coordinates and the auxiliary variables.
-#' @param trial a data.frame containing locations (x,y) and other variables to be summed
+#' @param trial a data frame containing locations (x,y) and other variables to be summed
 #' @param auxiliaries vector of the names of auxiliary variables to be summed across each location
 #' @returns A list with class \code{CRT} containing the following components:
-#'  \tabular{llll}{
+#'  \tabular{lll}{
 #'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
-#'  \code{...};   \tab numeric vectors \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
+#'  \code{...} \tab numeric vectors \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
 #'  }
 #' @export
 aggregateCRT <- function(trial, auxiliaries = NULL) {
@@ -54,7 +54,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #'  \code{arm} \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
 #'  \code{nearestDiscord} \tab numeric vector \tab Euclidean distance to nearest discordant location (km) \cr
 #'  \code{buffer} \tab logical \tab indicator of whether the point is within the buffer \cr
-#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -97,7 +97,7 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #'  \code{pair} \tab factor \tab assignments to matched pair of each location  \cr
 #'  (if \code{matchedPair} randomisation was carried out) \cr
 #'  \code{arm} \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
-#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or data frame  \cr
 #'  }
 #' @export
 #' @examples
@@ -173,11 +173,11 @@ return(CRT)}
 
 
 
-#' Assign locations to clusters
+#' Assign each location to a cluster
 #'
 #' \code{specify.clusters} algorithmically assigns locations to clusters by grouping them geographically
 #'
-#' @param trial A CRT object or data.frame containing (x,y) coordinates of
+#' @param trial A CRT object or data frame containing (x,y) coordinates of
 #'   households
 #' @param h integer: proposal for the number of locations in each cluster
 #' @param nclusters integer: number of clusters
@@ -192,7 +192,7 @@ return(CRT)}
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
 #'  \code{path} \tab numeric \tab travelling salesman path (created only if the TSP algorithm is used) \cr
-#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or data frame  \cr
 #'  }
 #' @details Clustering is carried out using one of three algorithms:
 #' \tabular{llll}{
@@ -211,7 +211,6 @@ return(CRT)}
 #' #Assign clusters to the test trial dataset averaging h = 40 using the kmeans algorithm
 #' exampletrial <- specify.clusters(trial = readdata('test_site.csv'),
 #'                             h = 40, algorithm = 'kmeans', reuseTSP = FALSE)
-
 specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorithm = "NN",
     reuseTSP = FALSE) {
      trial <- convertCRT.data.frame(trial)
@@ -264,21 +263,21 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
 #'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site \cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
-#'  \code{...};   \tab other objects included in the input \code{CRT} object or \code{data.frame}  \cr
+#'  \code{...};   \tab other objects included in the input \code{CRT} object or data frame  \cr
 #'  }
 #' @export
 convert.latlong.xy <- function(df, latvar = "lat", longvar = "long") {
-    colnames(df)[colnames(df) == latvar] <- "lat"
-    colnames(df)[colnames(df) == longvar] <- "long"
+    colnames(df)[identical(colnames(df), latvar)] <- "lat"
+    colnames(df)[identical(colnames(df), longvar)] <- "long"
     R <- 6371  # radius of the earth
     latradians <- with(df, pi/180 * lat)
     longradians <- with(df, pi/180 * long)
     meanlat <- mean(latradians)
     meanlong <- mean(longradians)
-    drops <- c("lat", "long")
-    df <- df[, !(names(df) %in% drops)]
     df$y <- R * (latradians - meanlat) * cos(longradians)
     df$x <- R * (longradians - meanlong)
+    drops <- c("lat", "long")
+    df <- df[, !(names(df) %in% drops)]
     CRT <- convert.data.frame.CRT(df, input.parameters = NULL)
     return(CRT)
 }
@@ -288,7 +287,7 @@ convert.latlong.xy <- function(df, latvar = "lat", longvar = "long") {
 #'
 #' \code{anonymize.site} carries out rotation of x,y coordinates a random angle
 #' about a random origin.
-#' @param trial CRT object or trial data.frame with Cartesian co-ordinates of
+#' @param trial CRT object or trial data frame with Cartesian co-ordinates of
 #'   households (columns x and y)
 #' @return object with re-centred co-ordinates the origin (other data are
 #'   unchanged)
@@ -340,7 +339,7 @@ anonymize.site <- function(trial) {
 #' @param filename name of text file stored within the package
 #' @return R object corresponding to the text file
 #' @details The input file name should include the extension (either .csv or .txt).
-#' The resulting object is a data.frame if the extension is .csv.
+#' The resulting object is a data frame if the extension is .csv.
 #' @export
 readdata <- function(filename) {
     fname <- eval(filename)
@@ -349,15 +348,17 @@ readdata <- function(filename) {
         robject <- dget(file = paste0(extdata, "/", fname))
     if (unlist(gregexpr(".csv", fname)) > 0)
         robject <- read.csv(file = paste0(extdata, "/", fname), row.names = NULL)
+    # remove variable 'X' if it is present
+    robject$X <- NULL
     return(robject)
 }
 
-#' Convert object of C3 class CRT to a data.frame
+#' Convert object of S3 class CRT to a data frame
 #'
 #' \code{convertCRT.data.frame} removes lists of descriptors and summary statistics
 #'
 #' @param CRT name of CRT object
-#' @return data.frame with one row for each location
+#' @return data frame with one row for each location
 #' @details \code{convertCRT.data.frame} removes lists of descriptors and summary statistics
 #' @export
 convertCRT.data.frame <- function(CRT) {
@@ -369,13 +370,197 @@ convertCRT.data.frame <- function(CRT) {
     return(trial)
 }
 
+# Characteristics of a trial design. The input is a data frame. The output list
+# conforms to the requirements for a CRT object
+describeTrial <- function(trial, input.parameters = NULL) {
+
+  # set the class to data.frame (removing the descriptors) so that
+  # the function works both for data.frame and CRT input
+  trial <- convertCRT.data.frame(trial)
+
+  sd_distance <- mean_h <- sd_h <- min_k <- clustersRequired <- DE <- power <- NULL
+
+  coordinates <- data.frame(cbind(x=trial$x,y=trial$y))
+  CRT.design <- list(records = nrow(trial),
+                     locations = nrow(dplyr::distinct(coordinates)))
+
+  if (!is.null(trial$cluster)) {
+
+    # mean number of locations randomized in each cluster
+    mean_h <- mean(table(trial$cluster))
+
+    # standard deviation of locations randomized in each cluster
+    sd_h <- stats::sd(table(trial$cluster))
+
+  }
+  if (!is.null(trial$arm)) {
+
+    arm <- unique(cbind(trial$cluster, trial$arm))[, 2]  #assignments
+
+    # Step L computation of characteristics of the randomization
+    if (is.null(trial$nearestDiscord)) {
+      # calculate nearest discord here
+    }
+
+    sd_distance <- stats::sd(trial$nearestDiscord)
+
+    if (!is.null(input.parameters)) {
+
+      calculateCRTpower <- calculateCRTpower(locations = CRT.design$locations, ICC = input.parameters$ICC,
+                                             pC = input.parameters$pC, effect = input.parameters$effect,
+                                             outcome.type = input.parameters$outcome.type, alpha = input.parameters$alpha,
+                                             desiredPower = input.parameters$desiredPower, mean_h = mean_h,
+                                             sd_h = sd_h)
+      CRT.design <- calculateCRTpower$CRT.design.full
+    }
+  }
+  CRT.design$mean_h <- mean_h
+  CRT.design$sd_h <- sd_h
+  CRT.design$sd_distance <- sd_distance
+  return(CRT.design)
+}
+
+
+
+#' Summarise CRT
+#'
+#' \code{summary.CRT} generates a summary description of a CRT object
+#' @param object name of CRT
+#' @param ... other arguments
+#' @export
+summary.CRT <- function(object, ...) {
+  cat("===============================CLUSTER RANDOMISED TRIAL ===========================\n")
+  # create matrix
+  output <- matrix("  ", nrow = 20, ncol = 2)
+  rownames(output) <- c("Locations and Clusters\n-----------------------                               ",
+                        "Coordinate system            ", "Buffer width :               ",
+                        "Locations:                                            ", "Available clusters (across both arms)                 ",
+                        "  Per cluster mean number of locations                ", "  Per cluster s.d. number of locations                ",
+                        "S.D. of distance to nearest discordant location (km): ", "Cluster randomization:            ",
+                        "\nSpecification of Requirements\n-----------------------------",
+                        "Significance level:               ", "Type of Outcome                   ",
+                        "Expected outcome in control arm:  ", "Required effect size:             ",
+                        "\nPower calculations (ignoring contamination)\n------------------                    ",
+                        "Intra-cluster correlation: ", "Design effect:                         ",
+                        "Nominal power (%)                      ", paste0("Clusters required for power of ",
+                        object$input.parameters$desiredPower * 100, "%:     "), "Sufficient clusters for required power?")
+  output[1, 1] <- "-"
+  if (!is.null(object$x) & !is.null(object$y)) {
+    output[2, 1] <- "(x, y)"
+  } else if (!is.null(object$lat) & !is.null(object$long)) {
+    output[2, 1] <- "Lat-Long"
+  } else {
+    output[2, 1] <- "No coordinates"
+  }
+
+  if (output[2, 1] == "(x, y)") {
+    cat("\nSummary of coordinates\n----------------------\n")
+    coordinate.summary <- with(object, summary(cbind(x, y)))
+    rownames(coordinate.summary) <- substr(coordinate.summary[, 1], 1, 8)
+    coordinate.summary[, ] <- substr(coordinate.summary[, ], 9, 13)
+    print(t(coordinate.summary))
+    area <- pi * (as.numeric(coordinate.summary[6, 1]) -
+                  as.numeric(coordinate.summary[1, 1])) *
+      (as.numeric(coordinate.summary[6, 2]) - as.numeric(coordinate.summary[1, 2]))
+    cat("Approximate area (based on ellipse) : ", area, "sq.km\n\n")
+  }
+  if (is.null(object$cluster)) {
+    output[5, 1] <- "Not assigned"
+  } else {
+    clustersAvailableFull <- with(object$CRT.design.full, floor(locations/mean_h))
+    output[5, 1] <- clustersAvailableFull
+    output[6, 1] <- round(object$CRT.design.full$mean_h, digits = 1)
+    output[7, 1] <- round(object$CRT.design.full$sd_h, digits = 1)
+  }
+  if(identical(object$CRT.design.full$locations,object$CRT.design.full$records)){
+    output[4, 1] <- object$CRT.design.full$locations
+  } else {
+    rownames(output)[4] <- paste0("Aggregation required. Total records: ",object$CRT.design.full$records,
+                                  ". Total locations:")
+    output[4, 1] <- object$CRT.design.full$locations
+  }
+  if (!is.null(object$CRT.design.core)) {
+    output[1, 1] <- "Full"
+    output[1, 2] <- "Core"
+    clustersAvailableCore <- with(object$CRT.design.core, floor(locations/mean_h))
+    output[4, 2] <- object$CRT.design.core$locations
+    output[5, 2] <- clustersAvailableCore
+    output[6, 2] <- round(object$CRT.design.core$mean_h, digits = 1)
+    output[7, 2] <- round(object$CRT.design.core$sd_h, digits = 1)
+  }
+  if (!is.null(object$arm)) {
+    sd1 <- ifelse(is.null(object$CRT.design.full$sd_distance), NA, object$CRT.design.full$sd_distance)
+    sd2 <- ifelse(is.null(object$CRT.design.core$sd_distance), NA, object$CRT.design.core$sd_distance)
+    output[8, 1] <- ifelse(is.na(sd1), "", round(sd1, digits = 2))
+    output[8, 2] <- ifelse(is.na(sd2), "", round(sd2, digits = 2))
+    if (is.null(object$pair)) {
+      output[9, 1] <- "Independently randomized"
+    } else {
+      output[9, 1] <- "Matched pairs randomized"
+    }
+  } else {
+    if (is.null(object$x)) {
+      output[9, 1] <- "No locations to randomize"
+    } else {
+      output[9, 1] <- "No randomization"
+    }
+  }
+  if (!is.null(object$input.parameters)) {
+    output[10, 1] <- "-"
+    output[11, 1] <- object$input.parameters$alpha
+    output[12, 1] <- object$input.parameters$outcome.type
+    output[13, 1] <- object$input.parameters$pC
+    output[14, 1] <- object$input.parameters$effect
+    output[16, 1] <- object$input.parameters$ICC
+    if (!is.null(object$input.parameters$buffer.width)) {
+      if (object$input.parameters$buffer.width > 0) {
+        output[3, 1] <- paste0(object$input.parameters$buffer.width,
+                               " km.")
+      } else {
+        output[3, 1] <- "No buffer"
+      }
+    }
+  }
+  output[15, 1] <- "-"
+  if (is.null(object$input.parameters)) {
+    rownames(output)[15] <- "No power calculations to report"
+  } else {
+    sufficient <- ifelse(clustersAvailableFull >= object$CRT.design.full$clustersRequired,
+                         "Yes", "No")
+    output[17, 1] <- round(object$CRT.design.full$DE, digits = 1)
+    output[18, 1] <- round(object$CRT.design.full$power * 100, digits = 1)
+    output[19, 1] <- object$CRT.design.full$clustersRequired
+    output[20, 1] <- sufficient
+
+    if (is.null(object$CRT.design.core)) {
+      output <- subset(output, select = -c(2))
+    } else {
+      output[15, 1] <- "Full"
+      output[15, 2] <- "Core"
+      clustersAvailableCore <- with(object$CRT.design.core, floor(locations/mean_h))
+      sufficientCore <- ifelse(clustersAvailableCore >= object$CRT.design.core$clustersRequired,
+                               "Yes", "No")
+
+      output[17, 2] <- round(object$CRT.design.core$DE, digits = 1)
+      output[18, 2] <- round(object$CRT.design.core$power * 100, digits = 1)
+      output[19, 2] <- object$CRT.design.core$clustersRequired
+      output[20, 2] <- sufficientCore
+    }
+  }
+  output <- output[(output[, 1] != "  "), ]
+  # display and return table
+  utils::write.table(output, quote = FALSE, col.names = FALSE, sep = "          ")
+}
+
+
+
 # compute vector of distances to nearest discordant location
 get_nearestDiscord <- function(trial){
   dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
   discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
   discord_dist_trial <- ifelse(discord, dist_trial, Inf)
   nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
-                                                          MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
+                              MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
   return(nearestDiscord)
 }
 

@@ -1,27 +1,34 @@
 #' Analysis of cluster randomized trial with contamination
 #'
-#' \\code{analyseCRT} carries out a statistical analysis of a cluster randomized trial (CRT).
-#' @param trial dataframe: including locations, clusters, arms, and outcomes
+#' \code{analyseCRT} carries out a statistical analysis of a cluster randomized trial (CRT).
+#' @param trial an object of class \code{CRT} or a data frame containing locations in (x,y) coordinates, cluster
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome data (see details).
 #' @param method statistical method with options:
-#' 'EMP' - empirical;
-#' 'T' - comparison of cluster means by t-test;
-#' 'GEE' - Generalised Estimating Equations;
-#' 'INLA' - Integrated Nested Laplace Approximation (INLA);
-#' 'MCMC' - Markov chain Monte Carlo using JAGS.
-#' @param cfunc transformation defining the contamination function
+#'  \tabular{ll}{
+#' \code{EMP} \tab simple averages of the data   \cr
+#' \code{T}   \tab comparison of cluster means by t-test \cr
+#' \code{GEE} \tab Generalised Estimating Equations \cr
+#' \code{INLA}\tab Integrated Nested Laplace Approximation (INLA) \cr
+#' \code{MCMC}\tab Markov chain Monte Carlo using \code{JAGS} \cr
+#' }
+#' @param cfunc transformation defining the contamination function. \cr
 #' options are:
-#' 'X': contamination not modelled- the only valid value of 'cfunc' for methods 'EMP,'T' and 'GEE';
-#' 'L': inverse logistic (sigmoid)- the default for 'INLA' and 'MCMC' methods;
-#' 'P': inverse probit (error function)- available with 'INLA' and 'MCMC' methods;
-#' 'S': piecewise linear- only available with the 'MCMC' method
-#' @param link link function- options are:
-#' 'logit': (the default). The 'numerator', has a binomial distribution with denominator 'denominator'.
-#' 'log': The 'numerator' is Poisson distributed with an offset of log('denominator').
-#' With the 'INLA' and 'MCMC' methods 'iid' random effects are used to model extra-Poisson variation.
-#' 'identity': The outcome is 'numerator'/'denominator'. Normally distributed error function.
-#' @param numerator string: name of numerator variable for outcome (if present)
+#' \tabular{llll}{
+#' \code{X} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{EMP}, \code{T} and \code{GEE}\cr
+#' 'L' \tab\tab inverse logistic (sigmoid)\tab the default for \code{INLA} and \code{MCMC} methods\cr
+#' 'P' \tab\tab inverse probit (error function)\tab available with \code{INLA} and \code{MCMC} methods\cr
+#' 'S' \tab\tab piecewise linear\tab only available with the \code{MCMC} method\cr
+#' }
+#' @param link link function. options are:
+#'  \tabular{ll}{
+#' \code{logit}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
+#' \code{log}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).
+#' With the \code{INLA} and \code{MCMC} methods 'iid' random effects are used to model extra-Poisson variation.\cr
+#' \code{identity}\tab The outcome is \code{numerator/denominator} with a normally distributed error function.\cr
+#' }
+#' @param numerator string: name of numerator variable for outcome
 #' @param denominator string: name of denominator variable for outcome data (if present)
-#' @param excludeBuffer logical: indicator of whether any buffer zone (records with buffer=TRUE) should be excluded from analysis
+#' @param excludeBuffer logical: indicator of whether any buffer zone (records with \code{buffer=TRUE}) should be excluded from analysis
 #' @param alpha numeric: confidence level for confidence intervals and credible intervals
 #' @param baselineOnly logical: indicator of whether required analysis is of effect size or of baseline only
 #' @param baselineNumerator string: name of numerator variable for baseline data (if present)
@@ -31,24 +38,36 @@
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
 #' @param resamples integer: number of samples for sample-based intervals
 #' @param requireMesh logical: indicator of whether spatial predictions are required
-#' @param inla.mesh name of pre-existing INLA input object created by createMesh()
-#' @return list containing the following results of the analysis
-#' \\itemize{
-#' \\item \\code{description}: Description of the trial dataset
-#' \\item \\code{method}: statistical method
-#' \\item \\code{pt.ests}: point estimates
-#' \\item \\code{int.ests}: interval estimates
-#' \\item \\code{model.object}: object returned by the fitting function
-#' \\item \\code{contamination}: function values and statistics describing the estimated contamination
+#' @param inla.mesh string: name of pre-existing INLA input object created by \code{create.mesh()}
+#' @return list of class \code{CRTanalysis} containing the following results of the analysis:
+#' \itemize{
+#' \item \code{description} : description of the dataset
+#' \item \code{method} : statistical method
+#' \item \code{pt.ests} : point estimates
+#' \item \code{int.ests} : interval estimates
+#' \item \code{model.object} : object returned by the fitting routine
+#' \item \code{contamination} : function values and statistics describing the estimated contamination
 #' }
+#' @details \code{analyseCRT} is a wrapper for the statistical analysis packages:
+#' [geepack](https://www.jstatsoft.org/article/view/v015i02),
+#' [INLA](https://www.r-inla.org/),
+#' [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html),
+#' and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test)
+#' function of package \code{stats}.
+#' The wrapper does not provide an interface to the full functionality of these packages.
+#' It is specific for typical analyses of cluster randomized trials with geographical clustering.\cr \cr
+#'
+#' The key results of the analyses can be extracted using a \code{summary()} of the output list.
+#' The \code{model.object} in the output list is the usual output from the statistical analysis routine,
+#' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
+#' for purposes of evaluation of model fit etc..
 #' @importFrom grDevices rainbow
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
 #' @importFrom utils head read.csv
 #' @export
-#'
 #' @examples
 #' # Standard GEE analysis of test dataset ignoring contamination
-#' exampleGEE=analyseCRT(trial=readdata('test_Simulate_CRT.csv'),method='GEE')
+#' exampleGEE=analyseCRT(trial = readdata("test_Simulate_CRT.csv"),method = "GEE")
 
 analyseCRT <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",

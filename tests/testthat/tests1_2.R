@@ -12,17 +12,14 @@ test_that("designCRT() creates the default trial", {
                               trial = testLocationsxy,
                               h = 80,
                               outcome.type ="Dichotomous")
-    test_design$CRT.design.full <- NULL
-    test_design$CRT.design.core <- NULL
-    test_design$input.parameters <- NULL
-    class(test_design) <- "data.frame"
+    test_design <- convertCRT.data.frame(test_design)
     test_design$cluster <- as.numeric(test_design$cluster)
     test_design$arm <- as.character(test_design$arm)
-    df <- test_design[test_design$buffer == FALSE,]
-    row.names(df) <- NULL
+    test_design <- test_design[test_design$buffer == FALSE,]
+    row.names(test_design) <- NULL
     # To recreate test file
     # write.csv(df, file = "inst/extdata/test_design.csv", row.names = FALSE)
-    return(df)
+    return(test_design)
   }
   expect_equal(get_test1(),readdata("test_design.csv"))
 })
@@ -30,11 +27,13 @@ test_that("designCRT() creates the default trial", {
 set.seed(1234)
 test_that("simulateSite() creates the default site", {
   get_test2 = function(){
-    CRT <- simulateSite(geoscale = 0.25,
+    CRT <- simulateSite(geoscale = 0.5,
                         locations = 2500,
                         kappa = 4,
                         mu = 50)
     trial <- convertCRT.data.frame(CRT)
+    # To recreate test file
+    # write.csv(trial, file = "inst/extdata/test_site.csv", row.names = FALSE)
     return(trial)
   }
   expect_equal(get_test2(),readdata("test_site.csv"))

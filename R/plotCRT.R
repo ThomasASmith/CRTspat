@@ -3,7 +3,9 @@
 #' \code{plotCRTmap} returns a graphics object created using ggplot2.
 #' Cartesian (x,y) coordinates are used. Units are expected to be km.
 #'
-#' @param trial standard deviation of random displacement from each settlement cluster center
+#' @param trial an object of class \code{CRT} or a data frame containing locations in (x,y) coordinates, cluster
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome data (see details).
+
 #' @param showLocations logical: determining whether household locations are shown
 #' @param showClusterBoundaries logical: determining whether clusters are shown
 #' @param showClusterLabels logical: determining whether clusters are numbered
@@ -125,7 +127,10 @@ plotCRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundarie
   rownames(sp_dat) <- sapply(slot(sp::SpatialPolygons(vor_polygons), "polygons"), slot, "ID")
 
   vor <- sp::SpatialPolygonsDataFrame(sp::SpatialPolygons(vor_polygons), data = sp_dat)
-  vor_df1 <- rgeos::gUnaryUnion(vor, id = vor@data$trial.cluster)
+  # TODO try using sf::st_union() to avoid the warning about GEOS support
+  vor <- sf::st_as_sf(vor)
+  #vor_df1 <- rgeos::gUnaryUnion(vor, id = vor@data$trial.cluster)
+  vor_df1 <- sf::st_union(vor, by_feature = TRUE, is_coverage = TRUE)
 
   # Positions of centroids of clusters for locating the labels centroids <-coordinates(vor_df1)
   cc <- data.frame(trial1 %>%
