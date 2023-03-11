@@ -61,7 +61,7 @@ example5b <- simulateCRT(trial = example_randomized,
        baselineNumerator = "RDT_test_result",
        baselineDenominator = "base_denom",
        ICC_inp = NULL, theta_inp = 0.8)
-summary(example5a)
+summary(example5b)
 ```
 
 #### Example with infectiousness proxy surface generated externally
@@ -70,8 +70,8 @@ set.seed(1234)
 # Simulate a site with 2000 locations
 example6 <- simulateSite(geoscale = 2, locations=2000, kappa=3, mu=40)
 # propensity surface generated as an arbitrary linear function of x co-ordinate
-example6$propensity <- 0.5*example5a$x - min(example5a$x)+1
-example6a <- simulateCRT(trial = example5a,
+example6$propensity <- 0.5*example5b$x - min(example5b$x)+1
+example6a <- simulateCRT(trial = example5b,
        efficacy = 0.4,
        outcome0 = 0.5,
        generateBaseline = TRUE,
@@ -88,7 +88,7 @@ summary(results6a)
 ```{r example5.r, fig.path = ('vignettes/'), echo = TRUE}
 set.seed(1234)
 # use co-ordinates, cluster and arm assignments, and baseline data from `example5`
-example5c <- simulateCRT(trial = example5a,
+example5c <- simulateCRT(trial = example5b,
        efficacy = 0.4,
        outcome0 = 0.6,
        generateBaseline = TRUE,

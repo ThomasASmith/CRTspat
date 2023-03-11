@@ -30,6 +30,10 @@
 #' plotCRTmap(trial = readdata('test_CRT2.csv'), showArms=FALSE,showClusterBoundaries=FALSE,
 #'            colourClusters=FALSE, maskbuffer=0.2)
 #'
+#' #Show cluster boundaries and number clusters
+#' plotCRTmap(trial = readdata('test_CRT2.csv'), showArms=FALSE, showClusterBoundaries=TRUE,
+#'            colourClusters=FALSE, showClusterLabels=TRUE, maskbuffer=0.2)
+#'
 #' #Plot clusters in colour
 #' plotCRTmap(trial=readdata('test_CRT2.csv'), showArms=FALSE, colourClusters=TRUE,
 #'           labelsize=2, maskbuffer=0.2)
@@ -37,17 +41,14 @@
 #' #Plot arms
 #' plotCRTmap(trial=readdata('test_CRT2.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
 #'
-#' #Plot distance to nearest discordant location
-#'
-
-plotCRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
-                        colourClusters = TRUE, showArms = TRUE, analysis = NULL, showDistance = FALSE, showPrediction = FALSE, showContamination = FALSE,
+plotCRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundaries = TRUE, showClusterLabels = FALSE,
+                        colourClusters = TRUE, showArms = TRUE, analysis = NULL, showDistance = FALSE,
+                       showPrediction = FALSE, showContamination = FALSE,
                         cpalette = NULL, maskbuffer = 0.2, labelsize = 4, legend.position = NULL){
 
-  slot <- cluster <- x <- y <- long <- lat <- prediction <- nearestDiscord <- NULL
+  arm <- cluster <- x <- y <- prediction <- nearestDiscord <- NULL
 
-  # The voronoi functions requires input as a data.frame not a tibble
-  class(trial) <- "data.frame"
+  trial <- convertCRT.data.frame(trial)
 
   # The plotting routines require unique locations
   trial <- aggregateCRT(trial = trial)
@@ -69,13 +70,16 @@ plotCRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundarie
   if (is.null(analysis)) {
     showdistance <- FALSE
     showPrediction <- FALSE
-  } else if (showPrediction) {
-    showdistance <- FALSE
-    colourClusters <- FALSE
-    showArms <- FALSE
-  } else if (showDistance) {
-    colourClusters <- FALSE
-    showArms <- FALSE
+  } else {
+     pixel <- analysis$inla.mesh$pixel
+     if (showPrediction) {
+       showdistance <- FALSE
+       colourClusters <- FALSE
+       showArms <- FALSE
+     } else if (showDistance) {
+        colourClusters <- FALSE
+        showArms <- FALSE
+     }
   }
   if (is.null(trial$cluster)) {
     trial$cluster <- 1
@@ -89,123 +93,92 @@ plotCRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundarie
   if (!showClusterBoundaries) {
     showClusterLabels <- FALSE
   }
-  if (showArms) {
-    # palette defaults to a standard colour-blind compatible
-    if (is.null(cpalette)) {
-      cpalette <- c("#b2df8a", "#1f78b4")
-    }
-  }
   if (showClusterLabels) {
     showLocations <- FALSE
   }
 
-  # the coordinates should all be Cartesian at this point but long and lat appear later (??)
-  trial$long <- trial$x
-  trial$lat <- trial$y
+  # create pts
+  pts <- tidyr::tibble(y = trial$y, x = trial$x) %>%
+    sf::st_as_sf(coords = c('y', 'x')) %>%
+    sf::st_set_crs("Euclidean")
 
-  trial1 <- trial  #a copy is required because trial is converted to a SpatialPointsDataFrame
-  sp::coordinates(trial) <- c("x", "y")
+  tr <- sf::st_as_sf(trial, coords = c("x","y"))
+  # voronoi of pts
+  vor <- sf::st_voronoi(sf::st_combine(tr))
+
+  vor <- sf::st_collection_extract(vor, "POLYGON")
+  vor <- sf::st_as_sf(vor)
+
+  clusters <- vor %>%
+    sf::st_join(tr, sf::st_intersects) %>%
+    group_by(cluster) %>%
+    dplyr::summarize()
+
   totalClusters <- length(unique(trial$cluster))
 
-  # can give negative values
-  sp_dat <- data.frame(trial$cluster, trial$arm)
+# the plot limits are determined by the min and max of the coordinates
+  xlim <- c(min(trial$x - maskbuffer),max(trial$x + maskbuffer))
+  ylim <- c(min(trial$y - maskbuffer),max(trial$y + maskbuffer))
 
-  vor_desc <- deldir::tile.list(deldir::deldir(trial$x, trial$y))
-  # tile.list extracts the polygon data from the deldir computation
-  lapply(1:(length(vor_desc)), function(i) {
+# the mask needs to extend outside the plot area
+  x0 <- xlim[1] - 0.5
+  x1 <- xlim[2] + 0.5
+  y0 <- ylim[1] - 0.5
+  y1 <- ylim[2] + 0.5
+  bbox = sf::st_polygon(
+    list(
+      cbind(
+        x = c(x0,x1,x1,x0,x0),
+        y = c(y0,y0,y1,y1,y0))
+    )
+  )
+  bbox <- sf::st_sfc(bbox)
 
-    # tile.list gets us the points for the polygons but we still have to close them, hence the need for the
-    # rbind
-    tmp <- cbind(vor_desc[[i]]$x, vor_desc[[i]]$y)
-    tmp <- rbind(tmp, tmp[1, ])  #add first point to the end of the list
-    # now we can make the Polygon(s)
-    sp::Polygons(list(sp::Polygon(tmp)), ID = i)
+# mask for uninhabited areas
+  buf1 <- sf::st_buffer(tr, maskbuffer)
+  buf2 <- sf::st_union(buf1)
+  mask <- sf::st_difference(bbox, buf2)
 
-  }) -> vor_polygons
-
-  # match the data & voronoi polys
-  rownames(sp_dat) <- sapply(slot(sp::SpatialPolygons(vor_polygons), "polygons"), slot, "ID")
-
-  vor <- sp::SpatialPolygonsDataFrame(sp::SpatialPolygons(vor_polygons), data = sp_dat)
-  # TODO try using sf::st_union() to avoid the warning about GEOS support
-  vor <- sf::st_as_sf(vor)
-  #vor_df1 <- rgeos::gUnaryUnion(vor, id = vor@data$trial.cluster)
-  vor_df1 <- sf::st_union(vor, by_feature = TRUE, is_coverage = TRUE)
-
-  # Positions of centroids of clusters for locating the labels centroids <-coordinates(vor_df1)
-  cc <- data.frame(trial1 %>%
+  # Positions of centroids of clusters for locating the labels
+  cc <- data.frame(trial %>%
                      group_by(cluster) %>%
                      dplyr::summarize(x = mean(x), y = mean(y), .groups = "drop"))
-  # cc <- data.frame(x = centroids[,1],y = centroids[,2], cluster = c(1:length(centroids[,1])))
-  d <- ggplot2::fortify(vor_df1)
 
-
-  # mask to shade out cluster boundaries in uninhabited areas
-  buf1 <- rgeos::gBuffer(trial, width = maskbuffer, byid = TRUE)
-  buf2 <- rgeos::gUnaryUnion(buf1)
-  buf3 <- ggplot2::fortify(buf2)
-  vertices <- data.frame(long = c(min(d$long), min(d$long), max(d$long), max(d$long)),
-                         lat = c(min(d$lat), max(d$lat), max(d$lat), min(d$lat)), id = rep(1, 4))
-  common_cols <- intersect(colnames(buf3), colnames(vertices))
-  gp2 <- vertices
-  # make sure that after each hole your x,y coordinates return to the same place.
-  # This stops the line buzzing all around and crossing other polygons...
-  for (i in unique(buf3$piece)) {
-    start <- min(which(buf3$piece == i))
-    end <- max(which(buf3$piece == i))
-    gp2 <- rbind(gp2, buf3[start:end, common_cols])
-    gp2 <- rbind(gp2, vertices[4, common_cols])
-  }
-
-  # create a layer for the arms:each cluster separately to avoid overlays with an unwanted polygon due to
-  # non-congruent arms
-  d2 <- mgcv::uniquecombs(sp_dat)
-  d$arm <- d2$trial.arm[as.numeric(d$id)]
 
   if (is.null(cpalette)) cpalette <- sample(rainbow(totalClusters))
   if (totalClusters == 1) cpalette <- c("white")
 
-  g <- ggplot2::ggplot() + ggplot2::theme_bw()
-
-  # ggplot2 plot each cluster separately to avoid overlays with an unwanted polygon
-
-  for (i in 1:totalClusters) {
-    # include an invisible graphic of cluster boundaries to constrain the shape/size
-    g <- g + get_Polygon(polygon_type = "limits", i = i,
-                         totalClusters = totalClusters, d = d, x = long, y = lat,
-                         cpalette = cpalette)
-    if (showClusterBoundaries) {
-      g <- g + get_Polygon(polygon_type = "clusterboundaries", i = i,
-                           totalClusters = totalClusters, d = d, x = long,
-                           y = lat, cpalette = cpalette)
-    }
-    if (colourClusters) {
-      g <- g + get_Polygon(polygon_type = "colouredclusters", i = i,
-                           totalClusters = totalClusters, d = d, x = long,
-                           y = lat, cpalette = cpalette)
-    }
-    if (showArms) {
-      g <- g + get_Polygon(polygon_type = "arms", i = i,
-                           totalClusters = totalClusters, d = d, x = long, y = lat,
-                           cpalette = cpalette)
-    }
+  g <- ggplot2::ggplot()
+  if (showClusterBoundaries) {
+    g <- g + ggplot2::geom_sf(data = clusters, color = "black", fill = "white")
+  }
+  if (colourClusters) {
+    g <- g + ggplot2::geom_sf(data = clusters, aes(fill = cluster), fill = cpalette, alpha=0.8)
   }
   if (showArms) {
-    g <- g + ggplot2::scale_fill_manual(name = "Arms", values = cpalette, labels = c("Control", "Intervention"))
-    g <- g + ggplot2::coord_equal()
-    g <- g + ggplot2::theme(legend.position = legend.position)
+    arms <- vor %>%
+      sf::st_join(tr, sf::st_intersects) %>%
+      group_by(arm) %>%
+      dplyr::summarize()
+    g <- g + ggplot2::geom_sf(data = arms, aes(fill = arm))
+      # use standard colour-blind compatible palette
+    g <- g + ggplot2::scale_fill_manual(name = "Arms", values = c("#b2df8a", "#1f78b4"),
+                  labels = c("Control", "Intervention"))
+
   }
 
-  ############ raster images derived from inla analysis #############
+  # raster images derived from inla analysis
   if (showPrediction) {
     g <- g + ggplot2::geom_tile(data = analysis$inla.mesh$prediction,
-                                aes(x = x, y = y, fill = prediction), alpha = 0.5)
+                      aes(x = x, y = y, fill = prediction),
+                      alpha = 0.5, width = pixel, height = pixel)
     g <- g + ggplot2::scale_fill_gradient(name = "Prediction", low = "blue", high = "orange")
+
   }
   if (showDistance) {
     g <- g + ggplot2::geom_tile(data = analysis$inla.mesh$prediction,
                                 aes(x = x, y = y, fill = nearestDiscord),
-                                alpha = 0.5)
+                                alpha = 0.5, width = pixel, height = pixel)
     g <- g + ggplot2::scale_fill_gradient(name = "Distance", low = "blue", high = "orange")
 
   }
@@ -221,43 +194,18 @@ plotCRTmap <- function(trial = trial, showLocations = TRUE, showClusterBoundarie
   ####################################################################
 
   if (showLocations) {
-    g <- g + ggplot2::geom_point(data = trial1, aes(x = x, y = y), size = 0.5)
+    g <- g + ggplot2::geom_point(data = trial, aes(x = x, y = y), size = 0.5)
   }
-  # mask for remote areas
-  g <- g + ggplot2::geom_polygon(data = gp2, aes(x = long, y = lat), colour = NA, fill = "grey")
   if (showClusterLabels) {
     g <- g + ggplot2::geom_text(data = cc, aes(x = x, y = y, label = cluster), hjust = 0.5, vjust = 0.5, size = labelsize)
   }
+  # mask for remote areas
+  g <- g + ggplot2::geom_sf(data = mask, fill = "grey")
+  g <- g + ggplot2::theme(legend.position = legend.position)
+  g <- g + ggplot2::theme(panel.border = ggplot2::element_blank())
   g <- g + ggplot2::theme(axis.title = ggplot2::element_blank())
-
+  g <- g + ggplot2::coord_sf(expand = FALSE, xlim = xlim, ylim = ylim)
   return(g)
-}
-
-#### Create different layers for plotting
-get_Polygon <- function(polygon_type, i, totalClusters = totalClusters, d = d, x = long, y = lat, cpalette = cpalette) {
-
-  lat <- long <- arm <- NULL
-
-  if (polygon_type == "limits") {
-    # invisible cluster boundaries to constrain shape
-    polygon <- ggplot2::geom_polygon(data = d[as.numeric(d$id) == i, ],
-                                     aes(x = long, y = lat), colour = "white",
-                                     fill = "white")
-  } else if (polygon_type == "clusterboundaries") {
-    polygon <- ggplot2::geom_polygon(data = d[as.numeric(d$id) == i, ],
-                                     aes(x = long, y = lat), colour = "gray",
-                                     fill = "white", size = 0.5)
-  } else if (polygon_type == "colouredclusters") {
-    if (is.null(cpalette))
-      cpalette <- sample(rainbow(totalClusters))
-    polygon <- ggplot2::geom_polygon(data = d[as.numeric(d$id) == i, ],
-                                     aes(x = long, y = lat), colour = "gray",
-                                     fill = cpalette[i])
-  } else if (polygon_type == "arms") {
-    polygon <- ggplot2::geom_polygon(data = d[as.numeric(d$id) == i, ],
-                                     aes(x = long, y = lat, fill = arm), colour = "black")
-  }
-  return(polygon)
 }
 
 

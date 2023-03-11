@@ -213,7 +213,7 @@ analyseCRT <- function(
         int.ests$interventionY <- invlink(link, analysisI$conf.int)
 
         # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
-        Sigma <- matrix(
+        Sigma <- base::matrix(
             data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
             nrow = 2, ncol = 2)
         if (link == 'identity'){
@@ -991,9 +991,15 @@ createMesh <- function(
         c(trial$x, trial$y),
         ncol = 2
     )
-    sptrial <- sp::SpatialPoints(trial.coords)
-    buf1 <- rgeos::gBuffer(sptrial, width = maskbuffer, byid = TRUE)
-    buffer <- rgeos::gUnaryUnion(buf1)
+
+    tr <- sf::st_as_sf(trial, coords = c("x","y"))
+    buf1 <- sf::st_buffer(tr, maskbuffer)
+    buf2 <- sf::st_union(buf1)
+    # determine pixel size
+    area <- sf::st_area(buf2)
+    npixels <- ncells^2
+    pixel <- sqrt(area/npixels)
+    buffer <- sf::as_Spatial(buf2)
 
     # estimation mesh construction
 
@@ -1007,19 +1013,21 @@ createMesh <- function(
     A <- INLA::inla.spde.make.A(mesh = mesh, loc = trial.coords)
 
     # 8.3.6 Prediction data from https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html
-    bb <- sp::bbox(buffer)
-    x <- seq(bb[1, "min"] - 1, bb[1, "max"] + 1, length.out = ncells)
-    y <- seq(bb[2, "min"] - 1, bb[2, "max"] + 1, length.out = ncells)
-    pred.coords <- as.matrix(expand.grid(x, y))
-    buf.coords <- buffer@polygons[[1]]@Polygons[[1]]@coords
-    ind <- sp::point.in.polygon(
-        pred.coords[, 1], pred.coords[, 2], buf.coords[, 1], buf.coords[,
-            2]
-    )
-    # prediction locations
-    pred.coords <- pred.coords[which(ind == 1),
-        ]
+    bb <- sf::st_bbox(buffer)
 
+    # create a raster that is slightly larger than the buffered area
+    xpixels <- round((bb$xmax - bb$xmin)/pixel) + 2
+    ypixels <- round((bb$ymax - bb$ymin)/pixel) + 2
+    x <- bb$xmin + (seq(1:xpixels) - 1.5)*pixel
+    y <- bb$ymin + (seq(1:ypixels) - 1.5)*pixel
+    all.coords <- as.data.frame(expand.grid(x, y), ncol = 2)
+    colnames(all.coords) <- c("x", "y")
+    all.coords <- sf::st_as_sf(all.coords, coords = c("x", "y"))
+    pred.coords <- sf::st_filter(all.coords, sf::st_as_sf(buf2))
+    pred.coords <- t(base::matrix(
+        unlist(pred.coords),
+        nrow = 2
+    ))
     # projection matrix for the prediction locations
     Ap <- INLA::inla.spde.make.A(mesh = mesh, loc = pred.coords)
 
@@ -1034,7 +1042,7 @@ createMesh <- function(
             2])^2
     )
     distP <- apply(pairs, 1, function(y) calcdistP(y["row"], y["col"]))
-    distM <- matrix(
+    distM <- base::matrix(
         distP, nrow = nrow(pred.coords),
         ncol = nrow(trial),
         byrow = TRUE
@@ -1059,7 +1067,7 @@ createMesh <- function(
                                         prediction = prediction,
                                         distM = distM)
     inla.mesh <- list(
-        prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde
+        prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde, pixel = pixel
     )
     return(inla.mesh)
 }

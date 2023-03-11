@@ -463,6 +463,7 @@ summary.CRT <- function(object, ...) {
                   as.numeric(coordinate.summary[1, 1])) *
       (as.numeric(coordinate.summary[6, 2]) - as.numeric(coordinate.summary[1, 2]))
     cat("Approximate area (based on ellipse) : ", area, "sq.km\n\n")
+    # TODO replace with area calculation using sf::st_area(x, ...)
   }
   if (is.null(object$cluster)) {
     output[5, 1] <- "Not assigned"
