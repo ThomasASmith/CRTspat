@@ -46,7 +46,7 @@ example_locations <- readdata('example_baseline.csv')
 # assign the denominator to the baseline data
 example_locations$base_denom <- 1
 # convert to Euclidean coordinates
-example_xy <- convert.latlong.xy(df = example_locations)
+example_xy <- latlong_as_xy(df = example_locations)
 summary(example_xy)
 # Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
 # auxiliary variables

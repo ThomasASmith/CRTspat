@@ -3,7 +3,7 @@ set.seed(1234)
 test_that("Simulate_CRT() creates the default simulation", {
  get_test3 = function(){
    Solarmal_baseline <- readdata("Solarmal_baseline.csv")
-   test_Locationsxy <- convert.latlong.xy(Solarmal_baseline) #test_site is simulated
+   test_Locationsxy <- latlong_as_xy(Solarmal_baseline) #test_site is simulated
    test_Clusters <- specify.clusters(test_Locationsxy,h = 50)
    test_Arms <- randomizeCRT(trial = test_Clusters,matchedPair = TRUE)
    test.simulateCRT <- simulateCRT(trial = test_Arms,
@@ -14,7 +14,7 @@ test_that("Simulate_CRT() creates the default simulation", {
    test.simulateCRT$RDT_test_result <- NULL
    test.simulateCRT$X <- NULL
    rownames(test.simulateCRT) <- NULL
-   test.simulateCRT <- convertCRT.data.frame(test.simulateCRT)
+   test.simulateCRT <- CRT_as_data.frame(test.simulateCRT)
    # write.csv(test.simulateCRT,file = "inst/extdata/test.simulateCRT1.csv", row.names = FALSE)
  return(test.simulateCRT)}
  expect_equal(get_test3(),readdata("test.simulateCRT1.csv"))

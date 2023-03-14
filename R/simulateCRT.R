@@ -29,7 +29,7 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
     x <- p$x[seq(1:locations)]
     y <- p$y[seq(1:locations)]
     coordinates <- data.frame(x = x - mean(x), y = y - mean(y))
-    CRT <- convert.data.frame.CRT(coordinates, input.parameters = NULL)
+    CRT <-data.frame_as_CRT(coordinates, input.parameters = NULL)
     return(CRT)
 }
 
@@ -139,7 +139,7 @@ simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBas
     cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
     bw <- NULL
     # several operations require the input data as a data frame. Descriptors will be replaced
-    trial <- convertCRT.data.frame(CRT = trial)
+    trial <- CRT_as_data.frame(CRT = trial)
 
     trial$arm <- as.factor(trial$arm)
     trial$cluster <- as.factor(trial$cluster)
@@ -203,7 +203,7 @@ simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBas
 
     trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy, outcome0 = outcome0,
         denominator = denominator)
-    CRT <- convert.data.frame.CRT(trial, input.parameters = NULL)
+    CRT <-data.frame_as_CRT(trial, input.parameters = NULL)
     return(CRT)
 }
 

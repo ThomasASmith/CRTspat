@@ -2,7 +2,7 @@
 % Please edit documentation in R/analyseCRT.R
 \name{createMesh}
 \alias{createMesh}
-\title{\\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.}
+\title{\code{createMesh} create objects required for INLA analysis of an object of class \code{CRT}.}
 \usage{
 createMesh(
   trial = trial,
@@ -10,36 +10,45 @@ createMesh(
   max.edge = 0.25,
   inla.alpha = 2,
   maskbuffer = 0.5,
-  ncells = 50
+  npixels = 1000
 )
 }
 \arguments{
 \item{trial}{trial dataframe including locations, clusters, arms, and binary outcomes}
 
-\item{offset}{(see inla.mesh.2d documentation)}
+\item{offset}{(see \code{inla.mesh.2d} documentation)}
 
-\item{max.edge}{(see inla.mesh.2d documentation)}
+\item{max.edge}{(see \code{inla.mesh.2d} documentation)}
 
-\item{inla.alpha}{parameter related to the smoothness}
+\item{inla.alpha}{parameter related to the smoothness (see \code{inla} documentation)}
 
-\item{maskbuffer}{(see inla.mesh.2d documentation)}
+\item{maskbuffer}{length of buffer around points}
 
-\item{ncells}{resolution of mesh in terms of maximum of linear dimension in pixels}
+\item{npixels}{number of pixels in the mesh (approximate)}
 }
 \value{
-list containing the mesh
-\\itemize{
-\\item \\code{prediction}: Data.table containing the prediction points and covariate values
-\\item \\code{A}: projection matrix from the observations to the mesh nodes.
-\\item \\code{Ap}: projection matrix from the prediction points to the mesh nodes.
-\\item \\code{indexs}:  index set for the SPDE model
-\\item \\code{spde}: SPDE model
+list
+\itemize{
+\item \code{prediction} Data frame containing the prediction points and covariate values
+\item \code{A} projection matrix from the observations to the mesh nodes.
+\item \code{Ap} projection matrix from the prediction points to the mesh nodes.
+\item \code{indexs} index set for the SPDE model
+\item \code{spde} SPDE model
+\item \code{pixel} pixel size (km) used by plotting routine
 }
 }
 \description{
-\\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.
+\code{createMesh} create objects required for INLA analysis of an object of class \code{CRT}.
+}
+\details{
+\code{createMesh} carries out the computationally intensive steps required for setting-up an
+INLA analyis of an object of class \code{CRT}, creating the prediction mesh and the projection matrices.
+The mesh can be reused for different models fitted to the same
+geography. The computational resources required depend largely on the resolution of the prediction mesh.
+The prediction mesh is thinned to include only pixels centred at a distance less than
+\code{maskbuffer} from the nearest point.\cr
 }
 \examples{
 # low resolution mesh for test dataset
-exampleMesh=createMesh(trial = readdata('test_Simulate_CRT.csv'), ncells = 7)
+exampleMesh=createMesh(trial = readdata('test_Simulate_CRT.csv'), npixels = 50)
 }

@@ -15,7 +15,7 @@ set.seed(1234)
 get_test5 = function(){
    Solarmal_baseline <- readdata("Solarmal_baseline.csv")
    test.locationsLatLong <- Solarmal_baseline[, c('lat','long')]
-   test.locationsxy <- convert.latlong.xy(test.locationsLatLong) #test_site is simulated
+   test.locationsxy <- latlong_as_xy(test.locationsLatLong) #test_site is simulated
    test.anonymizedlocations <- anonymize.site(test.locationsxy)
    test.clusters <- specify.clusters(test.anonymizedlocations,h = 50)
    test.arms <- randomizeCRT(trial = test.clusters,matchedPair = FALSE)

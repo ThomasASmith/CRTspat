@@ -14,6 +14,7 @@ knitr::knit("vignettes/Usecase3.Rmd.orig", output = "vignettes/Usecase3.Rmd")
 rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 
+
 # to build package website
 usethis::use_pkgdown()
 pkgdown::build_site()

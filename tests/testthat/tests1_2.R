@@ -2,7 +2,7 @@ set.seed(1234)
 test_that("designCRT() creates the default trial", {
   get_test1 = function(){
     Solarmal_baseline <- readdata("Solarmal_baseline.csv")
-    testLocationsxy <- convert.latlong.xy(Solarmal_baseline) #test_site is simulated
+    testLocationsxy <- latlong_as_xy(Solarmal_baseline) #test_site is simulated
     test_design <- designCRT(alpha = 0.05,
                               desiredPower = 0.8,
                               effect = 0.6,
@@ -12,7 +12,7 @@ test_that("designCRT() creates the default trial", {
                               trial = testLocationsxy,
                               h = 80,
                               outcome.type ="Dichotomous")
-    test_design <- convertCRT.data.frame(test_design)
+    test_design <- CRT_as_data.frame(test_design)
     test_design$cluster <- as.numeric(test_design$cluster)
     test_design$arm <- as.character(test_design$arm)
     test_design <- test_design[test_design$buffer == FALSE,]
@@ -31,7 +31,7 @@ test_that("simulateSite() creates the default site", {
                         locations = 2500,
                         kappa = 4,
                         mu = 50)
-    trial <- convertCRT.data.frame(CRT)
+    trial <- CRT_as_data.frame(CRT)
     # To recreate test file
     # write.csv(trial, file = "inst/extdata/test_site.csv", row.names = FALSE)
     return(trial)

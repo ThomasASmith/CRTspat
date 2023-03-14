@@ -1,30 +1,30 @@
 #' Analysis of cluster randomized trial with contamination
 #'
 #' \code{analyseCRT} carries out a statistical analysis of a cluster randomized trial (CRT).
-#' @param trial an object of class \code{CRT} or a data frame containing locations in (x,y) coordinates, cluster
+#' @param trial an object of class \code{"CRT"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome data (see details).
 #' @param method statistical method with options:
 #'  \tabular{ll}{
-#' \code{EMP} \tab simple averages of the data   \cr
-#' \code{T}   \tab comparison of cluster means by t-test \cr
-#' \code{GEE} \tab Generalised Estimating Equations \cr
-#' \code{INLA}\tab Integrated Nested Laplace Approximation (INLA) \cr
-#' \code{MCMC}\tab Markov chain Monte Carlo using \code{JAGS} \cr
+#' \code{"EMP"} \tab simple averages of the data   \cr
+#' \code{"T"}   \tab comparison of cluster means by t-test \cr
+#' \code{"GEE"} \tab Generalised Estimating Equations \cr
+#' \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
+#' \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
 #' }
 #' @param cfunc transformation defining the contamination function. \cr
 #' options are:
 #' \tabular{llll}{
-#' \code{X} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{EMP}, \code{T} and \code{GEE}\cr
-#' 'L' \tab\tab inverse logistic (sigmoid)\tab the default for \code{INLA} and \code{MCMC} methods\cr
-#' 'P' \tab\tab inverse probit (error function)\tab available with \code{INLA} and \code{MCMC} methods\cr
-#' 'S' \tab\tab piecewise linear\tab only available with the \code{MCMC} method\cr
+#' \code{"X"} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
+#' \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
+#' \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
+#' \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
 #' }
 #' @param link link function. options are:
 #'  \tabular{ll}{
-#' \code{logit}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
-#' \code{log}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).
-#' With the \code{INLA} and \code{MCMC} methods 'iid' random effects are used to model extra-Poisson variation.\cr
-#' \code{identity}\tab The outcome is \code{numerator/denominator} with a normally distributed error function.\cr
+#' \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
+#' \code{"log"}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).
+#' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr
+#' \code{"identity"}\tab The outcome is \code{numerator/denominator} with a normally distributed error function.\cr
 #' }
 #' @param numerator string: name of numerator variable for outcome
 #' @param denominator string: name of denominator variable for outcome data (if present)
@@ -92,12 +92,16 @@ analyseCRT <- function(
 
     cluster <- NULL
 
-    trial <- convertCRT.data.frame(CRT = trial)
+    trial <- CRT_as_data.frame(CRT = trial)
 
     if ("buffer" %in% colnames(trial) & excludeBuffer)
         {
         trial <- trial[!trial$buffer, ]
     }
+
+    # create skeleton for output object
+    analysis <- list(trial = trial, pt.ests = list(), int.ests = list())
+    model.object <- list()
 
     # create names for confidence limits for use throughout
     CLnames <- c(
@@ -166,7 +170,6 @@ analyseCRT <- function(
             fterms <- c(fterms, "f(id, model = \"iid\")")
         options$ftext <- paste(fterms, collapse = " + ")
     }
-    model.object <- list()
     pt.ests <- list(contamination.par = NA, pr.contaminated = NA, contamination.interval = NA)
     int.ests <- list(controlY = NA, interventionY = NA, effect.size = NA)
     description <- get_description(trial=trial, link=link, baselineOnly)
@@ -392,7 +395,7 @@ analyseCRT <- function(
                                     parameters.to.save = c("Es", "theta", "yC", "yI", "beta", "pcont"),
                                     model.file = textConnection(MCMCmodel), n.chains = nchains,
                                     iter.increment = 1000, n.burnin = burnin, max.iter=max.iter)
-        analysis <- list(model.object = jagsout, pt.ests = list(), int.ests = list())
+        analysis$model.object <- jagsout
         analysis$pt.ests$controlY <- jagsout$q50$yC
         analysis$int.ests$controlY <- namedCL(c(jagsout$q2.5$yC, jagsout$q97.5$yC), alpha = alpha)
         analysis$pt.ests$interventionY <- jagsout$q50$yI
@@ -413,12 +416,12 @@ analyseCRT <- function(
 
         trial <- dplyr::mutate(trial, id =  dplyr::row_number())
         # If spatial predictions are not required a minimal mesh is generated
-        ncells <- 50
-        if (!requireMesh) ncells <- 5
+        npixels <- 1000
+        if (!requireMesh) npixels <- 50
         if (is.null(inla.mesh)) {
                 inla.mesh <- createMesh(
                     trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
-                    maskbuffer = 0.5, ncells = ncells
+                    maskbuffer = 0.5, npixels = npixels
                 )
         }
         y_off <- NULL
@@ -583,9 +586,8 @@ analyseCRT <- function(
                 pr.contaminated = rep(0, 3)
             )
         }
-        analysis <- list(
-            model.object = inla.result, inla.mesh = inla.mesh, pt.ests = list(),
-            int.ests = list())
+        analysis$model.object <- inla.result
+        analysis$inla.mesh <- inla.mesh
 
         analysis <- add_estimates(analysis = analysis, bounds = bounds, CLnames = CLnames)
         analysis$int.ests$pr.contaminated <- stats::setNames(
@@ -612,16 +614,13 @@ analyseCRT <- function(
 
         analysis$description <- description
     }
-    if (method %in% c("EMP", "T", "GEE"))
-        {
+    if (method %in% c("EMP", "T", "GEE")) {
         # tidy up and consolidate the list of analysis
-        model.object <- pt.ests$model.object
-        pt.ests <- pt.ests[names(pt.ests) !=
-            "model.object"]
-        analysis <- list(
-            description = description, pt.ests = pt.ests,
-            int.ests = int.ests, model.object = model.object
-        )
+        analysis$model.object <- pt.ests$model.object
+        analysis$pt.ests <- pt.ests[names(pt.ests) != "model.object"]
+        analysis$int.ests <- int.ests
+        analysis$description <- description
+
     }
     if (cfunc != "Z")
     {
@@ -955,33 +954,38 @@ estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
 
 # functions for INLA analysis
 
-#' \\code{createMesh} Create prediction mesh and other inputs required for INLA analyis of a CRT.
+#' \code{createMesh} create objects required for INLA analysis of an object of class \code{CRT}.
 #' @param trial trial dataframe including locations, clusters, arms, and binary outcomes
-#' @param offset (see inla.mesh.2d documentation)
-#' @param max.edge (see inla.mesh.2d documentation)
-#' @param inla.alpha parameter related to the smoothness
-#' @param maskbuffer (see inla.mesh.2d documentation)
-#' @param ncells resolution of mesh in terms of maximum of linear dimension in pixels
-#' @return list containing the mesh
-#' \\itemize{
-#' \\item \\code{prediction}: Data.table containing the prediction points and covariate values
-#' \\item \\code{A}: projection matrix from the observations to the mesh nodes.
-#' \\item \\code{Ap}: projection matrix from the prediction points to the mesh nodes.
-#' \\item \\code{indexs}:  index set for the SPDE model
-#' \\item \\code{spde}: SPDE model
+#' @param offset (see \code{inla.mesh.2d} documentation)
+#' @param max.edge  (see \code{inla.mesh.2d} documentation)
+#' @param inla.alpha parameter related to the smoothness (see \code{inla} documentation)
+#' @param maskbuffer length of buffer around points
+#' @param npixels number of pixels in the mesh (approximate)
+#' @return list
+#' \itemize{
+#' \item \code{prediction} Data frame containing the prediction points and covariate values
+#' \item \code{A} projection matrix from the observations to the mesh nodes.
+#' \item \code{Ap} projection matrix from the prediction points to the mesh nodes.
+#' \item \code{indexs} index set for the SPDE model
+#' \item \code{spde} SPDE model
+#' \item \code{pixel} pixel size (km) used by plotting routine
 #' }
+#' @details \code{createMesh} carries out the computationally intensive steps required for setting-up an
+#' INLA analyis of an object of class \code{CRT}, creating the prediction mesh and the projection matrices.
+#' The mesh can be reused for different models fitted to the same
+#' geography. The computational resources required depend largely on the resolution of the prediction mesh.
+#' The prediction mesh is thinned to include only pixels centred at a distance less than
+#' \code{maskbuffer} from the nearest point.\cr
 #' @export
-#'
 #' @examples
 #' # low resolution mesh for test dataset
-#' exampleMesh=createMesh(trial = readdata('test_Simulate_CRT.csv'), ncells = 7)
+#' exampleMesh=createMesh(trial = readdata('test_Simulate_CRT.csv'), npixels = 50)
 createMesh <- function(
     trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2, maskbuffer = 0.5,
-    ncells = 50)
+    npixels = 1000)
     {
     cat(
-        "Creating mesh for INLA analysis: resolution parameter= ", ncells,
-        "\n"
+        "Creating mesh for INLA analysis of approximately", npixels, " pixels\n"
     )
     # create an id variable if this does not exist
     if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
@@ -997,7 +1001,6 @@ createMesh <- function(
     buf2 <- sf::st_union(buf1)
     # determine pixel size
     area <- sf::st_area(buf2)
-    npixels <- ncells^2
     pixel <- sqrt(area/npixels)
     buffer <- sf::as_Spatial(buf2)
 
