@@ -7,7 +7,7 @@
 #' @param auxiliaries vector of names of auxiliary variables to be summed across each location
 #' @returns A list of S3 class \code{"CRT"} containing the following components:
 #'  \tabular{lll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site\cr
+#'  \code{geom.full}   \tab list \tab summary statistics describing the site\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{...} \tab numeric vectors \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
@@ -45,9 +45,9 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #'   opposing arms for them to qualify to be included in the core area (km)
 #' @returns an object of class \code{"CRT"} comprising the following components:
 #'  \tabular{lll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site,
+#'  \code{geom.full}   \tab list \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\cr
-#'  \code{CRT.spat.core}   \tab list \tab summary statistics describing the core area \cr
+#'  \code{geom.core}   \tab list \tab summary statistics describing the core area \cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
@@ -88,8 +88,8 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #'   matched-pair randomization)
 #' @returns A list of class \code{"CRT"} containing the following components:
 #'  \tabular{lll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics of the site \cr
-#'  \code{CRT.spat.core}   \tab list \tab summary statistics of the core area (if a buffer is present)\cr
+#'  \code{geom.full}   \tab list \tab summary statistics of the site \cr
+#'  \code{geom.core}   \tab list \tab summary statistics of the core area (if a buffer is present)\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
@@ -154,17 +154,17 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
 
 data.frame_as_CRT <- function(trial, design = NULL){
   trial <- CRT_as_data.frame(trial)
-  CRT.spat.full <- describeTrial(trial, design = design)
+  geom.full <- describeTrial(trial, design = design)
   if (!is.null(trial$buffer)) {
-    CRT.spat.core <- describeTrial(trial = trial[trial$buffer == FALSE, ],
+    geom.core <- describeTrial(trial = trial[trial$buffer == FALSE, ],
                     design = design)
   } else {
-    CRT.spat.core <- NULL
+    geom.core <- NULL
   }
   class(trial) <- "CRT"
   CRT <- trial
-  CRT$CRT.spat.full <-  CRT.spat.full
-  CRT$CRT.spat.core <-  CRT.spat.core
+  CRT$geom.full <-  geom.full
+  CRT$geom.core <-  geom.core
   CRT$design <- design
 return(CRT)}
 
@@ -184,7 +184,7 @@ return(CRT)}
 #'   the TSP algorithm
 #' @returns A list of class \code{"CRT"} containing the following components:
 #'  \tabular{lll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site and cluster assignments.\cr
+#'  \code{geom.full}   \tab list \tab summary statistics describing the site and cluster assignments.\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
@@ -257,7 +257,7 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
 #'   The equirectangular projection (valid for small areas) is used.
 #' @returns A list of class \code{"CRT"} containing the following components:
 #'  \tabular{lll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site \cr
+#'  \code{geom.full}   \tab list \tab summary statistics describing the site \cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{...};   \tab other objects included in the input \code{"CRT"} object or data frame  \cr
@@ -288,7 +288,7 @@ latlong_as_xy <- function(df, latvar = "lat", longvar = "long") {
 #'   households (columns x and y)
 #' @returns A list of class \code{"CRT"} containing the following components:
 #'  \tabular{lll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site \cr
+#'  \code{geom.full}   \tab list \tab summary statistics describing the site \cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #'  \code{...};   \tab other objects included in the input \code{"CRT"} object or data frame  \cr
@@ -360,8 +360,8 @@ readdata <- function(filename) {
 #' @details \code{CRT_as_data.frame} removes lists of descriptors and summary statistics
 #' @export
 CRT_as_data.frame <- function(CRT) {
-    CRT$CRT.spat.full <- NULL
-    CRT$CRT.spat.core <- NULL
+    CRT$geom.full <- NULL
+    CRT$geom.core <- NULL
     CRT$design <- NULL
     trial <- CRT
     class(trial) <- "data.frame"
@@ -379,7 +379,7 @@ describeTrial <- function(trial, design = NULL) {
   sd_distance <- mean_h <- sd_h <- min_k <- clustersRequired <- DE <- power <- NULL
 
   coordinates <- data.frame(cbind(x=trial$x,y=trial$y))
-  CRT.spat <- list(records = nrow(trial),
+  geom <- list(records = nrow(trial),
                      locations = nrow(dplyr::distinct(coordinates)))
 
   if (!is.null(trial$cluster)) {
@@ -404,7 +404,7 @@ describeTrial <- function(trial, design = NULL) {
 
     if (!is.null(design)) {
 
-      calculateCRTpower <- calculateCRTpower(locations = CRT.spat$locations,
+      calculateCRTpower <- calculateCRTpower(locations = geom$locations,
                                              alpha = design$alpha,
                                              desiredPower = design$desiredPower,
                                              effect = design$effect,
@@ -417,13 +417,13 @@ describeTrial <- function(trial, design = NULL) {
                                              mean_h = mean_h,
                                              sd_h = sd_h)
 
-      CRT.spat <- calculateCRTpower$CRT.spat.full
+      geom <- calculateCRTpower$geom.full
     }
   }
-  CRT.spat$mean_h <- mean_h
-  CRT.spat$sd_h <- sd_h
-  CRT.spat$sd_distance <- sd_distance
-  return(CRT.spat)
+  geom$mean_h <- mean_h
+  geom$sd_h <- sd_h
+  geom$sd_distance <- sd_distance
+  return(geom)
 }
 
 
@@ -464,38 +464,38 @@ summary.CRT <- function(object, maskbuffer = 0.2, ...) {
     cat("Total area (within ", maskbuffer,"km of a location) : ", format(area, digits = 3), "sq.km\n\n")
   }
   rownames(output)[5] <- "Available clusters (across both arms)                 "
-  if (is.null(object$CRT.spat.full$mean_h)) {
+  if (is.null(object$geom.full$mean_h)) {
     output[5, 1] <- "Not assigned"
   } else {
-    clustersAvailableFull <- with(object$CRT.spat.full, floor(locations/mean_h))
+    clustersAvailableFull <- with(object$geom.full, floor(locations/mean_h))
     output[5, 1] <- clustersAvailableFull
     rownames(output)[6] <- "  Per cluster mean number of locations                "
-    output[6, 1] <- round(object$CRT.spat.full$mean_h, digits = 1)
+    output[6, 1] <- round(object$geom.full$mean_h, digits = 1)
     rownames(output)[7] <- "  Per cluster s.d. number of locations                "
-    output[7, 1] <- round(object$CRT.spat.full$sd_h, digits = 1)
+    output[7, 1] <- round(object$geom.full$sd_h, digits = 1)
   }
   rownames(output)[4] <- "Locations:                                            "
-  if(identical(object$CRT.spat.full$locations,object$CRT.spat.full$records)){
-    output[4, 1] <- object$CRT.spat.full$locations
+  if(identical(object$geom.full$locations,object$geom.full$records)){
+    output[4, 1] <- object$geom.full$locations
   } else {
-    if(!is.null(object$CRT.spat.full$records)) {
+    if(!is.null(object$geom.full$records)) {
       rownames(output)[4] <- paste0("Aggregation required. Total records: ",
-                          object$CRT.spat.full$records,". Total locations:")
+                          object$geom.full$records,". Total locations:")
     }
-    output[4, 1] <- object$CRT.spat.full$locations
+    output[4, 1] <- object$geom.full$locations
   }
-  if (!is.null(object$CRT.spat.core)) {
+  if (!is.null(object$geom.core)) {
     output[1, 1] <- "Full"
     output[1, 2] <- "Core"
-    clustersAvailableCore <- with(object$CRT.spat.core, floor(locations/mean_h))
-    output[4, 2] <- object$CRT.spat.core$locations
+    clustersAvailableCore <- with(object$geom.core, floor(locations/mean_h))
+    output[4, 2] <- object$geom.core$locations
     output[5, 2] <- clustersAvailableCore
-    output[6, 2] <- round(object$CRT.spat.core$mean_h, digits = 1)
-    output[7, 2] <- round(object$CRT.spat.core$sd_h, digits = 1)
+    output[6, 2] <- round(object$geom.core$mean_h, digits = 1)
+    output[7, 2] <- round(object$geom.core$sd_h, digits = 1)
   }
   if (!is.null(object$arm)) {
-    sd1 <- ifelse(is.null(object$CRT.spat.full$sd_distance), NA, object$CRT.spat.full$sd_distance)
-    sd2 <- ifelse(is.null(object$CRT.spat.core$sd_distance), NA, object$CRT.spat.core$sd_distance)
+    sd1 <- ifelse(is.null(object$geom.full$sd_distance), NA, object$geom.full$sd_distance)
+    sd2 <- ifelse(is.null(object$geom.core$sd_distance), NA, object$geom.core$sd_distance)
     rownames(output)[8] <- "S.D. of distance to nearest discordant location (km): "
     output[8, 1] <- ifelse(is.na(sd1), "", round(sd1, digits = 2))
     output[8, 2] <- ifelse(is.na(sd2), "", round(sd2, digits = 2))
@@ -561,35 +561,35 @@ summary.CRT <- function(object, maskbuffer = 0.2, ...) {
     rownames(output)[16] <- "No power calculations to report"
   } else {
     rownames(output)[16] <- "\nPower calculations (ignoring contamination)\n------------------                    "
-    sufficient <- ifelse(clustersAvailableFull >= object$CRT.spat.full$clustersRequired,
+    sufficient <- ifelse(clustersAvailableFull >= object$geom.full$clustersRequired,
                          "Yes", "No")
     rownames(output)[18] <- "Design effect:                         "
-    output[18, 1] <- round(object$CRT.spat.full$DE, digits = 1)
+    output[18, 1] <- round(object$geom.full$DE, digits = 1)
     rownames(output)[19] <- "Nominal power (%)                      "
-    output[19, 1] <- round(object$CRT.spat.full$power * 100, digits = 1)
+    output[19, 1] <- round(object$geom.full$power * 100, digits = 1)
     rownames(output)[20] <- paste0("Clusters required for power of ",
                                    object$design$desiredPower * 100, "%:     ")
-    output[20, 1] <- object$CRT.spat.full$clustersRequired
+    output[20, 1] <- object$geom.full$clustersRequired
     rownames(output)[21] <- "Sufficient clusters for required power?"
     output[21, 1] <- sufficient
 
-    if (is.null(object$CRT.spat.core)) {
+    if (is.null(object$geom.core)) {
       output <- subset(output, select = -c(2))
     } else {
       output[16, 1] <- "Full"
       output[16, 2] <- "Core"
-      clustersAvailableCore <- with(object$CRT.spat.core, floor(locations/mean_h))
-      sufficientCore <- ifelse(clustersAvailableCore >= object$CRT.spat.core$clustersRequired,
+      clustersAvailableCore <- with(object$geom.core, floor(locations/mean_h))
+      sufficientCore <- ifelse(clustersAvailableCore >= object$geom.core$clustersRequired,
                                "Yes", "No")
 
-      output[18, 2] <- round(object$CRT.spat.core$DE, digits = 1)
-      output[19, 2] <- round(object$CRT.spat.core$power * 100, digits = 1)
-      output[20, 2] <- object$CRT.spat.core$clustersRequired
+      output[18, 2] <- round(object$geom.core$DE, digits = 1)
+      output[19, 2] <- round(object$geom.core$power * 100, digits = 1)
+      output[20, 2] <- object$geom.core$clustersRequired
       output[21, 2] <- sufficientCore
     }
   }
   standard.names <- c("x", "y", "cluster", "arm", "buffer", "nearestDiscord",
-                      "CRT.spat.full", "CRT.spat.core", "design")
+                      "geom.full", "geom.core", "design")
   rownames(output)[22] <- "\nOther variables in dataset\n--------------------------"
   output[22, 1] <- paste(dplyr::setdiff(names(object), standard.names), collapse = "  ")
   output <- output[trimws(output[, 1]) != "", ]

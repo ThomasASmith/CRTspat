@@ -7,7 +7,7 @@
 #' @param mu mean  number of points per settlement cluster
 #' @returns A list with class \code{CRT} containing the following components:
 #'  \tabular{llll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site\cr
+#'  \code{geom.full}   \tab list \tab summary statistics describing the site\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #' }
@@ -57,7 +57,7 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #' @returns A list of class \code{CRT} containing the following components:
 #' \tabular{llll}{
 #' \code{design}\tab list \tab values of input parameters to the function \cr
-#' \code{CRT.spat.full}\tab list \tab summary statistics describing the site,
+#' \code{geom.full}\tab list \tab summary statistics describing the site,
 #'  cluster assignments, and randomization \cr
 #' \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #' \code{y} \tab numeric vector \tab y-coordinates of locations \cr

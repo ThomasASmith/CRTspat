@@ -30,7 +30,7 @@
 #' \code{"kmeans"}: kmeans.
 #' @return A \code{"CRT"} object comprising the input data, cluster and arm assignments, trial description and results of power calculations
 #'  \tabular{lll}{
-#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site,
+#'  \code{geom.full}   \tab list \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
@@ -93,7 +93,7 @@ designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, yC, outco
 #' @return An object of class \code{"CRT"} comprising:
 #' \itemize{
 #' \item \code{design} list of input parameters
-#' \item \code{CRT.spat.full} list containing the calculations of power, required number of clusters and design effect
+#' \item \code{geom.full} list containing the calculations of power, required number of clusters and design effect
 #' }
 #' @export
 #' @details
@@ -173,12 +173,12 @@ calculateCRTpower <- function(locations, alpha, desiredPower, effect, yC, outcom
 
     power <- stats::pnorm(sqrt(k * mean_eff/(2 * DE)) * d/sqrt(sigma2) - Zsig)  #unequal cluster sizes
 
-    CRT.spat.full <- list(locations = locations, mean_h = mean_h, sd_h = sd_h,
+    geom.full <- list(locations = locations, mean_h = mean_h, sd_h = sd_h,
         min_k = min_k, clustersRequired = clustersRequired, DE = DE, power = power)
     design <- list(locations = locations, alpha = alpha, desiredPower = desiredPower, effect = effect,
                              yC = yC, outcome.type = outcome.type,  sigma2 = sigma2,
                              phi = phi, N = N, ICC = ICC, mean_h = mean_h, sd_h = sd_h)
-    CRT <- list(CRT.spat.full = CRT.spat.full, design = design)
+    CRT <- list(geom.full = geom.full, design = design)
     class(CRT) <- "CRT"
     return(CRT)
 }
