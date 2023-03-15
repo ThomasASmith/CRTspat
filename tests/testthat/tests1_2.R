@@ -7,11 +7,11 @@ test_that("designCRT() creates the default trial", {
                               desiredPower = 0.8,
                               effect = 0.6,
                               ICC = 0.175,
-                              pC = 0.4,
+                              yC = 0.4,
                               buffer.width = 0.05,
                               trial = testLocationsxy,
                               h = 80,
-                              outcome.type ="Dichotomous")
+                              outcome.type ="d")
     test_design <- CRT_as_data.frame(test_design)
     test_design$cluster <- as.numeric(test_design$cluster)
     test_design$arm <- as.character(test_design$arm)

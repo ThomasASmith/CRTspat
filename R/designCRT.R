@@ -5,32 +5,32 @@
 #' (i) Estimates of the required numbers of clusters.
 #' (ii) A proposal for the cluster and arm assignments to the input coordinates.
 #' (A warning is output if the number of locations is too small to allow randomisation of sufficient clusters).
-#' (iii) the proportion of households in the input geography falling within the core of the clusters
-#' (i.e. outside the contamination range of locations in the opposite arm)
-#' @param trial dataframe or CRT object containing Cartesian coordinates of locations in columns 'x' and 'y'.
+#' (iii) the proportion of households in the input geography falling within the core of the clusters.
+#' @param trial dataframe or \code{"CRT"} object containing Cartesian coordinates of locations in columns 'x' and 'y'.
 #' Units are expected to be km.
-#' @param alpha confidence level
-#' @param desiredPower desired power
-#' @param effect required effect size
-#' @param ICC Intra-Cluster Correlation
-#' @param yC baseline outcome
-#' @param outcome.type options are:
-#'  \tabular{ll}{
-#' \code{"y"}\tab continous \cr
-#' \code{"n"}\tab count \cr
-#' \code{"e"}\tab event rate \cr
-#' \code{"p"}\tab proportion  \cr
-#' \code{"d"}\tab dichotomous \cr
-#' }
-#' @param buffer.width required buffer width in km
-#' @param h  proposal for the number of coordinates in each cluster
-#' @param algorithm algorithm used to determine cluster boundaries, options are-
+#' @param alpha numeric: confidence level
+#' @param desiredPower numeric: desired power
+#' @param effect numeric: required effect size
+#' @param yC numeric: baseline outcome
+#' @param outcome.type character with options -
+#' \code{"y"}: continuous;
+#' \code{"n"}: count;
+#' \code{"e"}: event rate;
+#' \code{"p"}: proportion;
+#' \code{"d"}: dichotomous.
+#' @param sigma2 numeric: variance of the outcome (for \code{outcome.type = "y"})
+#' @param phi numeric: overdispersion parameter (for \code{outcome.type = "n"} or \code{outcome.type = "e"})
+#' @param N numeric: denominator for proportions (for \code{outcome.type = "p"})
+#' @param ICC numeric: Intra-Cluster Correlation
+#' @param buffer.width numeric: required buffer width in km
+#' @param h numeric: proposal for the number of coordinates in each cluster
+#' @param algorithm algorithm used to determine cluster boundaries, options are
 #' \code{"TSP"}: travelling salesman problem heuristic;
 #' \code{"NN"}: nearest neighbor;
-#' \code{"kmeans"}: kmeans
+#' \code{"kmeans"}: kmeans.
 #' @return A \code{"CRT"} object comprising the input data, cluster and arm assignments, trial description and results of power calculations
 #'  \tabular{lll}{
-#'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site,
+#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
@@ -41,16 +41,15 @@
 #'  }
 #' @export
 #' @examples
-#' exampleDesign = designCRT(trial=readdata('test_site.csv'),
-#'                 ICC=0.10, effect=0.4, yC=0.35, desiredPower = 0.8, algorithm = 'kmeans',
-#'                 buffer.width=0.25, h=100, outcome.type ='d')
-designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, ICC,
-    yC, buffer.width = 0, h, algorithm = "kmeans", outcome.type = outcome.type) {
+#' exampleDesign = designCRT(trial = readdata('test_site.csv'),
+#'                 desiredPower = 0.8, effect=0.4, yC=0.35, outcome.type = 'd', ICC = 0.05,
+#'                 buffer.width = 0.25, h=100, algorithm = 'kmeans')
+designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, yC, outcome.type ='d', sigma2 = NULL,
+                      phi = 1, N = 1,  ICC, buffer.width = 0, h, algorithm = "kmeans") {
 
     trial <- CRT_as_data.frame(trial)
-    input.parameters <- list(yC = yC, alpha = alpha, desiredPower = desiredPower,
-        h = h, algorithm = algorithm, outcome.type = outcome.type, buffer.width = buffer.width,
-        effect = effect, ICC = ICC)
+    design <- list(alpha = alpha, desiredPower = desiredPower, effect = effect, yC = yC,
+         outcome.type = outcome.type, h = h, ICC = ICC, buffer.width = buffer.width, algorithm = algorithm)
 
     # Step J: specify or compute cluster boundaries
     CRT <- specify.clusters(trial = trial, h = h, algorithm = algorithm, reuseTSP = FALSE)
@@ -62,54 +61,51 @@ designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, ICC,
     # coordinate (specifyBuffer assigns a buffer only if a buffer.width> 0 is input)
 
     CRT <- specify.buffer(trial = CRT, buffer.width = buffer.width)
-    CRT <- data.frame_as_CRT(CRT, input.parameters = input.parameters)
+    CRT <- data.frame_as_CRT(CRT, design = design)
     return(CRT)
 }
 
 
 #' Power and sample size calculations for a CRT
 #'
-#' \code{calculateCRTpower} carries out power and sample-size calculations for a CRT
-#' The output is a CRT object containing values for:
+#' \code{calculateCRTpower} carries out power and sample-size calculations for a CRT.
+#' The output is an object of class \code{"CRT"} containing values for:
 #' - The required numbers of clusters to achieve the specified power.
 #' - The design effect based on the input ICC.
-#' - The power achievable.
-#' @param locations numeric: total number of units
-#' @param ICC numeric: Intracluster Correlation Coefficient
-#' @param effect numeric: Required effect size
-#' @param alpha numeric: Significance level
-#' @param outcome.type:
-#'  \tabular{ll}{
-#' \code{"y"}\tab continuous \cr
-#' \code{"n"}\tab count \cr
-#' \code{"e"}\tab event rate \cr
-#' \code{"p"}\tab proportion  \cr
-#' \code{"d"}\tab dichotomous \cr
-#' }
-#' @param sigma2 numeric variance of the outcome (for \code{outcome.type = "y"})
-#' @param phi overdispersion parameter (for \code{outcome.type = "n"} or \code{outcome.type = "e"})
-#' @param N denominator for proportions (for \code{outcome.type = "p"})
-#' @param desiredPower desired power (expressed as a proportion)
-#' @param yC expected average outcome in control arm
+#' - The power achievable with clusters of the specified size.
+#' @param locations numeric: total number of units available for randomization
+#' @param alpha numeric: confidence level
+#' @param desiredPower numeric: desired power
+#' @param effect numeric: required effect size
+#' @param yC numeric: baseline outcome
+#' @param outcome.type character with options-
+#' \code{"y"}: continuous;
+#' \code{"n"}: count;
+#' \code{"e"}: event rate;
+#' \code{"p"}: proportion;
+#' \code{"d"}: dichotomous.
+#' @param sigma2 numeric: variance of the outcome (for \code{outcome.type = "y"})
+#' @param phi numeric: overdispersion parameter (for \code{outcome.type = "n"} or \code{outcome.type = "e"})
+#' @param N numeric: denominator for proportions (for \code{outcome.type = "p"})
+#' @param ICC numeric: Intra-Cluster Correlation
 #' @param mean_h mean number of units per cluster
 #' @param sd_h standard deviation of number of units per cluster
-#' @return A CRT object comprising the input coordinates :
+#' @return An object of class \code{"CRT"} comprising:
 #' \itemize{
-#' \item \code{input.parameters} list of input parameters
-#' \item \code{CRT.design.full} list of calculated filename for coordinates of households
+#' \item \code{design} list of input parameters
+#' \item \code{CRT.spat.full} list containing the calculations of power, required number of clusters and design effect
 #' }
 #' @export
-#' @details for count data, or event rates a quasi–Poisson model is assumed
+#' @details
+#' Power and sample size calculations are for a two-arm trial, and use the formulae of
+#' [Hemming et al, 2011](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102). For counts
+#' or event rate data a quasi–Poisson model is assumed.
 #'
-
-
 #' @examples
 #' examplePower = calculateCRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
 #'     outcome.type = 'd', desiredPower = 0.8, yC=0.35, mean_h=100, sd_h=5)
-calculateCRTpower <- function(locations, ICC, effect, alpha, outcome.type, sigma2 = NULL,
-                              phi = 1, N = 1, desiredPower, yC, mean_h, sd_h) {
-    # TODO: add non-binomial outcomes
-
+calculateCRTpower <- function(locations, alpha, desiredPower, effect, yC, outcome.type, sigma2 = NULL,
+                              phi = 1, N = 1, ICC, mean_h, sd_h) {
     # Step A: confidence level Step B: power Step C: Required effect
     # size Step D: ICC, obtained from other studies Step E: baseline
     # outcome Step F: buffer width based on postulated contamination
@@ -120,9 +116,6 @@ calculateCRTpower <- function(locations, ICC, effect, alpha, outcome.type, sigma
     # convert power and significance level to normal deviates
     Zsig <- -qnorm(alpha/2)
     Zpow <- qnorm(desiredPower)
-
-    # Power and sample size calculations based on Hemming et al, 2011
-    # https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102
 
     link <- switch(outcome.type,
               'y' = "identity",
@@ -180,13 +173,12 @@ calculateCRTpower <- function(locations, ICC, effect, alpha, outcome.type, sigma
 
     power <- stats::pnorm(sqrt(k * mean_eff/(2 * DE)) * d/sqrt(sigma2) - Zsig)  #unequal cluster sizes
 
-    CRT.design.full <- list(locations = locations, mean_h = mean_h, sd_h = sd_h,
+    CRT.spat.full <- list(locations = locations, mean_h = mean_h, sd_h = sd_h,
         min_k = min_k, clustersRequired = clustersRequired, DE = DE, power = power)
-    input.parameters <- list(locations = locations, ICC = ICC, effect = effect,
-        alpha = alpha, outcome.type = outcome.type,  sigma2 = sigma2,
-        phi = phi, N = N, desiredPower = desiredPower,
-        yC = yC, mean_h = mean_h, sd_h = sd_h)
-    CRT <- list(CRT.design.full = CRT.design.full, input.parameters = input.parameters)
+    design <- list(locations = locations, alpha = alpha, desiredPower = desiredPower, effect = effect,
+                             yC = yC, outcome.type = outcome.type,  sigma2 = sigma2,
+                             phi = phi, N = N, ICC = ICC, mean_h = mean_h, sd_h = sd_h)
+    CRT <- list(CRT.spat.full = CRT.spat.full, design = design)
     class(CRT) <- "CRT"
     return(CRT)
 }

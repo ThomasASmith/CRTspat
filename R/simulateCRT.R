@@ -7,7 +7,7 @@
 #' @param mu mean  number of points per settlement cluster
 #' @returns A list with class \code{CRT} containing the following components:
 #'  \tabular{llll}{
-#'  \code{CRT.design.full}   \tab list \tab summary statistics describing the site\cr
+#'  \code{CRT.spat.full}   \tab list \tab summary statistics describing the site\cr
 #'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
 #' }
@@ -29,7 +29,7 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
     x <- p$x[seq(1:locations)]
     y <- p$y[seq(1:locations)]
     coordinates <- data.frame(x = x - mean(x), y = y - mean(y))
-    CRT <-data.frame_as_CRT(coordinates, input.parameters = NULL)
+    CRT <-data.frame_as_CRT(coordinates, design = NULL)
     return(CRT)
 }
 
@@ -56,8 +56,8 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #' @param vr numeric. ratio of location variance to cluster variance (for continuous outcomes)
 #' @returns A list of class \code{CRT} containing the following components:
 #' \tabular{llll}{
-#' \code{input.parameters}\tab list \tab values of input parameters to the function \cr
-#' \code{CRT.design.full}\tab list \tab summary statistics describing the site,
+#' \code{design}\tab list \tab values of input parameters to the function \cr
+#' \code{CRT.spat.full}\tab list \tab summary statistics describing the site,
 #'  cluster assignments, and randomization \cr
 #' \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 #' \code{y} \tab numeric vector \tab y-coordinates of locations \cr
@@ -203,7 +203,7 @@ simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBas
 
     trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy, outcome0 = outcome0,
         denominator = denominator)
-    CRT <-data.frame_as_CRT(trial, input.parameters = NULL)
+    CRT <-data.frame_as_CRT(trial, design = NULL)
     return(CRT)
 }
 

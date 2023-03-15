@@ -22,9 +22,9 @@ get_test5 = function(){
    test.buffer <- specify.buffer(trial = test.arms, buffer.width = 0.1)
    test.buffer$cluster <- as.numeric(test.buffer$cluster)
    test.buffer$arm <- as.character(test.buffer$arm)
-   test.buffer$CRT.design.full <- NULL
-   test.buffer$CRT.design.core <- NULL
-   test.buffer$input.parameters <- NULL
+   test.buffer$CRT.spat.full <- NULL
+   test.buffer$CRT.spat.core <- NULL
+   test.buffer$design <- NULL
    class(test.buffer) <- "data.frame"
    # To recreate test file
    # write.csv(test.buffer, file = "inst/extdata/test.buffer.csv", row.names = FALSE)
