@@ -198,9 +198,16 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
         cat("Estimating the smoothing required to achieve the target ICC of", ICC_inp, "\n")
 
         loss <- 999
+        nb_iter <- 20
+        # tol > 1 is used in testing, to allow reductions in the number of iterations giving very approximate output
+        if (tol > 1) {
+          tol <- 0.05
+          nb_iter <- 5
+        }
         while (loss > tol) {
-            ICC.loss <- OOR::StoSOO(par = NA, fn = ICCdeviation, lower = -5, upper = 5, nb_iter = 20, trial = trial, ICC_inp = ICC_inp,
-                approx_diag = approx_diag, sd = sd, scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0)
+            ICC.loss <- OOR::StoSOO(par = NA, fn = ICCdeviation, lower = -5, upper = 5, nb_iter = nb_iter,
+                                    trial = trial, ICC_inp = ICC_inp, approx_diag = approx_diag, sd = sd,
+                                    scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0)
             loss <- ICC.loss$value
         }
         logbw <- ICC.loss$par

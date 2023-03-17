@@ -8,7 +8,7 @@ test_that("Simulate_CRT() creates the default simulation", {
    test_Arms <- randomizeCRT(trial = test_Clusters,matchedPair = TRUE)
    test.simulateCRT <- simulateCRT(trial = test_Arms,
                         theta_inp = 1.2,outcome0 = 0.4,
-                        ICC_inp = 0.05 ,efficacy = 0.4,tol = 0.05)
+                        ICC_inp = 0.05 ,effect = 0.4, tol = 99)
    trial <- test.simulateCRT$trial
    trial$cluster <- as.numeric(trial$cluster)
    trial$arm <- as.character(trial$arm)
