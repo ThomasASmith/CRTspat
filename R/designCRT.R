@@ -1,11 +1,14 @@
 #' Design a CRT for a given set of locations
 #'
-#' \code{designCRT} estimates the required number of clusters and the extent of contamination between arms for a CRT
-#' with the input set of locations. Outputs are:
-#' (i) Estimates of the required numbers of clusters.
-#' (ii) A proposal for the cluster and arm assignments to the input coordinates.
-#' (A warning is output if the number of locations is too small to allow randomisation of sufficient clusters).
-#' (iii) the proportion of households in the input geography falling within the core of the clusters.
+#' \code{designCRT} estimates the required number of clusters for a CRT based on a specified geography.
+#' Clusters are assigned by algorithm to the input set of locations. Outputs are:\cr
+#' - Estimates of the required numbers of clusters given the user-specified cluster size.\cr
+#' - A proposal for the cluster and arm assignments to the input coordinates based on algorithmic cluster assignments.
+#' (A warning is output if the number of locations is too small to allow randomisation of sufficient clusters).\cr
+#' - Calculations of the nominal power for the full trial area (ignoring any bias caused by contamination effects)\cr
+#' - The proportion of households in the input geography falling within the core of the clusters (defined using
+#' a user-specified buffer width), as well as the size of the cluster
+#' cores and power calculations for a trial based on the core.\cr
 #' @param trial dataframe or \code{"CRT"} object containing Cartesian coordinates of locations in columns 'x' and 'y'.
 #' Units are expected to be km.
 #' @param alpha numeric: confidence level
@@ -28,16 +31,21 @@
 #' \code{"TSP"}: travelling salesman problem heuristic;
 #' \code{"NN"}: nearest neighbor;
 #' \code{"kmeans"}: kmeans.
-#' @return A \code{"CRT"} object comprising the input data, cluster and arm assignments, trial description and results of power calculations
-#'  \tabular{lll}{
+#' @returns A list of S3 class \code{"CRT"} object comprising the input data, cluster and arm assignments,
+#' trial description and results of power calculations
+#'  \tabular{llll}{
+#'  \code{design} \tab list \tab specification of the design\tab\cr
 #'  \code{geom.full}   \tab list \tab summary statistics describing the site,
-#'  cluster assignments, and randomization.\cr
-#'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
-#'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
-#'  \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \code{arm} \tab factor \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-#'  \code{buffer} \tab logical \tab indicator of whether the point is within the buffer \cr
-#'  \code{...} \tab other objects included in the input \code{"CRT"} object or data frame \cr
+#'  cluster assignments, randomization, and power calculations.\tab\cr
+#'  \code{geom.core}   \tab list \tab summary statistics describing the cluster core,
+#'   and corresponding power calculations.\tab\cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+#'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+#'  \tab \code{arm} \tab factor \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
+#'  \tab \code{buffer} \tab logical \tab indicator of whether the point is within the buffer \cr
+#'  \tab \code{...} \tab other objects included in the input \code{"CRT"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -96,17 +104,18 @@ designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, yC, outco
 #' @param ICC numeric: Intra-Cluster Correlation
 #' @param mean_h mean number of units per cluster
 #' @param sd_h standard deviation of number of units per cluster
-#' @return An object of class \code{"CRT"} comprising:
+#' @returns A list of S3 class \code{"CRT"} object including the
+#' trial description and results of power calculations consisting of:\cr
 #' \itemize{
-#' \item \code{design} list of input parameters
-#' \item \code{geom.full} list containing the calculations of power, required number of clusters and design effect
+#' \item \code{design} list: specification of the design.
+#' \item \code{geom.full} list: summary statistics describing the site,
+#'  cluster assignments, randomization, and power calculations.
 #' }
 #' @export
 #' @details
 #' Power and sample size calculations are for a two-arm trial using the formulae of
 #' [Hemming et al, 2011](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102). For counts
 #' or event rate data a quasi–Poisson model is assumed.
-#'
 #' @examples
 #' examplePower = calculateCRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
 #'     outcome.type = 'd', desiredPower = 0.8, yC=0.35, mean_h=100, sd_h=5)

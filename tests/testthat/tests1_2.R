@@ -12,7 +12,7 @@ test_that("designCRT() creates the default trial", {
                               trial = testLocationsxy,
                               h = 80,
                               outcome.type ="d")
-    test_design <- CRT_as_data.frame(test_design)
+    test_design <- test_design$trial
     test_design$cluster <- as.numeric(test_design$cluster)
     test_design$arm <- as.character(test_design$arm)
     test_design <- test_design[test_design$buffer == FALSE,]
@@ -31,7 +31,7 @@ test_that("simulateSite() creates the default site", {
                         locations = 2500,
                         kappa = 4,
                         mu = 50)
-    trial <- CRT_as_data.frame(CRT)
+    trial <- CRT$trial
     # To recreate test file
     # write.csv(trial, file = "inst/extdata/test_site.csv", row.names = FALSE)
     return(trial)

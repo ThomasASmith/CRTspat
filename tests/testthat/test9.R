@@ -2,7 +2,7 @@ set.seed(1234)
 # a stochastic optimisation is involved, but the test can fail because INLA uses parallel processing
 # A separate seed should be set for each processor.
 get_test9 = function(){
-  trial <- readdata("test_CRT2.csv")
+  CRT <- readdata("test.CRT.csv")
   analysis <- analyseCRT(trial=trial,
                           method = 'INLA', link='logit', cfunc='P',
                           localisedEffects = TRUE, clusterEffects= TRUE,

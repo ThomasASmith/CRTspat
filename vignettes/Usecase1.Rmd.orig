@@ -41,22 +41,22 @@ The example uses locations from Rusinga Island, Kenya. (The example dataset also
 of test positivity from a baseline survey)
 
 #### Example
-```{r example1.r, fig.path=('/vignettes/'),echo=TRUE}
+```{r example1.r, fig.path=('vignettes/'),echo=TRUE}
 example_locations <- readdata('example_baseline.csv')
 # assign the denominator to the baseline data
 example_locations$base_denom <- 1
 # convert to Euclidean coordinates
-example_xy <- latlong_as_xy(df = example_locations)
+example_xy <- latlong_as_xy(trial = example_locations)
 summary(example_xy)
 # Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
 # auxiliary variables
-example_aggregated <- aggregateCRT(trial = example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
+example_aggregated <- aggregate(CRT = example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example_aggregated)
 # Plot map of locations
-plotCRTmap(example_aggregated, maskbuffer = 0.5)
+plotCRTmap(example_aggregated, showLocations = TRUE, maskbuffer = 0.5)
 example_clustered <- specify.clusters(trial = example_aggregated, h = 50, algorithm = 'NN')
 summary(example_clustered)
-plotCRTmap(example_clustered, maskbuffer = 0.5)
+plotCRTmap(example_clustered, showClusterLabels = TRUE, maskbuffer = 0.5)
 example_randomized <- randomizeCRT(trial = example_clustered, matchedPair = TRUE)
 summary(example_randomized)
 plotCRTmap(trial = example_randomized,maskbuffer=0.5,legend.position=c(0.2,0.8))

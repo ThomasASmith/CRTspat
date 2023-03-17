@@ -1,12 +1,12 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# CRTspillover
+# CRTspat
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-CRTspillover is an R-package to provide easily accessible R functions
+CRTspat is an R-package to provide easily accessible R functions
 for design and analysis of cluster randomized trials (CRTs), where
 geographically structured contamination is anticipated and where
 geolocations are available. It includes functions for analysing baseline

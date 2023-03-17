@@ -1193,13 +1193,13 @@ Tinterval <- function(x, alpha, option){
 }
 
 
-#' Summarise analysis
+#' Fitted results from analysis
 #'
-#' \code{summary.CRTanalysis} generates a summary description of an analysis of a CRT
+#' \code{fitted.CRTanalysis} generates a summary description of an analysis of a CRT
 #' @param ... other arguments
 #' @param object name of analysis
 #' @export
-summary.CRTanalysis <- function(object, ...) {
+fitted.CRTanalysis <- function(object, ...) {
     cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
     cat(
         "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n"

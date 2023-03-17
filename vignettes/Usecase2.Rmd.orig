@@ -50,7 +50,7 @@ set.seed(1234)
 example_locations <- readdata('example_baseline.csv')
 example_locations$base_denom <- 1
 example_xy <- latlong_as_xy(df = example_locations)
-example_aggregated <- aggregateCRT(trial = example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
+example_aggregated <- aggregate(CRT = example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
 example_clustered <- specify.clusters(trial = example_aggregated, h = 50, algorithm = 'NN')
 example_randomized <- randomizeCRT(trial = example_clustered, matchedPair = TRUE)
 

@@ -60,7 +60,7 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #' \tabular{llll}{
 #' \code{geom.full}\tab list: \tab summary statistics describing the site
 #' cluster assignments, and randomization \tab\cr
-#' \code{design}\tab list: \tab values of input parameters to the function \tab\cr
+#' \code{design}\tab list: \tab values of input parameters to the design \tab\cr
 #' \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
 #' \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #' \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr

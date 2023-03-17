@@ -1,9 +1,9 @@
 #' Aggregate data across records with duplicated locations
 #'
-#' \code{aggregateCRT} aggregates data from a \code{"CRT"} object or data frame
-#' containing multiple records with the same location, and outputs a list of S3 class \code{"CRT"}.
-#' containing single values for each location, for both the coordinates and the auxiliary variables.
-#' @param trial An object of S3 class \code{"CRT"} or a data frame containing locations (x,y) and variables to be summed
+#' \code{aggregate} aggregates data from a \code{"CRT"} object containing multiple records with the same location,
+#' and outputs a list of S3 class \code{"CRT"} containing single values for each location, for both the coordinates and the auxiliary variables.
+#' @param x An object of S3 class \code{"CRT"} containing locations (x,y) and variables to be summed
+#' @param ... Other arguments to \code{"aggregate()"}
 #' @param auxiliaries vector of names of auxiliary variables to be summed across each location
 #' @returns A list of S3 class \code{"CRT"} containing the following components:
 #'  \tabular{llll}{
@@ -13,30 +13,25 @@
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
 #'  \tab \code{...} \tab numeric vectors: \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
 #'  }
+#' @importFrom stats aggregate
 #' @export
-aggregateCRT <- function(trial, auxiliaries = NULL) {
-    if (identical(class(trial),"data.frame")){
-      CRT <- list(trial = trial, design = NULL)
-      class(CRT) <- "CRT"
-    } else {
-      CRT <- trial
-      trial <- CRT$trial
-    }
+aggregate.CRT <- function(x, ... , auxiliaries = NULL) {
+    trial <- x$trial
     x <- y <- NULL
-    df <- trial %>%
+    trial <- trial %>%
         distinct(x, y, .keep_all = TRUE)
-    df <- df[order(df$x, df$y), ]
+    trial <- trial[order(trial$x, trial$y), ]
     if (!is.null(auxiliaries)) {
         for (i in 1:length(auxiliaries)) {
             varName <- auxiliaries[i]
-            df1 <- trial %>%
+            trial1 <- trial %>%
                 group_by(x, y) %>%
                 summarize(sumVar = sum(get(varName), na.rm = TRUE), .groups = "drop")
-            df1 <- df1[order(df1$x, df1$y), ]
-            df[[varName]] <- df1$sumVar
+            trial1 <- trial1[order(trial1$x, trial1$y), ]
+            trial[[varName]] <- trial1$sumVar
         }
     }
-    CRT <- updateCRT(CRT = CRT, trial = trial)
+    CRT <- updateCRT(CRT = x, trial = trial)
     return(CRT)
 }
 
@@ -183,12 +178,38 @@ updateCRT <- function(CRT, trial){
   } else {
     CRT$geom.core <- NULL
   }
+  class(CRT) <- "CRT"
   return(CRT)
 }
 
+new_CRT <- function(x = list()) {
+  stopifnot(is.data.frame(x$trial))
+  stopifnot(is.list(x$design))
+  stopifnot(is.list(x$geom.full))
+  stopifnot(is.list(x$geom.core))
+  structure(x, class = "CRT")
+}
 
-
+#' \code{as_CRT} converts a data.frame to an object of S3 class \code{"CRT"}
+#' @param trial a data frame containing locations in (x,y) coordinates,
+#' and optionally, cluster assignments (factor \code{cluster}), arm assignments (factor \code{arm}),
+#' specification of a buffer zone (logical \code{buffer}) and any other location specific variables
+#' required for subsequent analysis.
+#' @param design a vector describing a trial design
+#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#'  \tabular{llll}{
+#'  \code{geom.full}   \tab list: \tab summary statistics describing the site,
+#'  cluster assignments, and randomization.\tab\cr
+#'  \code{geom.core}   \tab list: \tab summary statistics describing the core area (if there is a buffer) \tab\cr
+#'  \code{trial} \tab data frame: \tab the input data frame\tab\cr
+#'  \code{design} \tab list: \tab the input design
+#'  }
+#' @export
 as_CRT <- function(trial, design = NULL){
+  if(identical(class(trial),"CRT")) {
+    design <- trial$design
+    trial <- trial$trial
+  }
   geom.full <- get_geom(trial, design = design)
   if (!is.null(trial$buffer)) {
     geom.core <- get_geom(trial = trial[trial$buffer == FALSE, ],
@@ -205,7 +226,7 @@ return(CRT)}
 
 
 
-#' algorithmically assigns locations to clusters in a CRT
+#' Algorithmically assign locations to clusters in a CRT
 #'
 #' \code{specify.clusters} algorithmically assigns locations to clusters by grouping them geographically
 #'
@@ -291,7 +312,7 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
 #'
 #' \code{latlong_as_xy} converts co-ordinates expressed as decimal degrees
 #' into x,y
-#' @param df data frame containing latitudes and longitudes in decimal degrees
+#' @param trial A list of S3 class \code{"CRT"} containing latitudes and longitudes in decimal degrees
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
 #' @details An object containing the input locations replaced with Cartesian
@@ -306,20 +327,27 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
 #'  \tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
 #'  }
 #' @export
-latlong_as_xy <- function(df, latvar = "lat", longvar = "long") {
-    colnames(df)[identical(colnames(df), latvar)] <- "lat"
-    colnames(df)[identical(colnames(df), longvar)] <- "long"
-    R <- 6371  # radius of the earth
-    latradians <- with(df, pi/180 * lat)
-    longradians <- with(df, pi/180 * long)
-    meanlat <- mean(latradians)
-    meanlong <- mean(longradians)
-    df$y <- R * (latradians - meanlat) * cos(longradians)
-    df$x <- R * (longradians - meanlong)
-    drops <- c("lat", "long")
-    df <- df[, !(names(df) %in% drops)]
-    CRT <- as_CRT(df, design = NULL)
-    return(CRT)
+latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
+  if (identical(class(trial),"data.frame")){
+    CRT <- list(trial = trial, design = NULL)
+    class(CRT) <- "CRT"
+  } else {
+    CRT <- trial
+    trial <- CRT$trial
+  }
+  colnames(trial)[identical(colnames(trial), latvar)] <- "lat"
+  colnames(trial)[identical(colnames(trial), longvar)] <- "long"
+  R <- 6371  # radius of the earth
+  latradians <- with(trial, pi/180 * lat)
+  longradians <- with(trial, pi/180 * long)
+  meanlat <- mean(latradians)
+  meanlong <- mean(longradians)
+  trial$y <- R * (latradians - meanlat) * cos(longradians)
+  trial$x <- R * (longradians - meanlong)
+  drops <- c("lat", "long")
+  trial <- trial[, !(names(trial) %in% drops)]
+  CRT <- as_CRT(trial, design = NULL)
+  return(CRT)
 }
 
 
@@ -399,24 +427,8 @@ readdata <- function(filename) {
         robject <- read.csv(file = paste0(extdata, "/", fname), row.names = NULL)
     # remove variable 'X' if it is present
     robject$X <- NULL
+    if (unlist(gregexpr(".CRT", fname)) > 0) robject <- as_CRT(robject)
     return(robject)
-}
-
-#' Convert object of S3 class CRT to a data frame
-#'
-#' \code{CRT_as_data.frame} removes lists of descriptors and summary statistics
-#' and returns the trial data frame
-#'
-#' @param CRT name of CRT object
-#' @return data frame with one row for each location
-#' @export
-CRT_as_data.frame <- function(CRT) {
-    CRT$geom.full <- NULL
-    CRT$geom.core <- NULL
-    CRT$design <- NULL
-    trial <- CRT$trial
-    class(trial) <- "data.frame"
-    return(trial)
 }
 
 # Characteristics of a trial design. The input is a data frame. The output list
