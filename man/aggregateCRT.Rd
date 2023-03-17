@@ -13,15 +13,16 @@ aggregateCRT(trial, auxiliaries = NULL)
 }
 \value{
 A list of S3 class \code{"CRT"} containing the following components:
-\tabular{lll}{
-\code{CRT.design.full}   \tab list \tab summary statistics describing the site\cr
-\code{x} \tab numeric vector \tab x-coordinates of locations \cr
-\code{y} \tab numeric vector \tab y-coordinates of locations \cr
-\code{...} \tab numeric vectors \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
+\tabular{llll}{
+\code{geom.full}   \tab list: \tab summary statistics describing the site\tab\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+\tab \code{...} \tab numeric vectors: \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
 }
 }
 \description{
 \code{aggregateCRT} aggregates data from a \code{"CRT"} object or data frame
-containing multiple records with the same location, and outputs a list of S3 class \code{"CRT"}
+containing multiple records with the same location, and outputs a list of S3 class \code{"CRT"}.
 containing single values for each location, for both the coordinates and the auxiliary variables.
 }

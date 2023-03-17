@@ -27,14 +27,15 @@ households}
 the TSP algorithm}
 }
 \value{
-A list of class \code{"CRT"} containing the following components:
-\tabular{lll}{
-\code{CRT.design.full}   \tab list \tab summary statistics describing the site and cluster assignments.\cr
-\code{x} \tab numeric vector \tab x-coordinates of locations \cr
-\code{y} \tab numeric vector \tab y-coordinates of locations \cr
-\code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-\code{path} \tab numeric \tab travelling salesman path (created only if the TSP algorithm is used) \cr
-\code{...};   \tab other objects included in the input \code{"CRT"} object or data frame  \cr
+A list of S3 class \code{"CRT"} containing the following components:
+\tabular{llll}{
+\code{geom.full}   \tab list: \tab summary statistics describing the site,
+and cluster assignments.\tab\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+\tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+\tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
 }
 }
 \description{

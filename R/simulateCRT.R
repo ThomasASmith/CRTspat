@@ -5,12 +5,13 @@
 #' @param locations number of locations in population
 #' @param kappa intensity of Poisson process of settlement cluster centers
 #' @param mu mean  number of points per settlement cluster
-#' @returns A list with class \code{CRT} containing the following components:
+#' @returns A list of S3 class \code{'CRT'} containing the following components:
 #'  \tabular{llll}{
-#'  \code{geom.full}   \tab list \tab summary statistics describing the site\cr
-#'  \code{x} \tab numeric vector \tab x-coordinates of locations \cr
-#'  \code{y} \tab numeric vector \tab y-coordinates of locations \cr
-#' }
+#'  \code{geom.full}   \tab list: \tab summary statistics describing the site\tab\cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+#'  }
 #' @details \code{simulateSite} simulates a human settlement pattern using the Thomas algorithm (\code{rThomas} function
 #' in [\code{spatstat}](http://spatstat.org/) allowing the user to defined the density of locations and degree of spatial clustering.
 #' The results are output as a set of Cartesian coordinates centred at the origin.
@@ -29,7 +30,7 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
     x <- p$x[seq(1:locations)]
     y <- p$y[seq(1:locations)]
     coordinates <- data.frame(x = x - mean(x), y = y - mean(y))
-    CRT <-data.frame_as_CRT(coordinates, design = NULL)
+    CRT <- as_CRT(coordinates, design = NULL)
     return(CRT)
 }
 
@@ -41,10 +42,11 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #' @param trial an object of class \code{CRT} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Each location may also be
 #'   assigned a \code{propensity} (see details).
-#' @param efficacy numeric. The simulated efficacy (defaults to 0)
+#' @param effect numeric. The simulated effect size (defaults to 0)
 #' @param outcome0 numeric. The anticipated value of the outcome in the absence of intervention
-#' @param generateBaseline logical. If \code{TRUE} then baseline data should be simulated
-#' @param matchedPair logical. If \code{TRUE} then pair-matching on the baseline data should be used in randomization
+#' @param generateBaseline logical. If \code{TRUE} then baseline data will be simulated
+#' @param matchedPair logical. If \code{TRUE} then the function tries to carry out randomization
+#' using pair-matching on the baseline data (see details)
 #' @param scale measurement scale of the outcome. Options are: 'proportion' (the default); 'count'; 'continuous'.
 #' @param baselineNumerator optional name of numerator variable for baseline data
 #' @param baselineDenominator optional name of denominator variable for baseline data
@@ -54,22 +56,23 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #' @param theta_inp numeric. input contamination range
 #' @param tol numeric. tolerance of output ICC
 #' @param vr numeric. ratio of location variance to cluster variance (for continuous outcomes)
-#' @returns A list of class \code{CRT} containing the following components:
+#' @returns A list of S3 class \code{'CRT'} containing the following components:
 #' \tabular{llll}{
-#' \code{design}\tab list \tab values of input parameters to the function \cr
-#' \code{geom.full}\tab list \tab summary statistics describing the site,
-#'  cluster assignments, and randomization \cr
-#' \code{x} \tab numeric vector \tab x-coordinates of locations \cr
-#' \code{y} \tab numeric vector \tab y-coordinates of locations \cr
-#' \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#' \code{arm} \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
-#' \code{nearestDiscord} \tab numeric vector \tab Euclidean distance to nearest discordant location (km) \cr
-#' \code{propensity} \tab numeric vector \tab propensity of location \cr
-#' \code{base_denom} \tab numeric vector \tab denominator for baseline \cr
-#' \code{base_num} \tab numeric vector \tab numerator for baseline \cr
-#' \code{denom} \tab numeric vector \tab denominator for the outcome \cr
-#' \code{num} \tab numeric vector \tab numerator for the outcome \cr
-#' \code{...} \tab\tab other objects included in the input \code{CRT} object
+#' \code{geom.full}\tab list: \tab summary statistics describing the site
+#' cluster assignments, and randomization \tab\cr
+#' \code{design}\tab list: \tab values of input parameters to the function \tab\cr
+#' \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+#' \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+#' \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+#' \tab\code{cluster} \tab factor: \tab assignments to cluster of each location  \cr
+#' \tab\code{arm} \tab factor: \tab assignments to \code{control} or \code{intervention} for each location \cr
+#' \tab\code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
+#' \tab\code{propensity} \tab numeric vector: \tab propensity of location \cr
+#' \tab\code{base_denom} \tab numeric vector: \tab denominator for baseline \cr
+#' \tab\code{base_num} \tab numeric vector: \tab numerator for baseline \cr
+#' \tab\code{denom} \tab numeric vector: \tab denominator for the outcome \cr
+#' \tab\code{num} \tab numeric vector: \tab numerator for the outcome \cr
+#' \tab\code{...} \tab\tab other objects included in the input \code{CRT} object
 #' or \code{data.frame}\cr
 #' }
 #' @details Synthetic data are generated by sampling around the values of
@@ -83,13 +86,13 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #' \code{propensity} is then generated as the numerator:denominator ratio
 #' for each location in the input object
 #' \item Otherwise \code{propensity} is generated using a 2D Normal
-#' kernel density adjusting the bandwidth iteratively to achieve
-#' an intra-cluster correlation coefficient (ICC) that approximates
-#' the value of \code{ICC_inp}.
+#' kernel density. The [\code{OOR::StoSOO}](https://rdrr.io/cran/OOR/man/StoSOO.html)
+#' is used to achieve an intra-cluster correlation coefficient (ICC) that approximates
+#' the value of \code{'ICC_inp'} by searching for an appropriate value of the kernel bandwidth.
 #' }
 #' \code{num[i]}, the synthetic outcome for location \code{i}
 #' is simulated with expectation: \cr
-#' \deqn{\code{E(num[i]) = outcome0[i] * propensity[i] * denom[i] * (1 - efficacy*I[i])/mean(outcome0[] * propensity[])}} \cr \cr
+#' \deqn{\code{E(num[i]) = outcome0[i] * propensity[i] * denom[i] * (1 - effect*I[i])/mean(outcome0[] * propensity[])}} \cr
 #' The sampling distribution of \code{num[i]} depends on the value of \code{scale} as follows: \cr
 #' \tabular{llll}{
 #' \code{scale}=’continuous’ \tab Values of \code{num} are sampled from a
@@ -106,12 +109,16 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #' for counts, or denominator for proportions. For discrete data all values of \code{denom}
 #' must be > 0.5 and are rounded to the nearest integer in calculations of \code{num}.\cr\cr
 #' By default, \code{denom} is generated as a vector of ones, leading to simulation of
-#' dichotomous outcomes if \code{scale}=’proportion’.\cr\cr
+#' dichotomous outcomes if \code{scale}=’proportion’.\cr
 #'
 #' If baseline numerators and denominators are provided then the output vectors
 #' \code{base_denom} and  \code{base_num} are set to the input values. If baseline numerators and denominators
 #' are not provided then the synthetic baseline data are generated by sampling around \code{propensity} in the same
-#' way as the outcome data, but with the efficacy set to zero.
+#' way as the outcome data, but with the effect size set to zero.
+#'
+#' If \code{matchedPair} is \code{TRUE} then pair-matching on the baseline data will be used in randomization providing
+#' there are an even number of clusters. If there are an odd number of clusters then matched pairs are not generated and
+#' an unmatched randomization is output.
 #'
 #' Either \code{sd} or \code{theta_inp} must be provided. If both are provided then
 #' the value of \code{sd} is overwritten
@@ -123,31 +130,37 @@ simulateSite <- function(geoscale, locations, kappa, mu) {
 #'
 #' @examples
 #' example_simulated_CRT =  simulateCRT(trial=readdata('test_Arms.csv'),
-#'                                      efficacy=0.25,
+#'                                      effect=0.25,
 #'                                      ICC_inp=0.05,
 #'                                      outcome0=0.5,
 #'                                      matchedPair = FALSE,
 #'                                      scale='proportion',
 #'                                      sd=0.6,
 #'                                      tol=0.05)
-simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBaseline = TRUE,
-                        matchedPair = TRUE, scale='proportion', baselineNumerator = "base_num",
-                        baselineDenominator = "base_denom", denominator = NULL, ICC_inp = NULL,
-                        sd = NULL, theta_inp = NULL, tol = 1e-04, vr = 0.5) {
+simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBaseline = TRUE, matchedPair = TRUE, scale = "proportion",
+    baselineNumerator = "base_num", baselineDenominator = "base_denom", denominator = NULL, ICC_inp = NULL, sd = NULL, theta_inp = NULL,
+    tol = 1e-04, vr = 0.5) {
 
     # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
     cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
     bw <- NULL
-    # several operations require the input data as a data frame. Descriptors will be replaced
-    trial <- CRT_as_data.frame(CRT = trial)
+    if (identical(class(trial), "data.frame")) {
+        CRT <- list(trial = trial, design = NULL)
+        class(CRT) <- "CRT"
+    } else {
+        CRT <- trial
+        trial <- CRT$trial
+    }
 
     trial$arm <- as.factor(trial$arm)
     trial$cluster <- as.factor(trial$cluster)
 
     # set the denominator variable to be 'denom'
-    if (is.null(denominator)) denominator <- "denom"
+    if (is.null(denominator))
+        denominator <- "denom"
     trial$denom <- trial[[denominator]]
-    if (denominator != "denom") trial[[denominator]] <- NULL
+    if (denominator != "denom")
+        trial[[denominator]] <- NULL
 
     # use contamination range if this is available
     if (!is.null(theta_inp)) {
@@ -170,7 +183,7 @@ simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBas
 
     if (!"propensity" %in% colnames(trial) & baselineNumerator %in% colnames(trial) & baselineDenominator %in% colnames(trial)) {
         trial$propensity <- trial[[baselineNumerator]]/trial[[baselineDenominator]]
-        # TODO: replace this with estimation via INLA with a spatial model
+        # TODO: perhaps replace this with estimation via INLA with a spatial model
 
     } else if ("propensity" %in% colnames(trial)) {
         # create a baseline dataset using a pre-existing exposure proxy
@@ -178,15 +191,16 @@ simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBas
 
     } else if (generateBaseline) {
 
-        # determine the required smoothing bandwidth by fitting to the pre-specified ICC compute approximate diagonal of
-        # clusters
+        # determine the required smoothing bandwidth by fitting to the pre-specified ICC
+        # compute approximate diagonal of clusters
+
         approx_diag <- sqrt((max(trial$x) - min(trial$x))^2 + (max(trial$y) - min(trial$y))^2)/sqrt(length(unique(trial$cluster)))
         cat("Estimating the smoothing required to achieve the target ICC of", ICC_inp, "\n")
 
         loss <- 999
         while (loss > tol) {
             ICC.loss <- OOR::StoSOO(par = NA, fn = ICCdeviation, lower = -5, upper = 5, nb_iter = 20, trial = trial, ICC_inp = ICC_inp,
-                approx_diag = approx_diag, sd = sd, euclid = euclid, efficacy = efficacy, outcome0 = outcome0)
+                approx_diag = approx_diag, sd = sd, scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0)
             loss <- ICC.loss$value
         }
         logbw <- ICC.loss$par
@@ -201,22 +215,22 @@ simulateCRT <- function(trial = NULL, efficacy = 0, outcome0 = NULL, generateBas
 
     }
 
-    trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy, outcome0 = outcome0,
-        denominator = denominator)
-    CRT <-data.frame_as_CRT(trial, design = NULL)
+    trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
+                             outcome0 = outcome0, denominator = denominator)
+    CRT <- updateCRT(CRT = CRT, trial = trial)
     return(CRT)
 }
 
-# Assign expected proportions to each location assuming a fixed efficacy.
-assignPositives <- function(trial, euclid, sd, efficacy, outcome0, denominator) {
+# Assign expected outcome to each location assuming a fixed effect size.
+get_assignments <- function(trial, scale, euclid, sd, effect, outcome0, denominator) {
 
     # Indicator of whether the source is intervened is (as.numeric(trial$arm[i]) - 1 smoothedIntervened is the value of
     # propensity decremented by the effect of intervention and smoothed to allow for mosquito movement
 
     if (sd > 0) {
-        smoothedIntervened <- gauss(sd, euclid) %*% (trial$propensity * (1 - efficacy * (as.numeric(trial$arm) - 1)))
+        smoothedIntervened <- gauss(sd, euclid) %*% (trial$propensity * (1 - effect * (as.numeric(trial$arm) - 1)))
     } else {
-        smoothedIntervened <- trial$propensity * (1 - efficacy * (as.numeric(trial$arm) - 1))
+        smoothedIntervened <- trial$propensity * (1 - effect * (as.numeric(trial$arm) - 1))
     }
     # distances to nearest discordant locations
     discord <- outer(trial$arm, trial$arm, "!=")  #returns true & false.
@@ -225,15 +239,13 @@ assignPositives <- function(trial, euclid, sd, efficacy, outcome0, denominator) 
     # for the control arm return the minimal distance with a minus sign
     trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(euclidd, MARGIN = 2, min), apply(euclidd, MARGIN = 2, min))
 
-    trial <- distributePositives(trial = trial, outcome0 = outcome0,
-                                 smoothed = smoothedIntervened, efficacy = efficacy, scale = scale,
+    trial <- distributePositives(trial = trial, outcome0 = outcome0, smoothed = smoothedIntervened, effect = effect, scale = scale,
         denominator = "denom", numerator = "num")
     return(trial)
 }
 
 # allocate the positives to locations
-distributePositives <- function(trial, outcome0, smoothed, scale,
-                                efficacy, denominator, numerator) {
+distributePositives <- function(trial, outcome0, smoothed, scale, effect, denominator, numerator) {
     expected_ratio <- num <- rowno <- sumnum <- NULL
     if (!(denominator %in% colnames(trial)))
         trial[[denominator]] <- 1
@@ -241,11 +253,11 @@ distributePositives <- function(trial, outcome0, smoothed, scale,
     # the denominator must be an integer; this changes the value if a non-integral value is input
     trial[[denominator]] <- round(trial[[denominator]], digits = 0)
 
-    # compute the total positives expected given the input efficacy
-    npositives <- round(outcome0 * sum(trial[[denominator]]) * (1 - 0.5 * efficacy))
+    # compute the total positives expected given the input effect size
+    npositives <- round(outcome0 * sum(trial[[denominator]]) * (1 - 0.5 * effect))
 
-    # scale to input value of initial prevalence by assigning required number of infections with probabilities
-    # proportional to smoothedIntervened multiplied by the denominator
+    # scale to input value of initial prevalence by assigning required number of infections with probabilities proportional
+    # to smoothedIntervened multiplied by the denominator
 
     expected_allocation <- smoothed * trial[[denominator]]/sum(smoothed * trial[[denominator]])
 
@@ -256,9 +268,9 @@ distributePositives <- function(trial, outcome0, smoothed, scale,
     triallong <- trial %>%
         tidyr::uncount(trial[[denominator]])
 
-    # To generate count data records in triallong can be sampled multiple times. To generate proportions each
-    # record can only be sampled once.
-    replacement <- identical(scale,'log')
+    # To generate count data records in triallong can be sampled multiple times. To generate proportions each record can
+    # only be sampled once.
+    replacement <- identical(scale, "log")
 
     # sample generates a multinomial sample and outputs the indices of the locations assigned
     positives <- sample(x = nrow(triallong), size = npositives, replace = FALSE, prob = triallong$expected_ratio)
@@ -277,8 +289,8 @@ distributePositives <- function(trial, outcome0, smoothed, scale,
     trial <- trial %>%
         dplyr::left_join(numdf, by = "rowno")
 
-    # remove temporary variables and replace missing numerators with zero (because the multinomial sampling algorithm
-    # leaves NA values where no events are assigned)
+    # remove temporary variables and replace missing numerators with zero (because the multinomial sampling algorithm leaves
+    # NA values where no events are assigned)
     trial <- subset(trial, select = -c(rowno, expected_ratio, sumnum))
     if (sum(is.na(trial[[numerator]])) > 0) {
         cat("** Warning: some records have zero denominator after rounding **\n")
@@ -289,7 +301,7 @@ distributePositives <- function(trial, outcome0, smoothed, scale,
 }
 
 # deviation of ICC from target as a function of bandwidth
-ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, euclid, efficacy, outcome0) {
+ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, effect, outcome0) {
     cluster <- NULL
     # set the seed so that a reproducible result is obtained for a specific bandwidth
     if (!is.null(logbw)) {
@@ -298,8 +310,8 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, euclid, efficac
     }
 
     trial <- syntheticBaseline(bw = bw, trial = trial, sd = sd, euclid = euclid, outcome0 = outcome0)
-    trial <- assignPositives(trial = trial, euclid = euclid, sd = sd, efficacy = efficacy, outcome0 = outcome0,
-        denominator = "denom")
+    trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
+                             outcome0 = outcome0, denominator = "denom")
     trial$neg <- trial$denom - trial$num
     fit <- geepack::geeglm(cbind(num, neg) ~ arm, id = cluster, corstr = "exchangeable", data = trial, family = binomial(link = "logit"))
     summary_fit <- summary(fit)
@@ -324,8 +336,7 @@ syntheticBaseline <- function(bw, trial, sd, euclid, outcome0) {
         smoothedBaseline <- trial$propensity
     }
 
-    trial <- distributePositives(trial = trial, outcome0 = outcome0,
-                                 smoothed = smoothedBaseline, efficacy = 0, scale = scale,
+    trial <- distributePositives(trial = trial, outcome0 = outcome0, smoothed = smoothedBaseline, effect = 0, scale = scale,
         denominator = "base_denom", numerator = "base_num")
     return(trial)
 }

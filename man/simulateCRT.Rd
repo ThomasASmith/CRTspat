@@ -30,9 +30,10 @@ assigned a \code{propensity} (see details).}
 
 \item{outcome0}{numeric. The anticipated value of the outcome in the absence of intervention}
 
-\item{generateBaseline}{logical. If \code{TRUE} then baseline data should be simulated}
+\item{generateBaseline}{logical. If \code{TRUE} then baseline data will be simulated}
 
-\item{matchedPair}{logical. If \code{TRUE} then pair-matching on the baseline data should be used in randomization}
+\item{matchedPair}{logical. If \code{TRUE} then the function tries to carry out randomization
+using pair-matching on the baseline data (see details)}
 
 \item{scale}{measurement scale of the outcome. Options are: 'proportion' (the default); 'count'; 'continuous'.}
 
@@ -53,22 +54,23 @@ assigned a \code{propensity} (see details).}
 \item{vr}{numeric. ratio of location variance to cluster variance (for continuous outcomes)}
 }
 \value{
-A list of class \code{CRT} containing the following components:
+A list of S3 class \code{"CRT"} containing the following components:
 \tabular{llll}{
-\code{input.parameters}\tab list \tab values of input parameters to the function \cr
-\code{CRT.design.full}\tab list \tab summary statistics describing the site,
-cluster assignments, and randomization \cr
-\code{x} \tab numeric vector \tab x-coordinates of locations \cr
-\code{y} \tab numeric vector \tab y-coordinates of locations \cr
-\code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-\code{arm} \tab factor \tab assignments to \code{control} or \code{intervention} for each location \cr
-\code{nearestDiscord} \tab numeric vector \tab Euclidean distance to nearest discordant location (km) \cr
-\code{propensity} \tab numeric vector \tab propensity of location \cr
-\code{base_denom} \tab numeric vector \tab denominator for baseline \cr
-\code{base_num} \tab numeric vector \tab numerator for baseline \cr
-\code{denom} \tab numeric vector \tab denominator for the outcome \cr
-\code{num} \tab numeric vector \tab numerator for the outcome \cr
-\code{...} \tab\tab other objects included in the input \code{CRT} object
+\code{geom.full}\tab list: \tab summary statistics describing the site
+cluster assignments, and randomization \tab\cr
+\code{design}\tab list: \tab values of input parameters to the function \tab\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+\tab\code{cluster} \tab factor: \tab assignments to cluster of each location  \cr
+\tab\code{arm} \tab factor: \tab assignments to \code{control} or \code{intervention} for each location \cr
+\tab\code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
+\tab\code{propensity} \tab numeric vector: \tab propensity of location \cr
+\tab\code{base_denom} \tab numeric vector: \tab denominator for baseline \cr
+\tab\code{base_num} \tab numeric vector: \tab numerator for baseline \cr
+\tab\code{denom} \tab numeric vector: \tab denominator for the outcome \cr
+\tab\code{num} \tab numeric vector: \tab numerator for the outcome \cr
+\tab\code{...} \tab\tab other objects included in the input \code{CRT} object
 or \code{data.frame}\cr
 }
 }
@@ -87,13 +89,13 @@ and \code{baselineDenominator} may be provided.
 \code{propensity} is then generated as the numerator:denominator ratio
 for each location in the input object
 \item Otherwise \code{propensity} is generated using a 2D Normal
-kernel density adjusting the bandwidth iteratively to achieve
-an intra-cluster correlation coefficient (ICC) that approximates
-the value of \code{ICC_inp}.
+kernel density. The \href{https://rdrr.io/cran/OOR/man/StoSOO.html}{\code{OOR::StoSOO}}
+is used to achieve an intra-cluster correlation coefficient (ICC) that approximates
+the value of \code{"ICC_inp"} by searching for an appropriate value of the kernel bandwidth.
 }
 \code{num[i]}, the synthetic outcome for location \code{i}
 is simulated with expectation: \cr
-\deqn{\code{E(num[i]) = outcome0[i] * propensity[i] * denom[i] * (1 - efficacy*I[i])/mean(outcome0[] * propensity[])}} \cr \cr
+\deqn{\code{E(num[i]) = outcome0[i] * propensity[i] * denom[i] * (1 - efficacy*I[i])/mean(outcome0[] * propensity[])}} \cr
 The sampling distribution of \code{num[i]} depends on the value of \code{scale} as follows: \cr
 \tabular{llll}{
 \code{scale}=’continuous’ \tab Values of \code{num} are sampled from a
@@ -110,12 +112,16 @@ as variable \code{denom}. It acts as a scale-factor for continuous outcomes, rat
 for counts, or denominator for proportions. For discrete data all values of \code{denom}
 must be > 0.5 and are rounded to the nearest integer in calculations of \code{num}.\cr\cr
 By default, \code{denom} is generated as a vector of ones, leading to simulation of
-dichotomous outcomes if \code{scale}=’proportion’.\cr\cr
+dichotomous outcomes if \code{scale}=’proportion’.\cr
 
 If baseline numerators and denominators are provided then the output vectors
 \code{base_denom} and  \code{base_num} are set to the input values. If baseline numerators and denominators
 are not provided then the synthetic baseline data are generated by sampling around \code{propensity} in the same
 way as the outcome data, but with the efficacy set to zero.
+
+If \code{matchedPair} is \code{TRUE} then pair-matching on the baseline data will be used in randomization providing
+there are an even number of clusters. If there are an odd number of clusters then matched pairs are not generated and
+an unmatched randomization is output.
 
 Either \code{sd} or \code{theta_inp} must be provided. If both are provided then
 the value of \code{sd} is overwritten

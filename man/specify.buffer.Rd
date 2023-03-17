@@ -14,18 +14,19 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).}
 opposing arms for them to qualify to be included in the core area (km)}
 }
 \value{
-an object of class \code{"CRT"} comprising the following components:
-\tabular{lll}{
-\code{CRT.design.full}   \tab list \tab summary statistics describing the site,
-cluster assignments, and randomization.\cr
-\code{CRT.design.core}   \tab list \tab summary statistics describing the core area \cr
-\code{x} \tab numeric vector \tab x-coordinates of locations \cr
-\code{y} \tab numeric vector \tab y-coordinates of locations \cr
-\code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-\code{arm} \tab factor \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-\code{nearestDiscord} \tab numeric vector \tab Euclidean distance to nearest discordant location (km) \cr
-\code{buffer} \tab logical \tab indicator of whether the point is within the buffer \cr
-\code{...} \tab other objects included in the input \code{"CRT"} object or data frame \cr
+A list of S3 class \code{"CRT"} containing the following components:
+\tabular{llll}{
+\code{geom.full}   \tab list: \tab summary statistics describing the site,
+cluster assignments, and randomization.\tab\cr
+\code{geom.core}   \tab list: \tab summary statistics describing the core area \tab\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+\tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+\tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
+\tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
+\tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
+\tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
 }
 }
 \description{

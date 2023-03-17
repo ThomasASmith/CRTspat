@@ -14,7 +14,5 @@ data frame with one row for each location
 }
 \description{
 \code{CRT_as_data.frame} removes lists of descriptors and summary statistics
-}
-\details{
-\code{CRT_as_data.frame} removes lists of descriptors and summary statistics
+and returns the trial data frame
 }

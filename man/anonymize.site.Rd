@@ -11,21 +11,21 @@ anonymize.site(trial)
 households (columns x and y)}
 }
 \value{
-A list of class \code{"CRT"} containing the following components:
-\tabular{lll}{
-\code{CRT.design.full}   \tab list \tab summary statistics describing the site \cr
-\code{x} \tab numeric vector \tab x-coordinates of locations \cr
-\code{y} \tab numeric vector \tab y-coordinates of locations \cr
-\code{...};   \tab other objects included in the input \code{"CRT"} object or data frame  \cr
+A list of S3 class \code{"CRT"} containing the following components:
+\tabular{llll}{
+\code{geom.full}   \tab list: \tab summary statistics describing the site \tab\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+\tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
 }
 }
 \description{
-\code{anonymize.site} carries out rotation of x,y coordinates by a random angle
-about a random origin.
+\code{anonymize.site} carries out
 }
 \details{
-The returned object has transformed co-ordinates recentred at the origin. Other data are
-unchanged.
+The x,y coordinates are rotated by a random angle about a random origin. The returned object
+has transformed co-ordinates re-centred at the origin. Other data are unchanged.
 }
 \examples{
 #Rotate and reflect test site locations

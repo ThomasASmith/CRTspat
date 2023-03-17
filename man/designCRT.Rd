@@ -9,50 +9,57 @@ designCRT(
   alpha = 0.05,
   desiredPower = 0.8,
   effect,
-  ICC,
   yC,
+  outcome.type = "d",
+  sigma2 = NULL,
+  phi = 1,
+  N = 1,
+  ICC,
   buffer.width = 0,
   h,
-  algorithm = "kmeans",
-  outcome.type = outcome.type
+  algorithm = "kmeans"
 )
 }
 \arguments{
-\item{trial}{dataframe or CRT object containing Cartesian coordinates of locations in columns 'x' and 'y'.
+\item{trial}{dataframe or \code{"CRT"} object containing Cartesian coordinates of locations in columns 'x' and 'y'.
 Units are expected to be km.}
 
-\item{alpha}{confidence level}
+\item{alpha}{numeric: confidence level}
 
-\item{desiredPower}{desired power}
+\item{desiredPower}{numeric: desired power}
 
-\item{effect}{required effect size}
+\item{effect}{numeric: required effect size}
 
-\item{ICC}{Intra-Cluster Correlation}
+\item{yC}{numeric: baseline outcome}
 
-\item{yC}{baseline outcome}
+\item{outcome.type}{character with options -
+\code{"y"}: continuous;
+\code{"n"}: count;
+\code{"e"}: event rate;
+\code{"p"}: proportion;
+\code{"d"}: dichotomous.}
 
-\item{buffer.width}{required buffer width in km}
+\item{sigma2}{numeric: variance of the outcome (for \code{outcome.type = "y"})}
 
-\item{h}{proposal for the number of coordinates in each cluster}
+\item{phi}{numeric: overdispersion parameter (for \code{outcome.type = "n"} or \code{outcome.type = "e"})}
 
-\item{algorithm}{algorithm used to determine cluster boundaries, options are-
+\item{N}{numeric: denominator for proportions (for \code{outcome.type = "p"})}
+
+\item{ICC}{numeric: Intra-Cluster Correlation}
+
+\item{buffer.width}{numeric: required buffer width in km}
+
+\item{h}{numeric: proposal for the number of coordinates in each cluster}
+
+\item{algorithm}{algorithm used to determine cluster boundaries, options are
 \code{"TSP"}: travelling salesman problem heuristic;
 \code{"NN"}: nearest neighbor;
-\code{"kmeans"}: kmeans}
-
-\item{outcome.type}{options are:
-\tabular{ll}{
-\code{"y"}\tab continous \cr
-\code{"n"}\tab count \cr
-\code{"e"}\tab event rate \cr
-\code{"p"}\tab proportion  \cr
-\code{"d"}\tab dichotomous \cr
-}}
+\code{"kmeans"}: kmeans.}
 }
 \value{
 A \code{"CRT"} object comprising the input data, cluster and arm assignments, trial description and results of power calculations
 \tabular{lll}{
-\code{CRT.design.full}   \tab list \tab summary statistics describing the site,
+\code{geom.full}   \tab list \tab summary statistics describing the site,
 cluster assignments, and randomization.\cr
 \code{x} \tab numeric vector \tab x-coordinates of locations \cr
 \code{y} \tab numeric vector \tab y-coordinates of locations \cr
@@ -68,11 +75,10 @@ with the input set of locations. Outputs are:
 (i) Estimates of the required numbers of clusters.
 (ii) A proposal for the cluster and arm assignments to the input coordinates.
 (A warning is output if the number of locations is too small to allow randomisation of sufficient clusters).
-(iii) the proportion of households in the input geography falling within the core of the clusters
-(i.e. outside the contamination range of locations in the opposite arm)
+(iii) the proportion of households in the input geography falling within the core of the clusters.
 }
 \examples{
-exampleDesign = designCRT(trial=readdata('test_site.csv'),
-                ICC=0.10, effect=0.4, yC=0.35, desiredPower = 0.8, algorithm = 'kmeans',
-                buffer.width=0.25, h=100, outcome.type ='d')
+exampleDesign = designCRT(trial = readdata('test_site.csv'),
+                desiredPower = 0.8, effect=0.4, yC=0.35, outcome.type = 'd', ICC = 0.05,
+                buffer.width = 0.25, h=100, algorithm = 'kmeans')
 }

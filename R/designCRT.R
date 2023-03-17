@@ -47,12 +47,18 @@
 designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, yC, outcome.type ='d', sigma2 = NULL,
                       phi = 1, N = 1,  ICC, buffer.width = 0, h, algorithm = "kmeans") {
 
-    trial <- CRT_as_data.frame(trial)
-    design <- list(alpha = alpha, desiredPower = desiredPower, effect = effect, yC = yC,
-         outcome.type = outcome.type, h = h, ICC = ICC, buffer.width = buffer.width, algorithm = algorithm)
+    if (identical(class(trial),"data.frame")){
+        CRT <- list(trial = trial, design = NULL)
+        class(CRT) <- "CRT"
+    } else {
+        CRT <- trial
+    }
+    CRT$design <- list(alpha = alpha, desiredPower = desiredPower, effect = effect, yC = yC,
+         outcome.type = outcome.type, sigma2 = sigma2, phi = phi, N = N, ICC = ICC,
+         buffer.width = buffer.width, h = h, algorithm = algorithm)
 
     # Step J: specify or compute cluster boundaries
-    CRT <- specify.clusters(trial = trial, h = h, algorithm = algorithm, reuseTSP = FALSE)
+    CRT <- specify.clusters(trial = CRT, h = h, algorithm = algorithm, reuseTSP = FALSE)
 
     # Step K: Random assignment of clusters to arms
     CRT <- randomizeCRT(CRT)
@@ -61,7 +67,7 @@ designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, yC, outco
     # coordinate (specifyBuffer assigns a buffer only if a buffer.width> 0 is input)
 
     CRT <- specify.buffer(trial = CRT, buffer.width = buffer.width)
-    CRT <- data.frame_as_CRT(CRT, design = design)
+
     return(CRT)
 }
 
@@ -97,7 +103,7 @@ designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, yC, outco
 #' }
 #' @export
 #' @details
-#' Power and sample size calculations are for a two-arm trial, and use the formulae of
+#' Power and sample size calculations are for a two-arm trial using the formulae of
 #' [Hemming et al, 2011](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102). For counts
 #' or event rate data a quasi–Poisson model is assumed.
 #'
@@ -112,10 +118,6 @@ calculateCRTpower <- function(locations, alpha, desiredPower, effect, yC, outcom
     # range in km, obtained from other studies Step G\ coordinates of
     # households in study area Step H: proposal for the number of
     # households in each cluster
-
-    # convert power and significance level to normal deviates
-    Zsig <- -qnorm(alpha/2)
-    Zpow <- qnorm(desiredPower)
 
     link <- switch(outcome.type,
               'y' = "identity",
@@ -137,15 +139,25 @@ calculateCRTpower <- function(locations, alpha, desiredPower, effect, yC, outcom
         d <- yC - yI  # difference between groups
         sigma2 <- 1/2 * (yI * (1 - yI) + yC * (1 - yC))
     }
+
+    # number of clusters assigned to each arm
+    k <- floor(locations/(mean_h * 2))
+
+    # convert power and significance level to Zvalues
+    Zsig <- -qnorm(alpha/2)
+    Zpow <- qnorm(desiredPower)
+
+    # corresponding t values (not used)
+    # df <- k - 1
+    # t_sig <- - qt(p = alpha/2, df = df)
+    # t_pow <- qt(p = desiredPower, df = df)
+
     # required individuals per arm in individually randomized trial
     n_ind <- 2 * sigma2 * ((Zsig + Zpow)/d)^2
 
     # effective cluster sizes (inflating for multiple observations at the same location)
     mean_eff <- mean_h * N
     sd_eff <- sd_h * N
-
-    # number of clusters assigned to each arm
-    k <- floor(locations/(mean_eff * 2))
 
     # coefficient of variation of the cluster sizes
     cv_eff <- sd_eff/mean_eff

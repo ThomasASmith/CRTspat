@@ -92,7 +92,7 @@ analyseCRT <- function(
 
     cluster <- NULL
 
-    trial <- CRT_as_data.frame(CRT = trial)
+    if (identical(class(trial),"CRT")) trial <- trial$trial
 
     if ("buffer" %in% colnames(trial) & excludeBuffer)
         {

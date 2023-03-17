@@ -20,15 +20,12 @@ get_test5 = function(){
    test.clusters <- specify.clusters(test.anonymizedlocations,h = 50)
    test.arms <- randomizeCRT(trial = test.clusters,matchedPair = FALSE)
    test.buffer <- specify.buffer(trial = test.arms, buffer.width = 0.1)
-   test.buffer$cluster <- as.numeric(test.buffer$cluster)
-   test.buffer$arm <- as.character(test.buffer$arm)
-   test.buffer$CRT.spat.full <- NULL
-   test.buffer$CRT.spat.core <- NULL
-   test.buffer$design <- NULL
-   class(test.buffer) <- "data.frame"
+   trial <- test.buffer$trial
+   trial$cluster <- as.numeric(trial$cluster)
+   trial$arm <- as.character(trial$arm)
    # To recreate test file
-   # write.csv(test.buffer, file = "inst/extdata/test.buffer.csv", row.names = FALSE)
-   return(test.buffer)}
+   # write.csv(trial, file = "inst/extdata/test.buffer.csv", row.names = FALSE)
+   return(trial)}
 test_that("Anonymisation, randomization, and creation of buffer produces expected trial", {
    expect_equal(get_test5(), readdata("test.buffer.csv"))
 })

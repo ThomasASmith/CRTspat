@@ -63,18 +63,18 @@ plotCRTmap <- function(trial = trial, fill = 'arms', showLocations = FALSE, show
     contamination <- trial$contamination
     trial <- trial$trial
   }
-  trial <- CRT_as_data.frame(trial)
+
 
   # The plotting routines require unique locations
-  trial <- aggregateCRT(trial = trial)
+  CRT <- aggregateCRT(trial = trial)
 
   # The plotting routines use (x,y) coordinates
   if (is.null(trial$x)) {
-    trial <- latlong_as_xy(trial)
+    CRT <- latlong_as_xy(CRT)
   }
 
+  trial <- CRT_as_data.frame(CRT)
   # remove any buffer zones
-  class(trial) <- "data.frame"
   if (!is.null(trial$buffer)) {
     trial <- trial[!trial$buffer, ]
   }

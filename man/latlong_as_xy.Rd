@@ -14,12 +14,13 @@ latlong_as_xy(df, latvar = "lat", longvar = "long")
 \item{longvar}{name of column containing longitudes in decimal degrees}
 }
 \value{
-A list of class \code{"CRT"} containing the following components:
-\tabular{lll}{
-\code{CRT.design.full}   \tab list \tab summary statistics describing the site \cr
-\code{x} \tab numeric vector \tab x-coordinates of locations \cr
-\code{y} \tab numeric vector \tab y-coordinates of locations \cr
-\code{...};   \tab other objects included in the input \code{"CRT"} object or data frame  \cr
+A list of S3 class \code{"CRT"} containing the following components:
+\tabular{llll}{
+\code{geom.full}   \tab list: \tab summary statistics describing the site \tab\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+\tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
 }
 }
 \description{

@@ -6,68 +6,69 @@
 \usage{
 calculateCRTpower(
   locations,
-  ICC,
-  effect,
   alpha,
+  desiredPower,
+  effect,
+  yC,
   outcome.type,
   sigma2 = NULL,
   phi = 1,
   N = 1,
-  desiredPower,
-  yC,
+  ICC,
   mean_h,
   sd_h
 )
 }
 \arguments{
-\item{locations}{numeric: total number of units}
+\item{locations}{numeric: total number of units available for randomization}
 
-\item{ICC}{numeric: Intracluster Correlation Coefficient}
+\item{alpha}{numeric: confidence level}
 
-\item{effect}{numeric: Required effect size}
+\item{desiredPower}{numeric: desired power}
 
-\item{alpha}{numeric: Significance level}
+\item{effect}{numeric: required effect size}
 
-\item{sigma2}{numeric variance of the outcome (for \code{outcome.type = "y"})}
+\item{yC}{numeric: baseline outcome}
 
-\item{phi}{overdispersion parameter (for \code{outcome.type = "n"} or \code{outcome.type = "e"})}
+\item{outcome.type}{character with options-
+\code{"y"}: continuous;
+\code{"n"}: count;
+\code{"e"}: event rate;
+\code{"p"}: proportion;
+\code{"d"}: dichotomous.}
 
-\item{N}{denominator for proportions (for \code{outcome.type = "p"})}
+\item{sigma2}{numeric: variance of the outcome (for \code{outcome.type = "y"})}
 
-\item{desiredPower}{desired power (expressed as a proportion)}
+\item{phi}{numeric: overdispersion parameter (for \code{outcome.type = "n"} or \code{outcome.type = "e"})}
 
-\item{yC}{expected average outcome in control arm}
+\item{N}{numeric: denominator for proportions (for \code{outcome.type = "p"})}
+
+\item{ICC}{numeric: Intra-Cluster Correlation}
 
 \item{mean_h}{mean number of units per cluster}
 
 \item{sd_h}{standard deviation of number of units per cluster}
-
-\item{outcome.type:}{\tabular{ll}{
-\code{"y"}\tab continuous \cr
-\code{"n"}\tab count \cr
-\code{"e"}\tab event rate \cr
-\code{"p"}\tab proportion  \cr
-\code{"d"}\tab dichotomous \cr
-}}
 }
 \value{
-A CRT object comprising the input coordinates :
+An object of class \code{"CRT"} comprising:
 \itemize{
-\item \code{input.parameters} list of input parameters
-\item \code{CRT.design.full} list of calculated filename for coordinates of households
+\item \code{design} list of input parameters
+\item \code{geom.full} list containing the calculations of power, required number of clusters and design effect
 }
 }
 \description{
-\code{calculateCRTpower} carries out power and sample-size calculations for a CRT
-The output is a CRT object containing values for:
+\code{calculateCRTpower} carries out power and sample-size calculations for a CRT.
+The output is an object of class \code{"CRT"} containing values for:
 \itemize{
 \item The required numbers of clusters to achieve the specified power.
 \item The design effect based on the input ICC.
-\item The power achievable.
+\item The power achievable with clusters of the specified size.
 }
 }
 \details{
-for count data, or event rates a quasi–Poisson model is assumed
+Power and sample size calculations are for a two-arm trial using the formulae of
+\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102}{Hemming et al, 2011}. For counts
+or event rate data a quasi–Poisson model is assumed.
 }
 \examples{
 examplePower = calculateCRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,

@@ -26,17 +26,18 @@ matched-pair randomization)}
 matched-pair randomization)}
 }
 \value{
-A list of class \code{"CRT"} containing the following components:
-\tabular{lll}{
-\code{CRT.design.full}   \tab list \tab summary statistics of the site \cr
-\code{CRT.design.core}   \tab list \tab summary statistics of the core area (if a buffer is present)\cr
-\code{x} \tab numeric vector \tab x-coordinates of locations \cr
-\code{y} \tab numeric vector \tab y-coordinates of locations \cr
-\code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-\code{pair} \tab factor \tab assigned matched pair of each location
+A list of S3 class \code{"CRT"} containing the following components:
+\tabular{llll}{
+\code{geom.full}   \tab list: \tab summary statistics describing the site,
+cluster assignments, and randomization.\tab\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+\tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+\tab \code{pair} \tab factor \tab assigned matched pair of each location
 (if \code{matchedPair} randomisation was carried out) \cr
-\code{arm} \tab factor \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-\code{...}  \tab other objects included in the input \code{"CRT"} object or data frame  \cr
+\tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
+\tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
 }
 }
 \description{
