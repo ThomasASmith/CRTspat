@@ -268,7 +268,7 @@ distributePositives <- function(trial, outcome0, smoothed, scale, effect, denomi
     triallong <- trial %>%
         tidyr::uncount(trial[[denominator]])
 
-    # To generate count data records in triallong can be sampled multiple times. To generate proportions each record can
+    # To generate count data, records in triallong can be sampled multiple times. To generate proportions each record can
     # only be sampled once.
     replacement <- identical(scale, "log")
 

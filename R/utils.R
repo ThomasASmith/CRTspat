@@ -392,7 +392,7 @@ anonymize.site <- function(trial) {
 #' @export
 readdata <- function(filename) {
     fname <- eval(filename)
-    extdata <- system.file("extdata", package = "CRTspillover")
+    extdata <- system.file("extdata", package = "CRTspat")
     if (unlist(gregexpr(".txt", fname)) > 0)
         robject <- dget(file = paste0(extdata, "/", fname))
     if (unlist(gregexpr(".csv", fname)) > 0)

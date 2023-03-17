@@ -19,7 +19,7 @@ devtools::install(build_vignettes = TRUE)
 
 ### Use Case 1: Algorithmic definition of clusters and of buffer zones for a CRT
 
-Input to the `CRTspillover` package is in the form of a data frame with one record for each location. Most of the functions of the package return a list of S3 class `CRT`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. objects of class `CRT` can also be used as input to `CRTspillover` functions.
+Input to the `CRTspat` package is in the form of a data frame with one record for each location. Most of the functions of the package return a list of S3 class `CRT`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. objects of class `CRT` can also be used as input to `CRTspat` functions.
 
 After each step, `summary` can be used to provide a description of the output `CRT` object and `plotCRTmap` can be used to output a map of the locations, clusters, arms, buffer zones or other geographically structured analysis results.
 

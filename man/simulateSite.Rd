@@ -16,7 +16,7 @@ simulateSite(geoscale, locations, kappa, mu)
 \item{mu}{mean  number of points per settlement cluster}
 }
 \value{
-A list of S3 class \code{"CRT"} containing the following components:
+A list of S3 class \code{'CRT'} containing the following components:
 \tabular{llll}{
 \code{geom.full}   \tab list: \tab summary statistics describing the site\tab\cr
 \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr

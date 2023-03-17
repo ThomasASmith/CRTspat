@@ -1,9 +1,9 @@
-Package: CRTspillover
-Title: Design of CRTs for malaria control interventions with contamination
+Package: CRTspat
+Title: Design and analysis of Cluster Randomized Trials of health interventions with spatial contamination
 Version: 0.1.0
 Author: Lea Multerer, Tom Smith, Mariah Silkey
 Maintainer: Thomas Smith <Thomas-A.Smith@unibas.ch>
-Description: CRTspillover comprises a suite of functions to support design of cluster randomised trials of (health) interventions where there may be geographical contamination between the arms. cluster size and sample size for cluster randomized controls of interventions with geographical contamination, and for carrying out randomizations for such trials.  The methods are described in Multerer et al. (in preparation). The package takes as inputs a table of geolocations of experimental units. Example datasets are provided taken from field trials of malaria interventions. 
+Description: CRTspat comprises a suite of functions to support design of cluster randomised trials of (health) interventions where there may be geographical contamination between the arms. cluster size and sample size for cluster randomized controls of interventions with geographical contamination, and for carrying out randomizations for such trials.  The methods are described in Multerer et al. (in preparation). The package takes as inputs a table of geolocations of experimental units. Example datasets are provided taken from field trials of malaria interventions. 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

@@ -30,7 +30,7 @@ test_that("Anonymisation, randomization, and creation of buffer produces expecte
    expect_equal(get_test5(), readdata("test.buffer.csv"))
 })
 
-extdata <- system.file("extdata",package = 'CRTspillover')
+extdata <- system.file("extdata",package = 'CRTspat')
 test_that("Analysis using T option gives expected efficacy", {
    get_test6 = function(extdata){
       trial <- read.csv(file = paste0(extdata,"/test_Simulate_CRT.csv"))

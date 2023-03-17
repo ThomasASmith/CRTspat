@@ -1,4 +1,4 @@
 library(testthat)
-library(CRTspillover)
-extdata <- system.file("extdata",package = 'CRTspillover')
-test_check("CRTspillover")
+library(CRTspat)
+extdata <- system.file("extdata",package = 'CRTspat')
+test_check("CRTspat")

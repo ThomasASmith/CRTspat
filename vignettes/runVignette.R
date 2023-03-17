@@ -5,9 +5,9 @@
 # To run the vignettes, execute the code from the vignettes via:
 
 
-library(CRTspillover)
+library(CRTspat)
 knitr::opts_chunk$set(error=FALSE)
-knitr::knit("vignettes/CRTspillover.Rmd.orig", output = "vignettes/CRTspillover.Rmd")
+knitr::knit("vignettes/CRTspat.Rmd.orig", output = "vignettes/CRTspat.Rmd")
 knitr::knit("vignettes/Usecase1.Rmd.orig", output = "vignettes/Usecase1.Rmd")
 knitr::knit("vignettes/Usecase2.Rmd.orig", output = "vignettes/Usecase2.Rmd")
 knitr::knit("vignettes/Usecase3.Rmd.orig", output = "vignettes/Usecase3.Rmd")
