@@ -10,7 +10,7 @@ test_that("designCRT() creates the default trial", {
                               yC = 0.4,
                               buffer.width = 0.05,
                               trial = testLocationsxy,
-                              h = 80,
+                              k = 20,
                               outcome.type ="d")
     test_design <- test_design$trial
     test_design$cluster <- as.numeric(test_design$cluster)

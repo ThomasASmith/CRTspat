@@ -28,7 +28,7 @@ The package can facilitate design of efficient trials by providing algorithms fo
 + analysis of the effects of spill-over
 + simulation of trials based on the geography of previously studied field sites and trials, and observed spatial patterns of outcomes, or on geographical information from novel sites.
 
-The function `analyseCRT` is a wrapper for the statistical analysis packages:
+The function `CRTanalysis` is a wrapper for the statistical analysis packages:
 
 + [geepack](https://www.jstatsoft.org/article/view/v015i02)
 + [INLA](https://www.r-inla.org/)
@@ -50,7 +50,7 @@ The methods are described in the papers [Multerer *et al.* (2021a)](https://tria
 
 ##  Package functions
 
-The package functions are as follows:
+The package functions
 
 | Function name | Purpose | Pre-requirements | Outputs |
 |-------------------:|:---------------|---------------|:--------------------:|
@@ -66,16 +66,11 @@ The package functions are as follows:
 |_Plot_CRTmap()_|mapping of locations, clusters, arms, outcomes|unique locations|maps of locations and assignments|
 |_Analyse_CRT()_|standard analyses of efficacy (or baseline data) of ICC, or of contamination range|outcome (proportion) by record; cluster and arm assignments|statistical analysis, outputs depend on choice of method|
 
-For details of the additional parameters required on input and of the outputs, see the documentation under each function. The term 'record' refers to the rows in the dataframe, which often, but not always, correspond to unique locations.
+
 
 ## General Workflow
 
-The use of the package starts with selection of a set of locations.  These may be derived from a field site, or if the objective is a generic evaluation of methods, simulated locations can be used, most straightforwardly by generating them using `Simulate_TrialSite()`. The dataframe containing the locations is then incrementally augmented with clusters, arms, and trial outcomes (working through Figure 1 from top to bottom, see below). At each stage the augmentation can use either existing data from field trials or pre-determined values (blue boxes in Figure 1), or can be automated using the package functions (green boxes in Figure 1). The analysis routines in the package can be used to inform the choice of parameters, by quantifying degree of contamination between arms, required numbers of clusters, statistical power etc..
-
-_Figure 1. Workflow_
-
-![image info](./workflow.svg){ width=100% }
-(functions in brackets represent optional steps)
+The use of the package starts with selection of a set of locations.  These may be derived from a field site, or if the objective is a generic evaluation of methods, simulated locations can be used, most straightforwardly by generating them using `simulateSite()`. The dataframe containing the locations is then incrementally augmented with clusters, arms, and trial outcomes. At each stage the augmentation can use either existing data from field trials or pre-determined values (blue boxes in Figure 1), or can be automated using the package functions (green boxes in Figure 1). The analysis routines in the package can be used to inform the choice of parameters, by quantifying degree of contamination between arms, required numbers of clusters, statistical power etc..
 
 <!--Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot-->
 

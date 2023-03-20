@@ -44,18 +44,18 @@ When `ICC_inp` is supplied
 
 
 #### Example with baseline data provided as proportions
-```{r example2.r, fig.path=('vignettes/'),echo=TRUE}
+```{r example2.r, fig.path=('vignettes'),echo=TRUE}
 set.seed(1234)
 # use co-ordinates, cluster and arm assignments, and pre-calculated transmission surface from Use Case 1.
 example_locations <- readdata('example_baseline.csv')
 example_locations$base_denom <- 1
-example_xy <- latlong_as_xy(df = example_locations)
-example_aggregated <- aggregate(CRT = example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
-example_clustered <- specify.clusters(trial = example_aggregated, h = 50, algorithm = 'NN')
-example_randomized <- randomizeCRT(trial = example_clustered, matchedPair = TRUE)
+example_xy <- latlong_as_xy(example_locations)
+example_aggregated <- aggregate(example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
+example_clustered <- specify.clusters(example_aggregated, h = 50, algorithm = 'NN')
+example_randomized <- randomizeCRT(example_clustered, matchedPair = TRUE)
 
-example5b <- simulateCRT(trial = example_randomized,
-       efficacy = 0.4,
+example5b <- simulateCRT(example_randomized,
+       effect = 0.4,
        outcome0 = 0.5,
        generateBaseline = FALSE,
        baselineNumerator = "RDT_test_result",
@@ -65,31 +65,31 @@ summary(example5b)
 ```
 
 #### Example with infectiousness proxy surface generated externally
-```{r example4.r, fig.path = ('vignettes/'), echo = TRUE}
+```{r example4.r, fig.path = ('vignettes'), echo = TRUE}
 set.seed(1234)
 # Simulate a site with 2000 locations
 example6 <- simulateSite(geoscale = 2, locations=2000, kappa=3, mu=40)
 # propensity surface generated as an arbitrary linear function of x co-ordinate
 example6$propensity <- 0.5*example5b$x - min(example5b$x)+1
-example6a <- simulateCRT(trial = example5b,
-       efficacy = 0.4,
+example6a <- simulateCRT(example5b,
+       effect = 0.4,
        outcome0 = 0.5,
        generateBaseline = TRUE,
        ICC_inp = NULL,
        theta_inp = 0.5)
 
-results6a <- analyseCRT(trial = example6a, method = 'GEE')
+results6a <- CRTanalysis(example6a, method = 'GEE')
 summary(results6a)
-#results6a <- analyseCRT(trial = example6a, method = 'INLA', inla.mesh = inlaMeshTest)
-#plotCRTmap(trial = example6a, analysis = results6a, showPrediction = TRUE)
+#results6a <- CRTanalysis(example6a, method = 'INLA', inla.mesh = inlaMeshTest)
+#plot(trial = example6a, map = TRUE, analysis = results6a, showPrediction = TRUE)
 ```
 
 #### Example with baseline generated from user-provided values of the overall initial prevalence and ICC
-```{r example5.r, fig.path = ('vignettes/'), echo = TRUE}
+```{r example5.r, fig.path = ('vignettes'), echo = TRUE}
 set.seed(1234)
 # use co-ordinates, cluster and arm assignments, and baseline data from `example5`
-example5c <- simulateCRT(trial = example5b,
-       efficacy = 0.4,
+example5c <- simulateCRT(example5b,
+       effect = 0.4,
        outcome0 = 0.6,
        generateBaseline = TRUE,
        baselineNumerator = 'base_num',
@@ -97,6 +97,6 @@ example5c <- simulateCRT(trial = example5b,
        ICC_inp = 0.08,
        theta_inp = 0.2)
 
-results6c <- analyseCRT(trial = example5c, method = 'GEE')
+results6c <- CRTanalysis(example5c, method = 'GEE')
 summary(results6c)
 ```

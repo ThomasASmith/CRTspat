@@ -18,3 +18,4 @@ devtools::install(build_vignettes = TRUE)
 usethis::use_pkgdown()
 pkgdown::build_site()
 
+

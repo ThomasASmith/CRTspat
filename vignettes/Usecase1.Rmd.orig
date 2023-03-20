@@ -19,9 +19,9 @@ devtools::install(build_vignettes = TRUE)
 
 ### Use Case 1: Algorithmic definition of clusters and of buffer zones for a CRT
 
-Input to the `CRTspat` package is in the form of a data frame with one record for each location. Most of the functions of the package return a list of S3 class `CRT`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. objects of class `CRT` can also be used as input to `CRTspat` functions.
+Input to the `CRTspat` package is in the form of a data frame with one record for each location. Most of the functions of the package return a list of class `CRTspat`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. Objects of class `CRTspat` can also be used as input to most of the functions.
 
-After each step, `summary` can be used to provide a description of the output `CRT` object and `plotCRTmap` can be used to output a map of the locations, clusters, arms, buffer zones or other geographically structured analysis results.
+After each step, `summary` can be used to provide a description of the output `CRTspat` object and `plot` can be used to output a descriptive plot, or a map of the locations, clusters, arms, buffer zones or other geographically structured analysis results.
 
 The starting point for the analyses is the co-ordinates for the spatial units that are to be randomized.
  These can be provided as lat-long coordinates, as Cartesian point co-ordinates with centroid (0,0). Simulated co-ordinate sets can also be generated *de novo* (function `simulateSite`). The `convert.latlong.xy` function is available to convert co-ordinates provided as decimal degrees into Cartesian co-ordinates with units of km. (If the input co-ordinates are provided using a different projection then they must be converted externally to the package).
@@ -41,23 +41,23 @@ The example uses locations from Rusinga Island, Kenya. (The example dataset also
 of test positivity from a baseline survey)
 
 #### Example
-```{r example1.r, fig.path=('vignettes/'),echo=TRUE}
+```{r example1.r, fig.path=('vignettes/figures/'),echo=TRUE}
 example_locations <- readdata('example_baseline.csv')
 # assign the denominator to the baseline data
 example_locations$base_denom <- 1
 # convert to Euclidean coordinates
-example_xy <- latlong_as_xy(trial = example_locations)
+example_xy <- latlong_as_xy(example_locations)
 summary(example_xy)
 # Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
 # auxiliary variables
-example_aggregated <- aggregate(CRT = example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
+example_aggregated <- aggregate(example_xy, auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example_aggregated)
 # Plot map of locations
-plotCRTmap(example_aggregated, showLocations = TRUE, maskbuffer = 0.5)
+plot(example_aggregated, map = TRUE, showLocations = TRUE, maskbuffer = 0.5)
 example_clustered <- specify.clusters(trial = example_aggregated, h = 50, algorithm = 'NN')
 summary(example_clustered)
-plotCRTmap(example_clustered, showClusterLabels = TRUE, maskbuffer = 0.5)
-example_randomized <- randomizeCRT(trial = example_clustered, matchedPair = TRUE)
+plot(example_clustered, map = TRUE, showClusterLabels = TRUE, maskbuffer = 0.5)
+example_randomized <- randomizeCRT(example_clustered, matchedPair = TRUE)
 summary(example_randomized)
-plotCRTmap(trial = example_randomized,maskbuffer=0.5,legend.position=c(0.2,0.8))
+plot(example_randomized, map = TRUE, maskbuffer=0.5,legend.position=c(0.2,0.8))
 ```

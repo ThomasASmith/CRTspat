@@ -8,7 +8,7 @@ test_that("Simulate_CRT() creates the default simulation", {
    test_Arms <- randomizeCRT(trial = test_Clusters,matchedPair = TRUE)
    test.simulateCRT <- simulateCRT(trial = test_Arms,
                         theta_inp = 1.2,outcome0 = 0.4,
-                        ICC_inp = 0.05 ,effect = 0.4, tol = 99)
+                        ICC_inp = 0.05 ,effect = 0.4, tol = 0.05)
    trial <- test.simulateCRT$trial
    trial$cluster <- as.numeric(trial$cluster)
    trial$arm <- as.character(trial$arm)
@@ -17,6 +17,6 @@ test_that("Simulate_CRT() creates the default simulation", {
    rownames(trial) <- NULL
    # write.csv(trial,file = "inst/extdata/test.simulateCRT1.csv", row.names = FALSE)
  return(trial)}
- expect_equal(get_test3(),readdata("test.simulateCRT1.csv"))
+ expect_equal(get_test3(),readdata("test_df.csv"))
 })
 

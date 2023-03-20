@@ -24,7 +24,8 @@ Imports:
     spatstat.random,
     OOR,
     jagsUI,
-    sf
+    sf,
+    Matrix
 Suggests: 
     knitr, rmarkdown, 
     TSP, aod, ggthemes, gstat, lme4, maptools, methods, mvtnorm, plyr, qpdf, rgdal, spatstat.core,

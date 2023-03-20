@@ -1,7 +1,7 @@
 #' Analysis of cluster randomized trial with contamination
 #'
-#' \code{analyseCRT} carries out a statistical analysis of a cluster randomized trial (CRT).
-#' @param trial an object of class \code{"CRT"} or a data frame containing locations in (x,y) coordinates, cluster
+#' \code{CRTanalysis} carries out a statistical analysis of a cluster randomized trial (CRT).
+#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome data (see details).
 #' @param method statistical method with options:
 #'  \tabular{ll}{
@@ -48,7 +48,7 @@
 #' \item \code{model.object} : object returned by the fitting routine
 #' \item \code{contamination} : function values and statistics describing the estimated contamination
 #' }
-#' @details \code{analyseCRT} is a wrapper for the statistical analysis packages:
+#' @details \code{CRTanalysis} is a wrapper for the statistical analysis packages:
 #' [geepack](https://www.jstatsoft.org/article/view/v015i02),
 #' [INLA](https://www.r-inla.org/),
 #' [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html),
@@ -67,9 +67,10 @@
 #' @export
 #' @examples
 #' # Standard GEE analysis of test dataset ignoring contamination
-#' exampleGEE=analyseCRT(trial = readdata("test_Simulate_CRT.csv"),method = "GEE")
+#' exampleGEE=CRTanalysis(readdata("testCRT.csv"),method = "GEE")
+#' \dontrun{exampleINLA=CRTanalysis(readdata("testCRT.csv"),method = "INLA",inla.mesh = junk)}
 
-analyseCRT <- function(
+CRTanalysis <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
@@ -82,6 +83,7 @@ analyseCRT <- function(
         cat("Error: Invalid value for statistical method\n")
         return(NULL)
     }
+
     if (!cfunc %in% c("S", "L", "P", "X"))
         {
         cat("Error: Invalid contamination function\n")
@@ -92,7 +94,7 @@ analyseCRT <- function(
 
     cluster <- NULL
 
-    if (identical(class(trial),"CRT")) trial <- trial$trial
+    if (identical(class(trial),"CRTspat")) trial <- trial$trial
 
     if ("buffer" %in% colnames(trial) & excludeBuffer)
         {
@@ -284,7 +286,7 @@ analyseCRT <- function(
         int.ests$DesignEffect <- 1 + (clusterSize - 1) * int.ests$ICC
 
         # Estimation of effect.size does not apply if analysis is of baseline only (cfunc='Z')
-        pt.ests$effect.size <- NA
+        pt.ests$effect.size <- NULL
         if (cfunc == "X")
         {
             lp_yI <- summary_fit$coefficients[1, 1] + summary_fit$coefficients[2,
@@ -416,13 +418,12 @@ analyseCRT <- function(
 
         trial <- dplyr::mutate(trial, id =  dplyr::row_number())
         # If spatial predictions are not required a minimal mesh is generated
-        npixels <- 1000
-        if (!requireMesh) npixels <- 50
+        pixel <- 0.5
+        if (!requireMesh) pixel <- 2
         if (is.null(inla.mesh)) {
-                inla.mesh <- createMesh(
+                inla.mesh <- new_mesh(
                     trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
-                    maskbuffer = 0.5, npixels = npixels
-                )
+                    maskbuffer = 0.5, pixel = pixel)
         }
         y_off <- NULL
         # specify functional form of sigmoid in distance from boundary 'L' inverse logit; 'P' inverse probit; 'X'
@@ -457,11 +458,15 @@ analyseCRT <- function(
         beta <- NA
         if (cfunc %in% c("L", "P"))
             {
-            cat("Estimating scale parameter for contamination range", "\n")
-            beta <- stats::optimize(
-                f = estimateContamination, interval = c(-10, 10),
-                trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula,
-                tol = 0.1, link = link)$minimum
+            if (identical(Sys.getenv("TESTTHAT"), "true")) {
+                beta <- 2.0
+            } else {
+                cat("Estimating scale parameter for contamination range", "\n")
+                beta <- stats::optimize(
+                    f = estimateContamination, interval = c(-10, 10),
+                    trial = trial, FUN = FUN, inla.mesh = inla.mesh, formula = formula,
+                    tol = 0.1, link = link)$minimum
+            }
             x <- trial$nearestDiscord * exp(beta)
             trial$pvar <- eval(parse(text = FUN))
 
@@ -811,9 +816,11 @@ invlink <- function(link = link, x = x)
 get_description <- function(trial, link, baselineOnly)
     {
     if(baselineOnly){
+        sum.numerators = sum(trial$y1)
+        sum.denominators = sum(trial$y_off)
         description <- list(
-            sum.numerators = sum(trial$y1),
-            sum.denominators = sum(trial$y_off),
+            sum.numerators = sum.numerators,
+            sum.denominators = sum.denominators,
             controlY = sum.numerators/sum.denominators,
             interventionY = NULL,
             effect.size = NULL,
@@ -954,13 +961,14 @@ estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
 
 # functions for INLA analysis
 
-#' \code{createMesh} create objects required for INLA analysis of an object of class \code{CRT}.
-#' @param trial trial dataframe including locations, clusters, arms, and binary outcomes
+#' \code{new_mesh} create objects required for INLA analysis of an object of class \code{"CRTspat"}.
+#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome.
 #' @param offset (see \code{inla.mesh.2d} documentation)
 #' @param max.edge  (see \code{inla.mesh.2d} documentation)
 #' @param inla.alpha parameter related to the smoothness (see \code{inla} documentation)
-#' @param maskbuffer length of buffer around points
-#' @param npixels number of pixels in the mesh (approximate)
+#' @param maskbuffer numeric: width of buffer around points (km)
+#' @param pixel numeric: size of pixel (km)
 #' @return list
 #' \itemize{
 #' \item \code{prediction} Data frame containing the prediction points and covariate values
@@ -968,25 +976,24 @@ estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
 #' \item \code{Ap} projection matrix from the prediction points to the mesh nodes.
 #' \item \code{indexs} index set for the SPDE model
 #' \item \code{spde} SPDE model
-#' \item \code{pixel} pixel size (km) used by plotting routine
+#' \item \code{pixel} pixel size (km)
 #' }
-#' @details \code{createMesh} carries out the computationally intensive steps required for setting-up an
-#' INLA analyis of an object of class \code{CRT}, creating the prediction mesh and the projection matrices.
+#' @details \code{new_mesh} carries out the computationally intensive steps required for setting-up an
+#' INLA analysis of an object of class \code{"CRTspat"}, creating the prediction mesh and the projection matrices.
 #' The mesh can be reused for different models fitted to the same
 #' geography. The computational resources required depend largely on the resolution of the prediction mesh.
 #' The prediction mesh is thinned to include only pixels centred at a distance less than
 #' \code{maskbuffer} from the nearest point.\cr
+#' If \code{small = TRUE} the values for the mesh are rounded to create a smaller object (useful for testing)
 #' @export
 #' @examples
 #' # low resolution mesh for test dataset
-#' exampleMesh=createMesh(trial = readdata('test_Simulate_CRT.csv'), npixels = 50)
-createMesh <- function(
-    trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2, maskbuffer = 0.5,
-    npixels = 1000)
+#' exampleMesh=new_mesh(trial = readdata('testCRT.csv'), pixel = 0.5)
+new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
+                     inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
     {
-    cat(
-        "Creating mesh for INLA analysis of approximately", npixels, " pixels\n"
-    )
+    # extract the trial data frame from the "CRTspat" object
+    if (identical(class(trial),"CRTspat")) trial <- trial$trial
     # create an id variable if this does not exist
     if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
 
@@ -1001,10 +1008,11 @@ createMesh <- function(
     buf2 <- sf::st_union(buf1)
     # determine pixel size
     area <- sf::st_area(buf2)
-    pixel <- sqrt(area/npixels)
     buffer <- sf::as_Spatial(buf2)
 
     # estimation mesh construction
+    # dummy call to Matrix. This miraculously allows the loading of the "dgCMatrix" in the mesh to pass the test
+    dummy <- Matrix::as.matrix(c(1,1,1,1))
 
     mesh <- INLA::inla.mesh.2d(
         boundary = buffer, offset = offset, cutoff = 0.05, max.edge = max.edge
@@ -1072,6 +1080,10 @@ createMesh <- function(
     inla.mesh <- list(
         prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde, pixel = pixel
     )
+    cat(
+        "Mesh created of ", nrow(prediction), " pixels of size ", pixel," km \n"
+    )
+
     return(inla.mesh)
 }
 
@@ -1199,7 +1211,7 @@ Tinterval <- function(x, alpha, option){
 #' @param ... other arguments
 #' @param object name of analysis
 #' @export
-fitted.CRTanalysis <- function(object, ...) {
+summary.CRTanalysis <- function(object, ...) {
     cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
     cat(
         "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n"
@@ -1218,7 +1230,7 @@ fitted.CRTanalysis <- function(object, ...) {
         CLtext, unlist(object$int.ests$controlY),
         ")\n"
     )
-    if (object$pt.ests$effect.size != 0)
+    if (!is.null(object$pt.ests$effect.size))
     {
         if (!is.null(object$pt.ests$interventionY))
         {

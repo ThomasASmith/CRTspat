@@ -1,8 +1,8 @@
 #' Graphical display of the geography of a CRT
 #'
-#' \code{plot.CRT} returns a stacked bar chart of the
+#' \code{plot.CRTspat} returns a stacked bar chart of the
 #' the outcome grouped by distance from the arm boundary
-#' @param CRT an object of class \code{'CRT'}; \cr
+#' @param x an object of class \code{"CRTspat"}; \cr
 #' @param ... other arguments of \code{base::plot}
 #' @param map logical: indicator of whether a map is required
 #' @param fill fill layer of map
@@ -27,30 +27,38 @@
 #' @importFrom ggplot2 aes alpha
 #' @export
 #' @examples
-#' #Plot locations only
-#' plot(CRT = readdata('test.CRT.csv'), map = TRUE, fill = 'none', showLocations = TRUE,
+#' #Plot of data by distance
+#' plot(readdata('testCRT.csv'))
+#'
+#' #Map of locations only
+#' plot(readdata('testCRT.csv'), map = TRUE, fill = 'none', showLocations = TRUE,
 #'            showClusterBoundaries=FALSE, maskbuffer=0.2)
 #'
 #' #Show cluster boundaries and number clusters
-#' plot(CRT = readdata('test.CRT.csv'), map = TRUE, fill ='none', showClusterBoundaries=TRUE,
+#' plot(readdata('testCRT.csv'), map = TRUE, fill ='none', showClusterBoundaries=TRUE,
 #'            showClusterLabels=TRUE, maskbuffer=0.2)
 #'
 #' #Plot clusters in colour
-#' plot(CRT=readdata('test.CRT.csv'), map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
-#'           labelsize=4, maskbuffer=0.2)
+#' plot(readdata('testCRT.csv'), map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
+#'           labelsize=2, maskbuffer=0.2)
 #'
 #' #Plot arms
-#' plot(CRT=readdata('test.CRT.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
-#' @examples
-#' CRT=readdata('test_Simulate_CRT.csv'); CRT <- as_CRT(trial); plot(CRT)
-plot.CRT <- function(CRT, ..., map = FALSE, fill = "arms", num = num, denom = denom,
+#' plot(readdata('testCRT.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
+#'
+
+plot.CRTspat <- function(x, ..., map = FALSE, fill = "arms", num = num, denom = denom,
     showLocations = FALSE, showClusterBoundaries = TRUE, showClusterLabels = FALSE,
-    cpalette = NULL, maskbuffer = 0.2, labelsize = 4,
-    legend.position = NULL) {
+    cpalette = NULL, maskbuffer = 0.2, labelsize = 4, legend.position = NULL) {
+    if (is.null(x$trial)){
+        return("*** No data points for plotting ***")
+    }
     if (!map) {
         if (is.null(cpalette)) cpalette <- c("#D55E00", "#0072A7")
         outcome <- positives <- negatives <- frequency <- dcat <- NULL
-        an <- analyseCRT(trial = CRT$trial, method = "EMP")
+        if (is.null(x$trial$num)){
+            return(plot(x$trial))
+        }
+        an <- CRTanalysis(trial = x$trial, method = "EMP")
         an$contamination$data$negatives <- with(an$contamination$data, total -
             positives)
         an$contamination$data$dcat <- with(an$contamination, min(FittedCurve$d) +
@@ -65,14 +73,13 @@ plot.CRT <- function(CRT, ..., map = FALSE, fill = "arms", num = num, denom = de
             ggplot2::ylab("Frequency") + ggplot2::theme(legend.position = "bottom")
     } else {
 
-        trial <- CRT$trial
-
+        trial <- x$trial
         arm <- cluster <- x <- y <- NULL
         colourClusters <- identical(fill, "clusters")
         showArms <- identical(fill, "arms")
 
         # The plotting routines require unique locations
-        CRT <- as_CRT(trial)
+        CRT <- as_CRTspat(trial)
         CRT <- aggregate(CRT)
 
         # The plotting routines use (x,y) coordinates
@@ -80,7 +87,6 @@ plot.CRT <- function(CRT, ..., map = FALSE, fill = "arms", num = num, denom = de
           CRT <- latlong_as_xy(CRT)
         }
 
-        trial <- CRT$trial
         # remove any buffer zones
         if (!is.null(trial$buffer)) {
           trial <- trial[!trial$buffer, ]
@@ -116,7 +122,7 @@ plot.CRT <- function(CRT, ..., map = FALSE, fill = "arms", num = num, denom = de
 
         clusters <- vor %>%
           sf::st_join(tr, sf::st_intersects) %>%
-          group_by(cluster) %>%
+          dplyr::group_by(cluster) %>%
           dplyr::summarize()
 
         totalClusters <- length(unique(trial$cluster))
@@ -127,9 +133,7 @@ plot.CRT <- function(CRT, ..., map = FALSE, fill = "arms", num = num, denom = de
           cpalette <- c("white")
 
         g <- ggplot2::ggplot()
-        if (showClusterBoundaries) {
-          g <- g + ggplot2::geom_sf(data = clusters, color = "black", fill = "white")
-        }
+
         if (colourClusters) {
           g <- g + ggplot2::geom_sf(data = clusters, aes(fill = cluster), fill = cpalette,
                                     alpha = 0.8)
@@ -144,6 +148,9 @@ plot.CRT <- function(CRT, ..., map = FALSE, fill = "arms", num = num, denom = de
           g <- g + ggplot2::scale_fill_manual(name = "Arms", values = c("#b2df8a",
                    "#1f78b4"), labels = c("Control", "Intervention"))
         }
+        if (showClusterBoundaries) {
+            g <- g + ggplot2::geom_sf(data = clusters, color = "black", fill = NA)
+        }
         g <- add_annotations(trial = trial, showLocations = showLocations,
             showClusterLabels = showClusterLabels, maskbuffer = maskbuffer,
             labelsize = labelsize, legend.position = legend.position, g = g)
@@ -155,27 +162,13 @@ plot.CRT <- function(CRT, ..., map = FALSE, fill = "arms", num = num, denom = de
 
 add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
     labelsize, legend.position, g) {
-    if (showClusterLabels) {
-        showLocations <- FALSE
-    }
-    if (showLocations) {
-        g <- g + ggplot2::geom_point(data = trial, aes(x = x, y = y), size = 0.5)
-    }
-
-    # Positions of centroids of clusters for locating the labels
-    cc <- data.frame(trial %>%
-        group_by(cluster) %>%
-        dplyr::summarize(x = mean(x), y = mean(y), .groups = "drop"))
-    if (showClusterLabels) {
-        g <- g + ggplot2::geom_text(data = cc, aes(x = x, y = y, label = cluster),
-            hjust = 0.5, vjust = 0.5, size = labelsize)
-    }
-
+    cluster <- x <- y <- NULL
     # mask for remote areas the plot limits are determined by the min
     # and max of the coordinates
     xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
     ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
 
+    # mask for excluded areas
     # the mask needs to extend outside the plot area
     x0 <- xlim[1] - 0.5
     x1 <- xlim[2] + 0.5
@@ -184,14 +177,31 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
     bbox <- sf::st_polygon(list(cbind(x = c(x0, x1, x1, x0, x0), y = c(y0,
         y0, y1, y1, y0))))
     bbox <- sf::st_sfc(bbox)
-
-    # mask for uninhabited areas
     tr <- sf::st_as_sf(trial, coords = c("x", "y"))
     buf1 <- sf::st_buffer(tr, maskbuffer)
     buf2 <- sf::st_union(buf1)
     mask <- sf::st_difference(bbox, buf2)
 
     g <- g + ggplot2::geom_sf(data = mask, fill = "grey")
+
+    # Labels
+    if (showClusterLabels) {
+        showLocations <- FALSE
+    }
+
+    # Positions of centroids of clusters for locating the labels
+    cc <- data.frame(trial %>%
+                         dplyr::group_by(cluster) %>%
+                         dplyr::summarize(x = mean(x), y = mean(y), .groups = "drop"))
+    if (showClusterLabels) {
+        g <- g + ggplot2::geom_text(data = cc, aes(x = x, y = y, label = cluster),
+                                    hjust = 0.5, vjust = 0.5, size = labelsize)
+    }
+    if (showLocations) {
+        g <- g + ggplot2::geom_point(data = trial, aes(x = x, y = y), size = 0.5)
+    }
+
+
     g <- g + ggplot2::theme(legend.position = legend.position)
     g <- g + ggplot2::theme(panel.border = ggplot2::element_blank())
     g <- g + ggplot2::theme(axis.title = ggplot2::element_blank())
@@ -203,7 +213,7 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' Plot results of statistical analysis of a CRT
 #'
 #' \code{plot.CRTanalysis} creates graphics showing the results of statistical analysis of a CRT
-#' @param analysis object of S3 class \code{'CRTanalysis'} produced by \code{analyseCRT()}
+#' @param x object of S3 class \code{'CRTanalysis'} produced by \code{CRTanalysis()}
 #' @param ... other arguments of \code{base::plot}
 #' @param map logical: indicator of whether a map is required
 #' @param fill fill layer of map
@@ -237,30 +247,30 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' (mean of exp(log(x + 1))) - 1) \cr
 #' @export
 #' @examples
-#' analysis <- readdata('test_Analyse_CRT.txt'); class(analysis) <- 'CRTanalysis'; plot(analysis)
-plot.CRTanalysis <- function(analysis, ..., map = FALSE, fill = "arms", showLocations = FALSE,
+#' analysis <- CRTanalysis(readdata('testCRT.csv')); plot(x = analysis, map = FALSE)
+plot.CRTanalysis <- function(x, ..., map = FALSE, fill = "none", showLocations = FALSE,
     showClusterLabels = FALSE, showContamination = FALSE,
     cpalette = NULL, maskbuffer = 0.2, labelsize = 4, legend.position = NULL) {
+    analysis <- x
     if (!map) {
         d <- average <- upper <- lower <- contaminationFunction <- NULL
         interval <- analysis$contamination$contamination.limits
-        g <- ggplot2::ggplot(data = analysis$contamination$data, aes(x = d,
-            y = average))
+        g <- ggplot2::ggplot(data = analysis$contamination$data,
+                             ggplot2::aes(x = d, y = average))
         g <- g + ggplot2::theme_bw()
         g <- g + ggplot2::geom_point(size = 2)
-        g <- g + ggplot2::geom_errorbar(mapping = aes(x = d, ymin = upper,
+        g <- g + ggplot2::geom_errorbar(mapping = ggplot2::aes(x = d, ymin = upper,
             ymax = lower), linewidth = 0.5, width = 0.1)
         g <- g + ggplot2::geom_line(data = analysis$contamination$FittedCurve,
-            aes(x = d, y = contaminationFunction), linewidth = 2, colour = "#0072A7")
+                 ggplot2::aes(x = d, y = contaminationFunction), linewidth = 2, colour = "#0072A7")
         g <- g + ggplot2::geom_vline(xintercept = interval, linewidth = 1)
         g <- g + ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed")
-        g <- g + ggplot2::geom_rect(aes(xmin = interval[1], xmax = interval[2],
+        g <- g + ggplot2::geom_rect(ggplot2::aes(xmin = interval[1], xmax = interval[2],
             ymin = -Inf, ymax = Inf), fill = alpha("#2C77BF", 0.02))
         g <- g + ggplot2::xlab("Distance from boundary (km)")
         g <- g + ggplot2::ylab("Outcome")
     } else {
-        pixel <- analysis$inla.mesh$pixel
-        raster <- analysis$inla.mesh$prediction
+
         contamination <- analysis$contamination
         trial <- analysis$trial
         showDistance <- identical(fill, "distance")
@@ -271,28 +281,34 @@ plot.CRTanalysis <- function(analysis, ..., map = FALSE, fill = "arms", showLoca
         x <- y <- prediction <- nearestDiscord <- NULL
 
         g <- ggplot2::ggplot()
-        if (showPrediction) {
-            g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                fill = prediction), alpha = 0.5, width = pixel, height = pixel)
-            g <- g + ggplot2::scale_fill_gradient(name = "Prediction", low = "blue",
-                high = "orange")
+        if (!identical(analysis$method, "INLA")){
+            cat("*** Raster plots only available for outputs from INLA analysis ***")
+        } else {
+            pixel <- analysis$inla.mesh$pixel
+            raster <- analysis$inla.mesh$prediction
+            if (showPrediction) {
+                g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
+                    fill = prediction), alpha = 0.5, width = pixel, height = pixel)
+                g <- g + ggplot2::scale_fill_gradient(name = "Prediction", low = "blue",
+                    high = "orange")
 
-        }
-        if (showDistance) {
-            g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                fill = nearestDiscord), alpha = 0.5, width = pixel, height = pixel)
-            g <- g + ggplot2::scale_fill_gradient(name = "Distance", low = "blue",
-                high = "orange")
+            }
+            if (showDistance) {
+                g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
+                    fill = nearestDiscord), alpha = 0.5, width = pixel, height = pixel)
+                g <- g + ggplot2::scale_fill_gradient(name = "Distance", low = "blue",
+                    high = "orange")
 
-        }
-        if (showContamination) {
-            # augment the prediction grid with a classifier of whether
-            # the point is within the contamination interval
-            range <- contamination$contamination.limits
-            raster$contaminated <- ifelse(dplyr::between(raster$nearestDiscord,
-                range[1], range[2]), TRUE, FALSE)
-            g <- g + ggplot2::geom_raster(data = raster[raster$contaminated,
-                ], aes(x = x, y = y), fill = "black", alpha = 0.2)
+            }
+            if (showContamination) {
+                # augment the prediction grid with a classifier of whether
+                # the point is within the contamination interval
+                range <- contamination$contamination.limits
+                raster$contaminated <- ifelse(dplyr::between(raster$nearestDiscord,
+                    range[1], range[2]), TRUE, FALSE)
+                g <- g + ggplot2::geom_tile(data = raster[raster$contaminated,
+                    ], aes(x = x, y = y), fill = "black", alpha = 0.2)
+            }
         }
         g <- add_annotations(trial = trial, showLocations = showLocations,
             showClusterLabels = showClusterLabels, maskbuffer = maskbuffer,

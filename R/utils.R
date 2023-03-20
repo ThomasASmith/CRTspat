@@ -1,11 +1,11 @@
 #' Aggregate data across records with duplicated locations
 #'
-#' \code{aggregate} aggregates data from a \code{"CRT"} object containing multiple records with the same location,
-#' and outputs a list of S3 class \code{"CRT"} containing single values for each location, for both the coordinates and the auxiliary variables.
-#' @param x An object of S3 class \code{"CRT"} containing locations (x,y) and variables to be summed
+#' \code{aggregate} aggregates data from a \code{"CRTspat"} object containing multiple records with the same location,
+#' and outputs a list of class \code{"CRTspat"} containing single values for each location, for both the coordinates and the auxiliary variables.
+#' @param CRT An object of class \code{"CRTspat"} containing locations (x,y) and variables to be summed
 #' @param ... Other arguments to \code{"aggregate()"}
 #' @param auxiliaries vector of names of auxiliary variables to be summed across each location
-#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site\tab\cr
 #'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
@@ -15,23 +15,17 @@
 #'  }
 #' @importFrom stats aggregate
 #' @export
-aggregate.CRT <- function(x, ... , auxiliaries = NULL) {
+aggregate.CRTspat <- function(x, ... , auxiliaries = NULL) {
+    CRT <- x
     trial <- x$trial
     x <- y <- NULL
-    trial <- trial %>%
-        distinct(x, y, .keep_all = TRUE)
     trial <- trial[order(trial$x, trial$y), ]
     if (!is.null(auxiliaries)) {
-        for (i in 1:length(auxiliaries)) {
-            varName <- auxiliaries[i]
-            trial1 <- trial %>%
-                group_by(x, y) %>%
-                summarize(sumVar = sum(get(varName), na.rm = TRUE), .groups = "drop")
-            trial1 <- trial1[order(trial1$x, trial1$y), ]
-            trial[[varName]] <- trial1$sumVar
-        }
+      trial1 <- trial %>% group_by(x, y) %>% dplyr::summarize(across(auxiliaries, sum))
+    } else {
+      trial1 <- trial %>% distinct(x, y, .keep_all = TRUE)
     }
-    CRT <- updateCRT(CRT = x, trial = trial)
+    CRT <- updateCRT(CRT = CRT, trial = data.frame(trial1))
     return(CRT)
 }
 
@@ -41,11 +35,11 @@ aggregate.CRT <- function(x, ... , auxiliaries = NULL) {
 #' trial (CRT) by flagging those locations that are within a defined distance of
 #' those in the opposite arm.
 #'
-#' @param trial an object of class \code{"CRT"} or a data frame containing locations in (x,y) coordinates, cluster
+#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).
 #' @param buffer.width minimum distance between locations in
 #'   opposing arms for them to qualify to be included in the core area (km)
-#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\tab\cr
@@ -57,7 +51,7 @@ aggregate.CRT <- function(x, ... , auxiliaries = NULL) {
 #'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
 #'  \tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
 #'  \tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -66,11 +60,12 @@ aggregate.CRT <- function(x, ... , auxiliaries = NULL) {
 specify.buffer <- function(trial, buffer.width = 0) {
   if (identical(class(trial),"data.frame")){
     CRT <- list(trial = trial, design = NULL)
-    class(CRT) <- "CRT"
+    class(CRT) <- "CRTspat"
   } else {
     CRT <- trial
     trial <- CRT$trial
   }
+  if (is.null(trial$arm)) return('*** Randomization is required before buffer specification ***')
   # nearestDiscord: nearest coordinate in the discordant arm, for the
   # control coordinates return the minimal distance with a minus sign
   if (is.null(trial$nearestDiscord)) trial$nearestDiscord <- get_nearestDiscord(trial)
@@ -86,7 +81,7 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #' \code{randomizeCRT} carries out randomization of clusters for a CRT and
 #' augments the trial dataframe with assignments to arms \cr
 #'
-#' @param trial an object of class \code{"CRT"} or a data frame containing locations in (x,y) coordinates, cluster
+#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.
 #' @param matchedPair logical: indicator of whether pair-matching on the
@@ -95,7 +90,7 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #'   matched-pair randomization)
 #' @param baselineDenominator name of denominator variable for baseline data (required for
 #'   matched-pair randomization)
-#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\tab\cr
@@ -106,7 +101,7 @@ specify.buffer <- function(trial, buffer.width = 0) {
 #'  \tab \code{pair} \tab factor \tab assigned matched pair of each location
 #'  (if \code{matchedPair} randomisation was carried out) \cr
 #'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -117,7 +112,7 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
 
     if (identical(class(trial),"data.frame")){
       CRT <- list(trial = trial, design = NULL)
-      class(CRT) <- "CRT"
+      class(CRT) <- "CRTspat"
     } else {
       CRT <- trial
       trial <- CRT$trial
@@ -178,7 +173,7 @@ updateCRT <- function(CRT, trial){
   } else {
     CRT$geom.core <- NULL
   }
-  class(CRT) <- "CRT"
+  class(CRT) <- "CRTspat"
   return(CRT)
 }
 
@@ -187,16 +182,16 @@ new_CRT <- function(x = list()) {
   stopifnot(is.list(x$design))
   stopifnot(is.list(x$geom.full))
   stopifnot(is.list(x$geom.core))
-  structure(x, class = "CRT")
+  structure(x, class = "CRTspat")
 }
 
-#' \code{as_CRT} converts a data.frame to an object of S3 class \code{"CRT"}
+#' \code{as_CRTspat} converts a data.frame to an object of class \code{"CRTspat"}
 #' @param trial a data frame containing locations in (x,y) coordinates,
 #' and optionally, cluster assignments (factor \code{cluster}), arm assignments (factor \code{arm}),
 #' specification of a buffer zone (logical \code{buffer}) and any other location specific variables
 #' required for subsequent analysis.
 #' @param design a vector describing a trial design
-#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\tab\cr
@@ -205,8 +200,8 @@ new_CRT <- function(x = list()) {
 #'  \code{design} \tab list: \tab the input design
 #'  }
 #' @export
-as_CRT <- function(trial, design = NULL){
-  if(identical(class(trial),"CRT")) {
+as_CRTspat <- function(trial, design = NULL){
+  if(identical(class(trial),"CRTspat")) {
     design <- trial$design
     trial <- trial$trial
   }
@@ -221,10 +216,28 @@ as_CRT <- function(trial, design = NULL){
               geom.full = geom.full,
               geom.core = geom.core,
               design = design)
-  class(CRT) <- "CRT"
+  class(CRT) <- "CRTspat"
 return(CRT)}
 
-
+CRTspat <- function(x, design = NULL){
+  if(identical(class(x),"CRTspat")) {
+    design <- x$design
+    x <- x$trial
+  }
+  trial <- x
+  geom.full <- get_geom(trial, design = design)
+  if (!is.null(trial$buffer)) {
+    geom.core <- get_geom(trial = trial[trial$buffer == FALSE, ],
+                          design = design)
+  } else {
+    geom.core <- NULL
+  }
+  CRT <- list(trial = trial,
+              geom.full = geom.full,
+              geom.core = geom.core,
+              design = design)
+  class(CRT) <- "CRTspat"
+  return(CRT)}
 
 #' Algorithmically assign locations to clusters in a CRT
 #'
@@ -232,13 +245,13 @@ return(CRT)}
 #'
 #' @param trial A CRT object or data frame containing (x,y) coordinates of
 #'   households
-#' @param h integer: proposal for the number of locations in each cluster
-#' @param nclusters integer: number of clusters
+#' @param k integer: number of clusters in each arm
+#' @param h integer: number of locations per cluster
 #' @param algorithm algorithm for cluster boundaries, options are:
 #' \code{NN} (the default),  \code{kmeans},  \code{TSP}
 #' @param reuseTSP logical: indicator of whether a pre-existing path should be used by
 #'   the TSP algorithm
-#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site,
 #'  and cluster assignments.\tab\cr
@@ -246,7 +259,7 @@ return(CRT)}
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
 #'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
 #'  }
 #' @details Clustering is carried out using one of three algorithms:
 #' \tabular{lll}{
@@ -257,20 +270,20 @@ return(CRT)}
 #' along a travelling salesman path.The \code{reuseTSP} parameter is used to allow the path to be reused
 #' for creating alternative allocations with different cluster sizes. \cr
 #' }
-#' Either \code{nclusters} or \code{h} must be specified. If both are specified
-#' the input value of \code{nclusters} is ignored.\cr
+#' Either \code{k} or \code{h} must be specified. If both are specified
+#' the input value of \code{k} is ignored.\cr
 #' @export
 #'
 #' @examples
-#' #Assign clusters to the test trial dataset averaging h = 40 using the kmeans algorithm
+#' #Assign clusters of average size h = 40 to a test set of co-ordinates, using the kmeans algorithm
 #' exampletrial <- specify.clusters(trial = readdata('test_site.csv'),
 #'                             h = 40, algorithm = 'kmeans', reuseTSP = FALSE)
-specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorithm = "NN",
+specify.clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN",
     reuseTSP = FALSE) {
 
    if (identical(class(trial),"data.frame")){
       CRT <- list(trial = trial, design = NULL)
-      class(CRT) <- "CRT"
+      class(CRT) <- "CRTspat"
     } else {
       CRT <- trial
       trial <- CRT$trial
@@ -283,12 +296,13 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
     # the number of clusters and the target cluster size must be integers.
     # cluster size can only be exactly equal to the input value of h if this is a factor of
     # the number of locations
-    if (is.null(nclusters)) {
-        nclusters <- ceiling(nrow(coordinates)/h)
+    if (is.null(k)) {
+        k <- ceiling(nrow(coordinates)/(2 * h))
     }
     if (is.null(h)) {
-        h <- ceiling(nrow(coordinates)/nclusters)
+        h <- ceiling(nrow(coordinates)/(2 * k))
     }
+    nclusters <- 2 * k
     # derive cluster boundaries
 
     if (algorithm == "TSP") {
@@ -312,25 +326,25 @@ specify.clusters <- function(trial = trial, h = NULL, nclusters = NULL, algorith
 #'
 #' \code{latlong_as_xy} converts co-ordinates expressed as decimal degrees
 #' into x,y
-#' @param trial A list of S3 class \code{"CRT"} containing latitudes and longitudes in decimal degrees
+#' @param trial A list of class \code{"CRTspat"} containing latitudes and longitudes in decimal degrees
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
 #' @details An object containing the input locations replaced with Cartesian
 #'   coordinates in units of km, centred on (0,0). Other data are unchanged.
 #'   The equirectangular projection (valid for small areas) is used.
-#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site \tab\cr
 #'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
 #'  }
 #' @export
 latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   if (identical(class(trial),"data.frame")){
     CRT <- list(trial = trial, design = NULL)
-    class(CRT) <- "CRT"
+    class(CRT) <- "CRTspat"
   } else {
     CRT <- trial
     trial <- CRT$trial
@@ -346,7 +360,7 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   trial$x <- R * (longradians - meanlong)
   drops <- c("lat", "long")
   trial <- trial[, !(names(trial) %in% drops)]
-  CRT <- as_CRT(trial, design = NULL)
+  CRT <- as_CRTspat(trial, design = NULL)
   return(CRT)
 }
 
@@ -354,22 +368,22 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 #' Anonymize locations of a trial site
 #'
 #' \code{anonymize.site} carries out
-#' @param trial \code{"CRT"} object or trial data frame with Cartesian co-ordinates of
+#' @param trial \code{"CRTspat"} object or trial data frame with Cartesian co-ordinates of
 #'   households (columns x and y)
-#' @returns A list of S3 class \code{"CRT"} containing the following components:
+#' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site \tab\cr
 #'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRT"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
 #'  }
 #' @export
 #' @details The x,y coordinates are rotated by a random angle about a random origin. The returned object
 #' has transformed co-ordinates re-centred at the origin. Other data are unchanged.
 #' @examples
 #' #Rotate and reflect test site locations
-#' transformedTestlocations <- anonymize.site(trial =  readdata("test_Simulate_CRT.csv"))
+#' transformedTestlocations <- anonymize.site(trial =  readdata("testCRT.csv"))
 
 anonymize.site <- function(trial) {
     # Local data from study area (ground survey and/or satellite
@@ -377,7 +391,7 @@ anonymize.site <- function(trial) {
 
     if (identical(class(trial),"data.frame")){
       CRT <- list(trial = trial, design = NULL)
-      class(CRT) <- "CRT"
+      class(CRT) <- "CRTspat"
     } else {
       CRT <- trial
       trial <- CRT$trial
@@ -421,13 +435,21 @@ anonymize.site <- function(trial) {
 readdata <- function(filename) {
     fname <- eval(filename)
     extdata <- system.file("extdata", package = "CRTspat")
-    if (unlist(gregexpr(".txt", fname)) > 0)
-        robject <- dget(file = paste0(extdata, "/", fname))
-    if (unlist(gregexpr(".csv", fname)) > 0)
-        robject <- read.csv(file = paste0(extdata, "/", fname), row.names = NULL)
+    if (unlist(gregexpr("mesh", fname)) > 0) {
+      # The mesh was stored using 'dump' e.g.
+      # dump("testmesh100",file = "inst/extdata/testmesh100.txt", evaluate= TRUE)
+      sourced <- source(file = paste0(extdata, "/", fname))
+      robject <- sourced$value
+    } else if (unlist(gregexpr("analysis", fname)) > 0) {
+      # Analysis objects should also be stored using 'dump' but are easy to reproduce
+      sourced <- source(file = paste0(extdata, "/", fname))
+      robject <- sourced$value
+    } else if (unlist(gregexpr(".csv", fname)) > 0) {
+      robject <- read.csv(file = paste0(extdata, "/", fname), row.names = NULL)
     # remove variable 'X' if it is present
+    }
     robject$X <- NULL
-    if (unlist(gregexpr(".CRT", fname)) > 0) robject <- as_CRT(robject)
+    if (unlist(gregexpr("CRT", fname)) > 0) robject <- as_CRTspat(robject)
     return(robject)
 }
 
@@ -437,13 +459,13 @@ get_geom <- function(trial, design = NULL) {
 
   if (identical(class(trial),"data.frame")){
     CRT <- list(trial = trial, design = NULL)
-    class(CRT) <- "CRT"
+    class(CRT) <- "CRTspat"
   } else {
     CRT <- trial
     trial <- CRT$trial
   }
 
-  sd_distance <- mean_h <- sd_h <- min_k <- clustersRequired <- DE <- power <- NULL
+  sd_distance <- mean_h <- sd_h <- clustersRequired <- DE <- power <- NULL
 
   coordinates <- data.frame(cbind(x=trial$x,y=trial$y))
   geom <- list(records = nrow(trial),
@@ -451,6 +473,7 @@ get_geom <- function(trial, design = NULL) {
 
   if (!is.null(trial$cluster)) {
 
+    k <- floor(nlevels(trial$cluster)/2)
     # mean number of locations randomized in each cluster
     mean_h <- mean(table(trial$cluster))
 
@@ -481,7 +504,7 @@ get_geom <- function(trial, design = NULL) {
                                              sigma2 = design$sigma2,
                                              phi = design$phi,
                                              N = design$N,
-                                             mean_h = mean_h,
+                                             k = k,
                                              sd_h = sd_h)
 
       geom <- calculateCRTpower$geom.full
@@ -495,14 +518,14 @@ get_geom <- function(trial, design = NULL) {
 
 
 
-#' Summarise CRT
+#' Summarise CRTspat
 #'
-#' \code{summary.CRT} generates a summary description of a CRT object
+#' generates a summary description of a \code{CRTspat} object
 #' @param object name of CRT
 #' @param maskbuffer buffer in km around locations to use for calculating total area
 #' @param ... other arguments
 #' @export
-summary.CRT <- function(object, maskbuffer = 0.2, ...) {
+summary.CRTspat <- function(object, maskbuffer = 0.2, ...) {
   cat("===============================CLUSTER RANDOMISED TRIAL ===========================\n")
   output <- matrix("  ", nrow = 22, ncol = 2)
   rownames(output) <- paste0("row ", 1:nrow(output))
@@ -608,6 +631,7 @@ summary.CRT <- function(object, maskbuffer = 0.2, ...) {
                     "identity" =  object$design$sigma2,
                     "log" = object$design$phi,
                     "logit" = object$design$N)
+    if (identical(object$design$outcome.type, 'd')) output[14, 1] <- ""
     rownames(output)[15] <- "Required effect size:             "
     output[15, 1] <- object$design$effect
     rownames(output)[16] <- "Intra-cluster correlation:        "
