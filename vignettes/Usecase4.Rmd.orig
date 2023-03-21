@@ -1,0 +1,205 @@
+---
+title: "Use Case 4: Estimation of optimal cluster size for a trial with pre-determined buffer width"
+output:
+  rmarkdown::html_vignette:
+  toc: true
+vignette: >
+  %\VignetteIndexEntry{Use Case 4: Estimation of optimal cluster size for a trial with pre-determined buffer width}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+<!--To build the vignette
+# since the vignette takes a long time to run, it is not run with every build
+# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
+# to Knit this vignette without this time consuming step being part of the default build
+knitr::knit("vignettes/Usecase4.Rmd.orig", output = "vignettes/Usecase4.Rmd")
+rmarkdown.html_vignette.check_title = FALSE
+devtools::install(build_vignettes = TRUE)
+-->
+
+Both the number and size of clusters affect power calculations for CRTs:
+
+  + If there are no logistical constraints, and contamination can be neglected (as in trials of vaccines that enrol only small proportions of the population), there is no need for a buffer zone and the most efficient design is an individually randomized CRT (i.e. a cluster size of one). In general, a trial with many small clusters has more power than one with the
+same number of individuals enrolled in larger clusters.
+  + If contamination is an issue, and it is decided to address this by including buffer zones, then the number of individuals included in the trial is less than the total population. Enumeration and intervention allocation are still required for the full trial area, so there can be substantial resource implications if many people are included in the buffers. There is a trade-off between increasing power by creating many small clusters (leading to a large proportion of locations in buffer zones) and reducing the proportion of locations in
+buffer zones by using large clusters.
+
+The `CRTspat` package provides functions for analysing this trade-off for any site for which baseline data are available.
+The example shown here uses the baseline prevalence data introduced in [Use Case 1](Usecase1.html). The trial is assumed to plan to be based on the same outcome of prevalence, and to be powered for an efficacy of 30%. A set of different algorithmic cluster allocations are carried out with different numbers of clusters. Each allocation is randomized and buffer zones are specified with the a pre-specified width (in this example, 0.5 km). The ICC is computed from the baseline data, excluding the buffer zones, and corresponding power calculations are carried out. The power is calculated and plotted as a function of cluster size.
+
+```{r example4a.r, fig.keep = 'none', echo = TRUE}
+# use the same dataset as for Use Case 1.
+example_locations <- readdata("example_baseline.csv")
+example_locations$base_denom <- 1
+example <- latlong_as_xy(example_locations) %>%
+    aggregate(auxiliaries = c("RDT_test_result", "base_denom"))
+summary(example)
+
+# randomly sample an array of numbers of clusters to allocate
+set.seed(5)
+k_vec <- round(runif(20, min = 6, max = 60))
+
+CRTscenario <- function(k, CRT, buffer.width) {
+    ex <- specify.clusters(CRT, k = k, algo = "kmeans") %>%
+        randomizeCRT() %>%
+        specify.buffer(buffer.width = buffer.width)
+    sink(file = "output.log", type = "output")
+    GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = TRUE,
+        baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
+    sink()
+    locations <- GEEanalysis$description$locations
+    ICC <- GEEanalysis$pt.ests$ICC
+    powerCalculations <- calculateCRTpower(locations = locations, alpha = 0.05,
+        desiredPower = 0.8, effect = 0.3, yC = GEEanalysis$pt.ests$controlY,
+        outcome.type = "p", N = GEEanalysis$description$sum.denominators/locations,
+        ICC = ICC, k = ex$geom.core$k, sd_h = ex$geom.core$sd_h)
+    value <- c(k_full = k, k_core = ex$geom.core$k, clustersRequired = powerCalculations$geom.full$clustersRequired,
+        power = powerCalculations$geom.full$power, mean_h = powerCalculations$geom.full$mean_h,
+        locations = locations, ICC = ICC)
+    return(value)
+}
+
+library(dplyr)
+results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
+    buffer.width = 0.5)) %>%
+    data.frame()
+```
+Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (k). There is also variation in the estimated Intracluster Correlation (see Use Case tbd.) for any value of k.
+
+```{r example4b.r, fig.keep = 'none', echo = TRUE}
+total_locations <- example$geom.full$locations
+results$proportion_included <- results$k_core * results$mean_h * 2/total_locations
+results$corelocations_required <- results$clustersRequired * results$mean_h
+results$totallocations_required <- with(results, total_locations/locations *
+    corelocations_required)
+
+library(ggplot2)
+theme_set(theme_bw(base_size = 14))
+ggplot(data = results, aes(x = k_full, y = k_core)) + geom_smooth() + xlab("Clusters allocated (per arm)") +
+    ylab("Clusters in core (per arm)") + geom_segment(aes(x = 5, xend = 35,
+    y = 18.5, yend = 18.5), arrow = arrow(length = unit(1, "cm")), lwd = 2,
+    color = "red")
+```
+<p>
+    <img src="example4b.r-1.png" > <br>
+    <em>Fig 4.1 Numbers of clusters</em>
+</p>
+
+The number of clusters in the core area increases with the number of
+clusters allocated, until the cluster size becomes small enough for
+entire clusters to be swallowed by the buffer zones. This can be
+illustrated by the contrast in the core areas randomised with k = 6
+and k = 40 (Figures 4.2 and 4.3).
+
+```{r example4c.r, fig.keep = 'none', echo = TRUE}
+set.seed(7)
+example6 <- specify.clusters(example, k = 6, algo = "kmeans") %>%
+    randomizeCRT() %>%
+    specify.buffer(buffer.width = 0.5)
+plot(example6, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE)
+example40 <- specify.clusters(example, k = 40, algo = "kmeans") %>%
+    randomizeCRT() %>%
+    specify.buffer(buffer.width = 0.5)
+plot(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
+    labelsize = 2)
+```
+<p>
+    <img src="example4c.r-1.png"> <br>
+    <em>Fig 4.2 Map of clusters with k = 6</em>
+</p>
+<p>
+    <img src="example4c.r-2.png"> <br>
+    <em>Fig 4.3 Map of clusters with k = 40</em>
+</p>
+
+Beyond this point, increasing the number of clusters allocated in the fixed area (by
+making them smaller) does not add to the total number of clusters. In this example the maximum is achieved when the
+input k is about 35 and the output k is 18.5.
+
+```{r example4d.r, fig.keep = 'none', echo = TRUE}
+ggplot(data = results, aes(x = k_core, y = mean_h)) + geom_smooth() + xlab("Clusters in core (per arm)") +
+    ylab("Mean cluster size")
+```
+<p>
+    <img src="example4d.r-1.png" > <br>
+    <em>Fig 4.4 Size of clusters</em>
+</p>
+
+The size of clusters decreases with the number allocated (Figure 4.4), but does
+not fall much below 10 locations on average in the example because
+smaller clusters are likely to be absorbed into the buffer zones.
+
+```{r example4e.r, fig.keep = 'none', echo = TRUE}
+ggplot(data = results, aes(x = k_core, y = power)) + geom_smooth() + xlab("Clusters in core (per arm)") +
+    ylab("Power")
+```
+<p>
+    <img src="example4e.r-1.png" > <br>
+    <em>Fig 4.5 Power achievable with given site</em>
+</p>
+
+The power increases approximately linearly with the number of
+clusters in the core (Figure 4.5), but the site is too small for an adequate power
+to be achieved with this size of buffer, irrespective of the cluster
+size.  Because the buffering leads to a maximum in the cluster
+density (number of clusters per unit area), so does the power
+achievable with a fixed area (Figure 4.6).
+
+```{r example4f.r, fig.keep = 'none', echo = TRUE}
+ggplot2::ggplot(data = results, aes(x = k_full, y = power)) + geom_smooth() +
+    xlab("Clusters allocated (per arm)") + ylab("Power")
+```
+<p>
+    <img src="example4f.r-1.png" > <br>
+    <em>Fig 4.6 Power achievable with given site</em>
+</p>
+
+However the analysis also gives an estimate of how large an extended site is
+needed to achieve adequate power (assuming the the spatial pattern
+for the wider site to be similar to that of the baseline area). A minimum
+total number of locations required to achieve a pre-specified power
+(80%) is achieved at the same density of clusters as the maximum of
+the power estimated for the smaller, baseline site.
+
+```{r example4g.r, fig.keep = 'none', echo = TRUE}
+ggplot2::ggplot(data = results, aes(x = k_core, y = corelocations_required)) +
+    geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Required core locations")
+```
+<p>
+    <img src="example4g.r-1.png" > <br>
+    <em>Fig 4.7 Number of clusters required for full trial area </em>
+</p>
+
+This is also at the allocation density where saturation is achieved
+in the number of core clusters (Figure 4.1), and where the proportion of
+the locations included in the core area reaches its minimum (Figure 4.8).
+
+```{r example4h.r, fig.keep = 'none', echo = TRUE}
+ggplot2::ggplot(data = results, aes(x = k_core, y = proportion_included)) +
+    geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Proportion of locations in core") +
+    geom_segment(aes(x = 18, xend = 18, y = 0, yend = 0.25), arrow = arrow(length = unit(1,
+        "cm")), lwd = 2, color = "red")
+```
+<p>
+    <img src="example4h.r-1.png" > <br>
+    <em>Fig 4.8 Proportions of locations in core</em>
+</p>
+
+#### Conclusions
+With the example geography and the selected trial outcome, the most efficient trial design, conditional on a buffer width of 0.5 km, would be achieved by assigning about 30 clusters to each arm in a site of the size analysed, though about one third of these clusters would eliminated
+by inclusion in the buffer zones, so that there would be . This would be far from adequate to achieve
+adequate power. To achieve 80% power about 8,000 locations would be needed, in a larger trial area, of which about 2,400
+would be in the core (sampled) parts of the clusters.
+
+```{r example4i.r, fig.keep = 'none', echo = TRUE}
+ggplot2::ggplot(data = results, aes(x = k_core, y = totallocations_required)) +
+    geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Total locations required") +
+    geom_segment(aes(x = 18, xend = 18, y = 0, yend = 8000), arrow = arrow(length = unit(1,
+        "cm")), lwd = 2, color = "red")
+```
+<p>
+    <img src="example4i.r-1.png" > <br>
+    <em>Fig 4.9 Size of trial area required to achieve adequate power</em>
+</p>
+
+
