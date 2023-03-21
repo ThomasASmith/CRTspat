@@ -1,10 +1,10 @@
 ---
-title: "Use Case 3"
+title: "Use Case 3: Estimation of intracluster correlations (ICC) by cluster size"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 3: Analysis of trials allowing for spillover effects}
+  %\VignetteIndexEntry{Use Case 3: Estimation of intracluster correlations (ICC) by cluster size}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -17,50 +17,52 @@ rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 -->
 
-### Use Case 3: Analysis of trials allowing for spillover effects
+The `CRTanalysis` function offers several different analyses of either simulated or real trial datasets. The different options are specified using the `method` argument of the function.
 
-The `Analyse_CRT` function offers several different analyses of either simulated or real trial datasets. The different options are specified using the `method` argument of the function.
+```{r example4a.r, fig.keep = 'none', echo = TRUE}
+# use the same dataset as for Use Case 1.
+library(CRTspat)
+example_locations <- readdata("example_baseline.csv")
+example_locations$base_denom <- 1
+library(dplyr)
+example <- latlong_as_xy(example_locations) %>%
+    aggregate(auxiliaries = c("RDT_test_result", "base_denom"))
+summary(example)
 
-+ `method = "T" summarises the outcome at the level of the cluster and uses t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size.
-+	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters.An estimate of the intracluster correlation (ICC) is also provided.
-+ `method = "INLA"`uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This
-INLA spatial analysis requires a prediction mesh. Generation of this mesh using `new_mesh()`
-`inlaMeshTest <- createMesh(example5a, ncells=100)` is computationally expensive, so it is recommended to compute the mesh just once for each dataset.
+# randomly sample an array of numbers of clusters
+set.seed(5)
+k_vec <- round(runif(20, min = 6, max = 150))
 
+CRTscenario3 <- function(k, CRT) {
+    ex <- specify.clusters(CRT, k = k, algo = "kmeans") %>%
+        randomizeCRT()
+    sink(file = "output.log", type = "output")
+    GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = FALSE,
+        baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
+    sink()
+    locations <- GEEanalysis$description$locations
+    ICC <- GEEanalysis$pt.ests$ICC
+    value <- c(k = k, ICC = ICC, mean_h = locations/k)
+    return(value)
+}
 
-| Option | Algorithm | Linear predictor| Allowance for Clustering | Reference |
-|----------:|:---------------|---------------|:--------------------:|
-|'L0' | S ||NO | NO |[Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) |
-|'L1' | ML |
-|'L2' | ML |
-|'L3' | ML |
-|'GEE' | GEE |
-|'M1' | MCMC |
-|'M2' | MCMC |
-|'M3' | MCMC |
-
-S: Sample proportions; ML: Maximum likelihood; GEE: Generalised estimating equations; MCMC: Bayesian Markov chain Monte Carlo.
-
-In each case the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$.
-
-$\hat{E}_{s} = 1- \frac{\hat{p}_{I}}{\hat{p}_{C}}$.
-$\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$.
-$\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$.
-
-Real field trials are likely to
-Data analysts are invited to use the JAGS code provided for the
-
-
-
-```{r example3.r, fig.path=('vignettes/'),echo=TRUE}
-results6a <- Analyse_CRT(trial = example5a, method = 'INLA', inla.mesh = inlaMeshTest)
-Plot_CRTmap(trial = example5a, analysis = results6a, showPrediction = TRUE)
-Plot_Contamination(results6a)
-results5a <- Analyse_CRT(trial = example5a, method = "INLA", inla.mesh = inlaMeshTest)
-Plot_Contamination(analysis = results5a)
-Plot_CRTmap(analysis = results5a, trial = example5a, showPrediction = TRUE)
+results <- t(sapply(k_vec, FUN = CRTscenario3, simplify = "array", CRT = example)) %>%
+    data.frame()
 ```
 
+Beyond this point, increasing the number of clusters allocated in the fixed area (by
+making them smaller) does not add to the total number of clusters. In this example the maximum is achieved when the
+input k is about 35 and the output k is 18.5.
 
+```{r example3b.r, fig.keep = 'none', echo = TRUE}
+library(ggplot2)
+theme_set(theme_bw(base_size = 14))
+ggplot(data = results, aes(x = mean_h, y = ICC)) + geom_smooth() + xlab("Mean locations per cluster") +
+    ylab("Intracluster correlation")
+```
+<p>
+    <img src="example3b.r-1.png" > <br>
+    <em>Fig 3.1 Intracluster correlation by size of cluster</em>
+</p>
 
 

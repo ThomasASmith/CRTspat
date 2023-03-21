@@ -48,44 +48,29 @@ The methods are described in the papers [Multerer *et al.* (2021a)](https://tria
 + Power and sample size calculations allowing for contamination
 + Anonymising input locations (if required for sharing reference datasets).
 
-##  Package functions
-
-The package functions
-
-| Function name | Purpose | Pre-requirements | Outputs |
-|-------------------:|:---------------|---------------|:--------------------:|
-|_Simulate_TrialSite()_|creation of simulated locations|no pre-existing trial|locations in x,y format (columns 'x','y')|
-|_Convert_LatLong_|conversion of latlong geolocations to cartesian coordinates|geolocations in lat-long |locations in x,y format (columns 'x','y')|
-|_Anonymise_TrialSite()_|anonymisation of locations (while preserving distances)|locations in x,y format (columns 'x','y') |locations in x,y format (columns 'x','y')|
-|_Design_CRT()_|determination of required number of clusters|locations in x,y format (columns 'x','y') | Estimated minimum number of clusters; Cluster assignments|
-|_specify.clusters()_|algorithmic assignment of clusters|locations in x,y format (columns 'x','y') |assignment of clusters (column 'cluster')|
-|_Randomize_CRT()_|randomization|assignment of clusters (column 'cluster')|assignment of arms (column 'arm')|
-|_Simulate_CRT()_|simulation of outcomes|cluster and arm assignments|simulated proportions by record|
-|_Specify_CRTbuffer_|specification of buffer zones |assignment of arms (column 'arm')|assignment of buffer (column 'buffer')|
-|_Aggregate_CRT()_|aggregation of records by location |outcome (proportion) by record|proportions by unique location|
-|_Plot_CRTmap()_|mapping of locations, clusters, arms, outcomes|unique locations|maps of locations and assignments|
-|_Analyse_CRT()_|standard analyses of efficacy (or baseline data) of ICC, or of contamination range|outcome (proportion) by record; cluster and arm assignments|statistical analysis, outputs depend on choice of method|
-
-
-
-## General Workflow
-
-The use of the package starts with selection of a set of locations.  These may be derived from a field site, or if the objective is a generic evaluation of methods, simulated locations can be used, most straightforwardly by generating them using `simulateSite()`. The dataframe containing the locations is then incrementally augmented with clusters, arms, and trial outcomes. At each stage the augmentation can use either existing data from field trials or pre-determined values (blue boxes in Figure 1), or can be automated using the package functions (green boxes in Figure 1). The analysis routines in the package can be used to inform the choice of parameters, by quantifying degree of contamination between arms, required numbers of clusters, statistical power etc..
-
-<!--Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot-->
-
 Examples of the workflow for each use case are as follows:
 
-[### Use Case 1: Algorithmic definition of clusters and of buffer zones](Usecase1.html)
+[1. Algorithmic definition of clusters and of buffer zones](Usecase1.html)
 
-[### Use Case 2: Simulation of trials with spillover effects](Usecase2.html)
+[2. Simulation of trials with spillover effects](Usecase2.html)
 
-[### Use Case 3: Analysis of trials allowing for spillover effects](Usecase3.html)
+[3. Analysis of trials allowing for spillover effects](Usecase3.html)
 
+[4. Estimation of optimal cluster size for a trial with pre-determined buffer width](Usecase4.html)
 + Determining the effects of different sizes of buffer zones
 
 + Estimation of intracluster correlations (ICC), contamination ranges and efficacy
 
 + Power and sample size calculations allowing for contamination
 
-+ Anonymising input locations (if required for sharing reference datasets)
+[Anonymising input locations (if required for sharing reference datasets)](reference/anonymize.site.html)
+
+
+## Package functions
+
+The package functions are listed in the [manual](reference/index.html)
+
+## General Workflow
+
+The use of the package starts with selection of a set of locations.  These may be derived from a field site, or if the objective is a generic evaluation of methods, simulated locations can be used, most straightforwardly by generating them using `simulateSite()`. The dataframe containing the locations is then incrementally augmented with clusters, arms, and trial outcomes. At each stage the augmentation can use either existing data from field trials or pre-determined values (blue boxes in Figure 1), or can be automated using the package functions (green boxes in Figure 1). The analysis routines in the package can be used to inform the choice of parameters, by quantifying degree of contamination between arms, required numbers of clusters, statistical power etc..
+

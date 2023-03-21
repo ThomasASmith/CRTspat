@@ -17,11 +17,11 @@
 #' @param showClusterBoundaries logical: determining whether cluster boundaries are shown
 #' @param showClusterLabels logical: determining whether the cluster numbers are shown
 #' @param cpalette colour palette (to use different colours for clusters must be at least as
-#' long as the number of clusters, defaults to rainbow())
+#' long as the number of clusters, defaults to \code{rainbow())}
 #' @param maskbuffer radius of buffer drawn around inhabited areas (km)
 #' @param labelsize size of cluster number labels
-#' @param legend.position (using ggplot2::themes syntax)
-#' @return graphics object produced by the ggplot2 package
+#' @param legend.position (using \code{ggplot2::themes} syntax)
+#' @return graphics object produced by the \code{ggplot2} package
 #' @details If \code{map = TRUE} a map is produced
 #' If \code{map = FALSE} a stacked bar plot of the data is produced
 #' @importFrom ggplot2 aes alpha
@@ -132,7 +132,7 @@ plot.CRTspat <- function(x, ..., map = FALSE, fill = "arms", num = num, denom = 
         if (totalClusters == 1)
           cpalette <- c("white")
 
-        g <- ggplot2::ggplot()
+        g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio=1)
 
         if (colourClusters) {
           g <- g + ggplot2::geom_sf(data = clusters, aes(fill = cluster), fill = cpalette,
@@ -213,7 +213,7 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' Plot results of statistical analysis of a CRT
 #'
 #' \code{plot.CRTanalysis} creates graphics showing the results of statistical analysis of a CRT
-#' @param x object of S3 class \code{'CRTanalysis'} produced by \code{CRTanalysis()}
+#' @param x object of class \code{'CRTanalysis'} produced by \code{CRTanalysis()}
 #' @param ... other arguments of \code{base::plot}
 #' @param map logical: indicator of whether a map is required
 #' @param fill fill layer of map
@@ -226,11 +226,11 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' @param showClusterLabels logical: determining whether the cluster numbers are shown
 #' @param showContamination logical: determining whether the estimated contamination range should be shown
 #' @param cpalette colour palette (to use different colours for clusters must be at
-#' least as long as the number of clusters, defaults to rainbow())
+#' least as long as the number of clusters, defaults to \code{rainbow())}
 #' @param maskbuffer radius of buffer drawn around inhabited areas (km)
 #' @param labelsize size of cluster number labels
-#' @param legend.position (using ggplot2::themes syntax)
-#' @return graphics object produced by the ggplot2 package
+#' @param legend.position (using \code{ggplot2::themes} syntax)
+#' @return graphics object produced by the \code{ggplot2} package
 #' @importFrom magrittr %>%
 #' @importFrom dplyr distinct group_by summarize
 #' @importFrom ggplot2 geom_polygon

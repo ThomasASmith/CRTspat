@@ -984,7 +984,6 @@ estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
 #' geography. The computational resources required depend largely on the resolution of the prediction mesh.
 #' The prediction mesh is thinned to include only pixels centred at a distance less than
 #' \code{maskbuffer} from the nearest point.\cr
-#' If \code{small = TRUE} the values for the mesh are rounded to create a smaller object (useful for testing)
 #' @export
 #' @examples
 #' # low resolution mesh for test dataset

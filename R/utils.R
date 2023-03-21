@@ -329,9 +329,9 @@ specify.clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 #' @param trial A list of class \code{"CRTspat"} containing latitudes and longitudes in decimal degrees
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
-#' @details An object containing the input locations replaced with Cartesian
+#' @details The output object contains the input locations replaced with Cartesian
 #'   coordinates in units of km, centred on (0,0). Other data are unchanged.
-#'   The equirectangular projection (valid for small areas) is used.
+#'   The equirectangular projection (valid for small areas) is used for the calculations.
 #' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site \tab\cr
@@ -453,8 +453,8 @@ readdata <- function(filename) {
     return(robject)
 }
 
-# Characteristics of a trial design. The input is a data frame. The output list
-# conforms to the requirements for a CRT object
+# Characteristics of a trial design. The input is a data frame or CRTspat object. The output list
+# conforms to the requirements for a CRTspat object
 get_geom <- function(trial, design = NULL) {
 
   if (identical(class(trial),"data.frame")){
@@ -465,13 +465,16 @@ get_geom <- function(trial, design = NULL) {
     trial <- CRT$trial
   }
 
-  sd_distance <- mean_h <- sd_h <- clustersRequired <- DE <- power <- NULL
+  sd_distance <- k <- mean_h <- sd_h <- clustersRequired <- DE <- power <- NULL
 
   coordinates <- data.frame(cbind(x=trial$x,y=trial$y))
   geom <- list(records = nrow(trial),
                      locations = nrow(dplyr::distinct(coordinates)))
 
   if (!is.null(trial$cluster)) {
+    # reassign the cluster levels in case some are not represented in this geom
+    # (otherwise nlevels() counts clusters that are not present)
+    trial$cluster <- as.factor(as.character(trial$cluster))
 
     k <- floor(nlevels(trial$cluster)/2)
     # mean number of locations randomized in each cluster
@@ -513,6 +516,7 @@ get_geom <- function(trial, design = NULL) {
   geom$mean_h <- mean_h
   geom$sd_h <- sd_h
   geom$sd_distance <- sd_distance
+  geom$k <- k
   return(geom)
 }
 

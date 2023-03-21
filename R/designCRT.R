@@ -116,7 +116,8 @@ designCRT <- function(trial, alpha = 0.05, desiredPower = 0.8, effect, yC, outco
 #' Power and sample size calculations are for a two-arm trial using the formulae of
 #' [Hemming et al, 2011](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102) which use a
 #' normal approximation for the inter-cluster variation. For counts
-#' or event rate data a quasi–Poisson model is assumed.
+#' or event rate data a quasi–Poisson model is assumed. The functions do not consider any loss
+#' in power due to contamination, loss to follow-up etc.
 #' @examples
 #' examplePower = calculateCRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
 #'     outcome.type = 'd', desiredPower = 0.8, yC=0.35, k = 20, sd_h=5)
@@ -194,11 +195,11 @@ calculateCRTpower <- function(locations, alpha, desiredPower, effect, yC, outcom
 
     power <- stats::pnorm(sqrt(k * mean_eff/(2 * DE)) * d/sqrt(sigma2) - Zsig)  #unequal cluster sizes
 
-    geom.full <- list(locations = locations, mean_h = mean_h, sd_h = sd_h,
+    geom.full <- list(locations = locations, k = k, mean_h = mean_h, sd_h = sd_h,
         clustersRequired = clustersRequired, DE = DE, power = power)
     design <- list(locations = locations, alpha = alpha, desiredPower = desiredPower, effect = effect,
                              yC = yC, outcome.type = outcome.type,  sigma2 = sigma2,
-                             phi = phi, N = N, ICC = ICC, k = k, mean_h = mean_h, sd_h = sd_h)
+                             phi = phi, N = N, ICC = ICC, mean_h = mean_h, sd_h = sd_h)
     CRT <- list(geom.full = geom.full, design = design)
     class(CRT) <- "CRTspat"
     return(CRT)

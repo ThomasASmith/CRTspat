@@ -12,8 +12,9 @@
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
 #'  }
-#' @details \code{simulateSite} simulates a human settlement pattern using the Thomas algorithm (\code{rThomas} function
-#' in [\code{spatstat}](http://spatstat.org/) allowing the user to defined the density of locations and degree of spatial clustering.
+#' @details \code{simulateSite} simulates a human settlement pattern using the Thomas
+#' algorithm (\code{rThomas}) in [\code{spatstat}](http://spatstat.org/)
+#' allowing the user to defined the density of locations and degree of spatial clustering.
 #' The results are output as a set of Cartesian coordinates centred at the origin.
 #' @export
 #' @examples
