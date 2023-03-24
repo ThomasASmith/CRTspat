@@ -13,6 +13,8 @@ knitr::knit("vignettes/Usecase1.Rmd.orig", output = "vignettes/Usecase1.Rmd")
 knitr::knit("vignettes/Usecase2.Rmd.orig", output = "vignettes/Usecase2.Rmd")
 knitr::knit("vignettes/Usecase3.Rmd.orig", output = "vignettes/Usecase3.Rmd")
 knitr::knit("vignettes/Usecase4.Rmd.orig", output = "vignettes/Usecase4.Rmd")
+knitr::knit("vignettes/Usecase7.Rmd.orig", output = "vignettes/Usecase7.Rmd")
+# knitr::knit("vignettes/Usecase5.Rmd.orig", output = "vignettes/Usecase5.Rmd")
 rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 

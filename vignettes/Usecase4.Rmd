@@ -30,36 +30,12 @@ The example shown here uses the baseline prevalence data introduced in [Use Case
 
 ```r
 # use the same dataset as for Use Case 1.
-example_locations <- readdata("example_baseline.csv")
+library(CRTspat)
+example_locations <- readdata('example_site.csv')
 example_locations$base_denom <- 1
-example <- latlong_as_xy(example_locations) %>%
-    aggregate(auxiliaries = c("RDT_test_result", "base_denom"))
-summary(example)
-```
-
-```
-## ===============================CLUSTER RANDOMISED TRIAL ===========================
-## 
-## Summary of coordinates
-## ----------------------
-##         Min.   : 1st Qu.: Median : Mean   : 3rd Qu.: Max.   :
-##       x -6.28    -2.57    -0.19    -0.05     2.79     5.42   
-##       y -3.07    -1.16    -0.43    -0.06     1.09     4.76   
-## Total area (within  0.2 km of a location) :  27.6 sq.km
-## 
-## Locations and Clusters
-## ----------------------                                          -            
-## Coordinate system                      (x, y)            
-## Locations:                                                      1181            
-## Available clusters (across both arms)                           Not assigned            
-## No randomization          -            
-## No power calculations to report          -            
-## 
-## Other variables in dataset
-## --------------------------          RDT_test_result  base_denom
-```
-
-```r
+exampleCRT <- as_CRTspat(example_locations)
+example <- aggregate(exampleCRT,
+      auxiliaries = c("RDT_test_result", "base_denom"))
 # randomly sample an array of numbers of clusters to allocate
 set.seed(5)
 k_vec <- round(runif(20, min = 6, max = 60))
@@ -84,7 +60,6 @@ CRTscenario <- function(k, CRT, buffer.width) {
     return(value)
 }
 
-library(dplyr)
 results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
     buffer.width = 0.5)) %>%
     data.frame()
@@ -124,15 +99,17 @@ and k = 40 (Figures 4.2 and 4.3).
 
 ```r
 set.seed(7)
+library(dplyr)
 example6 <- specify.clusters(example, k = 6, algo = "kmeans") %>%
     randomizeCRT() %>%
     specify.buffer(buffer.width = 0.5)
-plot(example6, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE)
+plot(example6, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
+    labelsize = 2, maskbuffer = 0.2)
 example40 <- specify.clusters(example, k = 40, algo = "kmeans") %>%
     randomizeCRT() %>%
     specify.buffer(buffer.width = 0.5)
 plot(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
-    labelsize = 2)
+    labelsize = 2, maskbuffer = 0.2)
 ```
 <p>
     <img src="example4c.r-1.png"> <br>

@@ -90,6 +90,12 @@ CRTanalysis <- function(
         return(NULL)
     }
 
+    # create names for confidence limits for use throughout
+    CLnames <- c(
+        paste0(alpha/0.02, "%"),
+        paste0(100 - alpha/0.02, "%")
+    )
+
     # MAIN FUNCTION CODE STARTS HERE
 
     cluster <- NULL
@@ -101,18 +107,13 @@ CRTanalysis <- function(
         trial <- trial[!trial$buffer, ]
     }
 
+
+    # trial needs to be ordered for some analyses
+    if(!is.null(trial$cluster)) trial <- trial[order(trial$cluster), ]
+
     # create skeleton for output object
     analysis <- list(trial = trial, pt.ests = list(), int.ests = list())
     model.object <- list()
-
-    # create names for confidence limits for use throughout
-    CLnames <- c(
-        paste0(alpha/0.02, "%"),
-        paste0(100 - alpha/0.02, "%")
-    )
-
-    # trial needs to be ordered for some analyses
-    trial <- trial[order(trial$cluster), ]
 
     # Some statistical methods do not allow for contamination
     if (method %in% c("EMP", "T", "GEE")) cfunc <- "X"
@@ -133,6 +134,10 @@ CRTanalysis <- function(
         trial$y_off <- trial[[baselineDenominator]]
 
     } else {
+        if (is.null(trial[[numerator]])){
+            cat("*** No outcome data to analyse ***")
+            return()
+        }
         trial$y1 <- trial[[numerator]]
         trial$y0 <- trial[[denominator]] - trial[[numerator]]
         trial$y_off <- trial[[denominator]]
@@ -157,13 +162,13 @@ CRTanalysis <- function(
         )
         fterms <- c(fterms, switch(
             cfunc, Z = "b0",
-            X = "b0 + b1",
+            X = "b0 + arm",
             L = "b0 + pvar",
             P = "b0 + pvar"
         ))
 
         if (localisedEffects & cfunc != 'X')
-            fterms <- c(fterms, "b1")
+            fterms <- c(fterms, "arm")
         if (clusterEffects)
             fterms <- c(fterms, "f(cluster, model = \"iid\")")
         if (spatialEffects)
@@ -354,7 +359,7 @@ CRTanalysis <- function(
         )
 
         # construct linear predictor
-        text4 <- "lp[i] <- b0 + b1 * pvar[i]"
+        text4 <- "lp[i] <- b0 + arm * pvar[i]"
         text5 <- ifelse(clusterEffects,
             " + gamma[cluster[i]] \n
             }\n
@@ -369,21 +374,21 @@ CRTanalysis <- function(
             ebeta <- exp(beta) \n
             alpha <- 0.05 \n
             b0 ~ dnorm(0, 1E-2) \n
-            b1 ~ dnorm(0, 1E-2) \n"
+            arm ~ dnorm(0, 1E-2) \n"
 
         text7 <- switch(link,
                         "identity" = "yC <- b0 \n
-                                      yI <- b0 + b1 \n
+                                      yI <- b0 + arm \n
                                       tau1 <- 1/(sigma1 * sigma1) \n
                                       sigma1 ~ dunif(0, 2) \n
                                       Es <- yC - yI \n",
                         "log" = "yC <- exp(b0) \n
-                                 yI <- exp(b0 + b1) \n
+                                 yI <- exp(b0 + arm) \n
                                  tau1 <- 1/(sigma1 * sigma1) \n
                                  sigma1 ~ dunif(0, 2) \n
                                  Es <- 1 - yI/yC \n",
                         "logit" = "yC <- 1/(1 + exp(-b0)) \n
-                                   yI <- 1/(1 + exp(-(b0 + b1))) \n
+                                   yI <- 1/(1 + exp(-(b0 + arm))) \n
                                    Es <- 1 - yI/yC \n"
         )
 
@@ -434,25 +439,18 @@ CRTanalysis <- function(
         formula <- stats::as.formula(options$ftext)
 
         spde <- inla.mesh$spde
-
-        effectse <- list(
-            df = data.frame(
-                b0 = rep(1, nrow(trial)),
-                b1 = ifelse(trial$arm == "intervention", 1, 0),
-                id = trial$id,
-                cluster = trial$cluster
-            ),
-            s = inla.mesh$indexs
-        )
-        effectsp <- list(
-            df = data.frame(
-                b0 = rep(1, nrow(inla.mesh$prediction)),
-                b1 = ifelse(inla.mesh$prediction$arm == "intervention", 1, 0),
-                id = inla.mesh$prediction$id,
-                cluster = inla.mesh$prediction$cluster
-            ),
-            s = inla.mesh$indexs
-        )
+        df = data.frame(
+            b0 = rep(1, nrow(trial)),
+            id = trial$id)
+        if ("b0 + arm" %in% fterms | "arm" %in% fterms) df$arm = ifelse(trial$arm == "intervention", 1, 0)
+        if ("f(cluster, model = \"iid\")" %in% fterms) df$cluster = trial$cluster
+        effectse <- list(df = df, s = inla.mesh$indexs)
+        dfp = data.frame(
+            b0 = rep(1, nrow(inla.mesh$prediction)),
+            id = inla.mesh$prediction$id)
+        if ("b0 + arm" %in% fterms | "arm" %in% fterms) dfp$arm = ifelse(inla.mesh$prediction$arm == "intervention", 1, 0)
+        if ("f(cluster, model = \"iid\")" %in% fterms) dfp$cluster = inla.mesh$prediction$cluster
+        effectsp <- list(df = dfp, s = inla.mesh$indexs)
 
         lc <- NULL
         beta <- NA
@@ -480,13 +478,13 @@ CRTanalysis <- function(
             if (grepl("pvar", options$ftext, fixed = TRUE))
                 {
                 lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1)
-                if (grepl("b1", options$ftext, fixed = TRUE))
+                if (grepl("arm", options$ftext, fixed = TRUE))
                   {
-                  lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1, b1 = 1)
+                  lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1, arm = 1)
                 }
-            } else if (grepl("b1", options$ftext, fixed = TRUE))
+            } else if (grepl("arm", options$ftext, fixed = TRUE))
                 {
-                lc <- INLA::inla.make.lincomb(b0 = 1, b1 = 1)
+                lc <- INLA::inla.make.lincomb(b0 = 1, arm = 1)
             }
         }
         # stack for estimation stk.e
@@ -542,7 +540,7 @@ CRTanalysis <- function(
         # Compute sample-based confidence limits for intervened outcome and effect.size if intervention effects are
         # estimated
         if (grepl("pvar", options$ftext, fixed = TRUE) |
-            grepl("b1", options$ftext, fixed = TRUE))
+            grepl("arm", options$ftext, fixed = TRUE))
                 {
             # Specify the means of the variables
             mu <- inla.result$summary.lincomb.derived$mean
@@ -552,17 +550,17 @@ CRTanalysis <- function(
             sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
             sample$controlY <- invlink(link, sample$b0)
             # pr.contaminated is the proportion of effect subject to contamination
-            if ("b1" %in% names(mu) &
+            if ("arm" %in% names(mu) &
                 "pvar" %in% names(mu))
                   {
                 sample$interventionY <- invlink(link, sample$lc)
                 sample$pr.contaminated <- with(
-                  sample, 1 - (controlY - invlink(link, b0 + b1))/(controlY -
+                  sample, 1 - (controlY - invlink(link, b0 + arm))/(controlY -
                     interventionY)
               )
-            } else if ("b1" %in% names(mu))
+            } else if ("arm" %in% names(mu))
                 {
-                sample$interventionY <- invlink(link, sample$b0 + sample$b1)
+                sample$interventionY <- invlink(link, sample$b0 + sample$arm)
                 sample$pr.contaminated <- 0
             } else if ("pvar" %in% names(mu))
                 {
@@ -1058,24 +1056,23 @@ new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
         byrow = TRUE
     )
     nearestNeighbour <- apply(distM, 1, function(x) return(array(which.min(x))))
-    armP <- trial$arm[nearestNeighbour]
-    clusterP <- trial$cluster[nearestNeighbour]
-    idP <- trial$id[nearestNeighbour]
     prediction <- data.frame(
-        x = pred.coords[, 1], y = pred.coords[, 2], nearestNeighbour = nearestNeighbour,
-        arm = armP, id = idP, cluster = clusterP
-    )
+        x = pred.coords[, 1], y = pred.coords[, 2], nearestNeighbour = nearestNeighbour)
+    prediction$id <- trial$id[nearestNeighbour]
+    if (!is.null(trial$arm)) prediction$arm <- trial$arm[nearestNeighbour]
+    if (!is.null(trial$cluster)) prediction$cluster <- trial$cluster[nearestNeighbour]
     prediction <- with(
-        prediction, prediction[order(y, x),
-            ]
+        prediction, prediction[order(y, x), ]
     )
     prediction$shortestDistance <- apply(distM, 1, min)
     rows <- seq(1:nrow(prediction))
-    prediction$nearestDiscord <- sapply(rows,
-                                        FUN = calcNearestDiscord,
-                                        trial = trial,
-                                        prediction = prediction,
-                                        distM = distM)
+    if (!is.null(trial$arm)) {
+        prediction$nearestDiscord <- sapply(rows,
+                                            FUN = calcNearestDiscord,
+                                            trial = trial,
+                                            prediction = prediction,
+                                            distM = distM)
+    }
     inla.mesh <- list(
         prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde, pixel = pixel
     )
@@ -1108,7 +1105,7 @@ estimateContamination <- function(
         effects = list(
             data.frame(
                 b0 = rep(1, nrow(trial)),
-                b1 = ifelse(trial$arm == "intervention", 1, 0),
+                arm = ifelse(trial$arm == "intervention", 1, 0),
                 pvar = trial$pvar, id = trial$id, cluster = trial$cluster
             ),
             s = inla.mesh$indexs

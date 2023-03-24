@@ -2,7 +2,7 @@
 #'
 #' \code{aggregate} aggregates data from a \code{"CRTspat"} object containing multiple records with the same location,
 #' and outputs a list of class \code{"CRTspat"} containing single values for each location, for both the coordinates and the auxiliary variables.
-#' @param CRT An object of class \code{"CRTspat"} containing locations (x,y) and variables to be summed
+#' @param x An object of class \code{"CRTspat"} containing locations (x,y) and variables to be summed
 #' @param ... Other arguments to \code{"aggregate()"}
 #' @param auxiliaries vector of names of auxiliary variables to be summed across each location
 #' @returns A list of class \code{"CRTspat"} containing the following components:
@@ -17,11 +17,11 @@
 #' @export
 aggregate.CRTspat <- function(x, ... , auxiliaries = NULL) {
     CRT <- x
-    trial <- x$trial
+    trial <- CRT$trial
     x <- y <- NULL
     trial <- trial[order(trial$x, trial$y), ]
     if (!is.null(auxiliaries)) {
-      trial1 <- trial %>% group_by(x, y) %>% dplyr::summarize(across(auxiliaries, sum))
+      trial1 <- trial %>% group_by(x, y) %>% dplyr::summarize(dplyr::across(auxiliaries, sum))
     } else {
       trial1 <- trial %>% distinct(x, y, .keep_all = TRUE)
     }
@@ -324,8 +324,7 @@ specify.clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 
 #' Convert lat long co-ordinates to x,y
 #'
-#' \code{latlong_as_xy} converts co-ordinates expressed as decimal degrees
-#' into x,y
+#' \code{latlong_as_xy} converts co-ordinates expressed as decimal degrees into x,y
 #' @param trial A list of class \code{"CRTspat"} containing latitudes and longitudes in decimal degrees
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
@@ -341,6 +340,8 @@ specify.clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 #'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
 #'  }
 #' @export
+#' @example
+#' latlong_as_xy(readdata("testlatlong.csv"))
 latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   if (identical(class(trial),"data.frame")){
     CRT <- list(trial = trial, design = NULL)
@@ -367,9 +368,11 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 
 #' Anonymize locations of a trial site
 #'
-#' \code{anonymize.site} carries out
-#' @param trial \code{"CRTspat"} object or trial data frame with Cartesian co-ordinates of
-#'   households (columns x and y)
+#' \code{anonymize.site} Transforms coordinates to maintain confidentiality
+#' @param trial \code{"CRTspat"} object or trial data frame with co-ordinates of
+#'   households
+#' @param latvar name of column containing latitudes in decimal degrees
+#' @param longvar name of column containing longitudes in decimal degrees
 #' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom.full}   \tab list: \tab summary statistics describing the site \tab\cr
@@ -379,16 +382,19 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 #'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
 #'  }
 #' @export
-#' @details The x,y coordinates are rotated by a random angle about a random origin. The returned object
+#' @details
+#' The coordinates are transformed in order to obscure geographical information, to support confidentiality of
+#' information linked to households. The input may have either \code{lat long} or \code{x,y} coordinates.
+#' The function first searches for any \code{lat long} co-ordinates and converts these to \code{x,y}
+#' Cartesian coordinates. These are then are rotated by a random angle about a random origin. The returned object
 #' has transformed co-ordinates re-centred at the origin. Other data are unchanged.
 #' @examples
 #' #Rotate and reflect test site locations
-#' transformedTestlocations <- anonymize.site(trial =  readdata("testCRT.csv"))
+#' transformedTestlocations <- anonymize.site(trial =  readdata("example.site.csv"))
 
-anonymize.site <- function(trial) {
+anonymize.site <- function(trial, latvar = "lat", longvar = "long") {
     # Local data from study area (ground survey and/or satellite
     # images) random rotation angle
-
     if (identical(class(trial),"data.frame")){
       CRT <- list(trial = trial, design = NULL)
       class(CRT) <- "CRTspat"
@@ -396,7 +402,10 @@ anonymize.site <- function(trial) {
       CRT <- trial
       trial <- CRT$trial
     }
-
+    if (latvar %in% colnames(trial)) {
+      CRT <- latlong_as_xy(trial)
+      trial <- CRT$trial
+    }
     theta <- 2 * pi * runif(n = 1)
     x <- trial$x
     y <- trial$y
@@ -437,6 +446,7 @@ readdata <- function(filename) {
     extdata <- system.file("extdata", package = "CRTspat")
     if (unlist(gregexpr("mesh", fname)) > 0) {
       # The mesh was stored using 'dump' e.g.
+      # library(Matrix)
       # dump("testmesh100",file = "inst/extdata/testmesh100.txt", evaluate= TRUE)
       sourced <- source(file = paste0(extdata, "/", fname))
       robject <- sourced$value

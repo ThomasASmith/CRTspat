@@ -17,25 +17,15 @@ rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 -->
 
-The `CRTanalysis` function offers several different analyses of either simulated or real trial datasets. The different options are specified using the `method` argument of the function.
+The [`CRTanalysis`](../reference/CRTanalysis.html) The function `CRTanalysis` is a wrapper for several different statistical analysis packages that can be used to analyse either simulated or real trial datasets. The different options are specified using the `method` argument of the function.
 
-+ `method = "T" summarises the outcome at the level of the cluster and uses t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size.
-+	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters.An estimate of the intracluster correlation (ICC) is also provided.
-+ `method = "INLA"`uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This
-INLA spatial analysis requires a prediction mesh. Generation of this mesh using `new_mesh()`
-`inlaMeshTest <- createMesh(example5a, ncells=100)` is computationally expensive, so it is recommended to compute the mesh just once for each dataset.
++ `method = "T" summarises the outcome at the level of the cluster and uses t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size. This uses the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) function in the `stats` package.
++	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [geepack](https://www.jstatsoft.org/article/view/v015i02) package.
++ `method = "MCMC". [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html)
++ `method = "INLA"`uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. Generation of this mesh using [`new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
 
 
-| Option | Algorithm | Linear predictor| Allowance for Clustering | Reference |
-|----------:|:---------------|---------------|:--------------------:|
-|'L0' | S ||NO | NO |[Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) |
-|'L1' | ML |
-|'L2' | ML |
-|'L3' | ML |
-|'GEE' | GEE |
-|'M1' | MCMC |
-|'M2' | MCMC |
-|'M3' | MCMC |
+
 
 S: Sample proportions; ML: Maximum likelihood; GEE: Generalised estimating equations; MCMC: Bayesian Markov chain Monte Carlo.
 
@@ -45,7 +35,7 @@ $\hat{E}_{s} = 1- \frac{\hat{p}_{I}}{\hat{p}_{C}}$.
 $\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$.
 $\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$.
 
-Real field trials are likely to
+Real field trials very often entail complications that are not catered for by the likely to
 Data analysts are invited to use the JAGS code provided for the
 
 
@@ -59,6 +49,11 @@ Plot_Contamination(analysis = results5a)
 Plot_CRTmap(analysis = results5a, trial = example5a, showPrediction = TRUE)
 ```
 
-
+mesh <- new_mesh(trial = CRT, pixel = 0.1)
+analysis <- CRTanalysis(trial=CRT,
+method = 'INLA', link='logit', cfunc='P',
+spatialEffects= TRUE,
+requireMesh = TRUE, inla.mesh = mesh)
+plot(analysis, map=TRUE, fill = 'prediction')
 
 

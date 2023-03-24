@@ -25,7 +25,7 @@ test_that("designCRT() creates the default trial", {
 })
 
 set.seed(1234)
-test_that("simulateSite() creates the default site", {
+test_that("simulate.site() creates the default site", {
   get_test2 = function(){
     CRT <- simulateSite(geoscale = 0.5,
                         locations = 2500,
