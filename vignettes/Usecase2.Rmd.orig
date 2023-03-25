@@ -44,7 +44,7 @@ example_locations$base_denom <- 1
 library(dplyr)
 example_randomized <- as_CRTspat(example_locations) %>%
   aggregate(auxiliaries = c("RDT_test_result", "base_denom")) %>%
-  specify.clusters(h = 50, algorithm = 'NN') %>%
+  specify_clusters(h = 50, algorithm = 'NN') %>%
   randomizeCRT(matchedPair = FALSE)
 summary(example_randomized)
 plot(example_randomized, map = TRUE)
@@ -85,12 +85,12 @@ example2a.r-1.png
 ```{r example2b.r, fig.keep = 'none', echo = TRUE}
 set.seed(1234)
      # Simulate a site with 2000 locations
-     new_site <- simulate.site(geoscale = 2, locations=2000, kappa=3, mu=40)
+     new_site <- simulate_site(geoscale = 2, locations=2000, kappa=3, mu=40)
      # propensity surface generated as an arbitrary linear function of x the co-ordinate
      new_site$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
      library(dplyr)
      example2b<- as_CRTspat(new_site) %>%
-       specify.clusters(h = 40, algorithm = 'NN') %>%
+       specify_clusters(h = 40, algorithm = 'NN') %>%
        randomizeCRT(matchedPair = FALSE) %>%
        simulateCRT(example_simulated,
                               effect = 0.8,

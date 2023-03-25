@@ -39,7 +39,7 @@ k_vec <- round(runif(20, min = 6, max = 150))
 
 # a user function randomizes and analyses each simulated trial
 CRTscenario3 <- function(k, CRT) {
-    ex <- specify.clusters(CRT, k = k, algo = "kmeans") %>%
+    ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
         randomizeCRT()
     sink(file = "output.log", type = "output")
     GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = FALSE,

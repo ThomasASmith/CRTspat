@@ -4,7 +4,7 @@ test_that("Simulate_CRT() creates the default simulation", {
  get_test3 = function(){
    Solarmal_baseline <- readdata("Solarmal_baseline.csv")
    test_Locationsxy <- latlong_as_xy(Solarmal_baseline) #test_site is simulated
-   test_Clusters <- specify.clusters(test_Locationsxy,h = 50)
+   test_Clusters <- specify_clusters(test_Locationsxy,h = 50)
    test_Arms <- randomizeCRT(trial = test_Clusters,matchedPair = TRUE)
    test.simulateCRT <- simulateCRT(trial = test_Arms,
                         theta_inp = 1.2,outcome0 = 0.4,

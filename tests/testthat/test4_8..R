@@ -17,9 +17,9 @@ get_test5 = function(){
    test.locationsLatLong <- Solarmal_baseline[, c('lat','long')]
    test.locationsxy <- latlong_as_xy(test.locationsLatLong) #test_site is simulated
    test.anonymizedlocations <- anonymize.site(test.locationsxy)
-   test.clusters <- specify.clusters(test.anonymizedlocations,h = 50)
+   test.clusters <- specify_clusters(test.anonymizedlocations,h = 50)
    test.arms <- randomizeCRT(trial = test.clusters,matchedPair = FALSE)
-   test.buffer <- specify.buffer(trial = test.arms, buffer.width = 0.1)
+   test.buffer <- specify_buffer(trial = test.arms, buffer.width = 0.1)
    trial <- test.buffer$trial
    trial$cluster <- as.numeric(trial$cluster)
    trial$arm <- as.character(trial$arm)

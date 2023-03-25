@@ -25,7 +25,7 @@ After each step, `summary` can be used to provide a description of the output `C
 
 + In general the package functions do not expect to find repeated values for outcomes for the same location. The `aggregateCRT` function is used to aggregate data with the same co-ordinates so that this condition is satisfied. In particular, if the input database contains outcome data (e.g. if it contains baseline survey results), these should be provided in the form of a numerator `base_num` and denominator `base_denom` for each record. These values will be summed by `aggregateCRT` over all records with the same co-ordinates. An object of class `CRTspat` is output.
 
-+ The `specify.clusters` function carries out algorithmic assignment of clusters and outputs a `trial` data frame augmented with the cluster assignments. One of three different algorithms must be selected:
++ The `specify_clusters` function carries out algorithmic assignment of clusters and outputs a `trial` data frame augmented with the cluster assignments. One of three different algorithms must be selected:
   + `algorithm = "NN"` implements a [nearest neighbour algorithm](https://en.wikipedia.org/wiki/Nearest-neighbor_chain_algorithm) which takes a collection of points as input, and creates clusters of points by repeatedly merging in points to form larger clusters. This is the default option.
   + `algorithm = "TSP"` implements the `repetitive_nn` option of the
   [`TSP` package](https://cran.r-project.org/web/packages/TSP/vignettes/TSP.pdf) for solving the travelling salesman problem. This finds an efficient path through the study locations. Clusters are formed by grouping the required number of locations sequentially along the path. Note that this is not guaranteed to give rise to congruent clusters.
@@ -63,7 +63,7 @@ In the example shown here a target cluster size of 50 locations is set, but the 
 the locations leads to considerable variation in the number of locations assigned to each cluster.
 
 ```{r example1b.r,  fig.keep = 'none', echo = TRUE}
-example_clustered <- specify.clusters(trial = example, h = 50, algorithm = 'NN')
+example_clustered <- specify_clusters(trial = example, h = 50, algorithm = 'NN')
 summary(example_clustered)
 plot(example_clustered, map = TRUE, showClusterLabels = TRUE, maskbuffer = 0.2, labelsize = 2)
 ```

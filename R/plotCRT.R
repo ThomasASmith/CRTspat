@@ -224,7 +224,7 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' @param x object of class \code{'CRTanalysis'} produced by \code{CRTanalysis()}
 #' @param ... other arguments of \code{base::plot}
 #' @param map logical: indicator of whether a map is required
-#' #' @param fill fill layer of map
+#' @param fill fill layer of map
 #' \tabular{ll}{
 #' \code{'cluster'} \tab cluster assignment \cr
 #' \code{'arms'}   \tab arm assignment \cr

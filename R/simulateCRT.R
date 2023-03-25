@@ -1,6 +1,6 @@
 #' Create co-ordinates for a simulated CRT
 #'
-#' \code{simulate.site} creates a set of Cartesian co-ordinates for use as the locations in a simulated trial site
+#' \code{simulate_site} creates a set of Cartesian co-ordinates for use as the locations in a simulated trial site
 #' @param geoscale standard deviation of random displacement from each settlement cluster center
 #' @param locations number of locations in population
 #' @param kappa intensity of Poisson process of settlement cluster centers
@@ -12,15 +12,15 @@
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
 #'  }
-#' @details \code{simulate.site} simulates a human settlement pattern using the Thomas
+#' @details \code{simulate_site} simulates a human settlement pattern using the Thomas
 #' algorithm (\code{rThomas}) in [\code{spatstat}](http://spatstat.org/)
 #' allowing the user to defined the density of locations and degree of spatial clustering.
 #' The results are output as a set of Cartesian coordinates centred at the origin.
 #' @export
 #' @examples
 #' # Generate a simulated area with 10,000 locations
-#' example_area = simulate.site(geoscale = 1, locations=10000, kappa=3, mu=40)
-simulate.site <- function(geoscale, locations, kappa, mu) {
+#' example_area = simulate_site(geoscale = 1, locations=10000, kappa=3, mu=40)
+simulate_site <- function(geoscale, locations, kappa, mu) {
     scaling = geoscale * 10
     # Poisson point pattern with Thomas algorithm
     p <- spatstat.random::rThomas(kappa, geoscale, mu, win = spatstat.geom::owin(c(0, scaling), c(0, scaling)))

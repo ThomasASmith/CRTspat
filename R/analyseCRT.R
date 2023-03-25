@@ -66,9 +66,13 @@
 #' @importFrom utils head read.csv
 #' @export
 #' @examples
-#' # Standard GEE analysis of test dataset ignoring contamination
-#' exampleGEE=CRTanalysis(readdata("testCRT.csv"),method = "GEE")
-#' \dontrun{exampleINLA=CRTanalysis(readdata("testCRT.csv"),method = "INLA",inla.mesh = junk)}
+#' Analysis of test dataset by t-test
+#' exampleT = CRTanalysis(readdata("testCRT.csv"), method = "T")
+#' Standard GEE analysis of test dataset ignoring contamination
+#' exampleGEE = CRTanalysis(readdata("testCRT.csv"), method = "GEE")
+#' Analysis GEE analysis of test dataset ignoring contamination
+
+#'
 
 CRTanalysis <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
@@ -278,7 +282,7 @@ CRTanalysis <- function(
             alpha = alpha
         )
 
-        pt.ests$model.object <- fit
+        model.object <- fit
 
         # Intracluster correlation
         pt.ests$ICC <- noLabels(summary_fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
@@ -619,7 +623,7 @@ CRTanalysis <- function(
     }
     if (method %in% c("EMP", "T", "GEE")) {
         # tidy up and consolidate the list of analysis
-        analysis$model.object <- pt.ests$model.object
+        analysis$model.object <- model.object
         analysis$pt.ests <- pt.ests[names(pt.ests) != "model.object"]
         analysis$int.ests <- int.ests
         analysis$description <- description
@@ -1201,9 +1205,9 @@ Tinterval <- function(x, alpha, option){
 }
 
 
-#' Fitted results from analysis
+#' Summary of the results of a statistical analysis of a CRT
 #'
-#' \code{fitted.CRTanalysis} generates a summary description of an analysis of a CRT
+#' \code{summary.CRTanalysis} generates a summary of a \code{CRTanalysis} analysis and the main results
 #' @param ... other arguments
 #' @param object name of analysis
 #' @export
@@ -1272,5 +1276,9 @@ summary.CRTanalysis <- function(object, ...) {
     {
         cat("DIC: ", object$model.object$dic$dic, "\n")
     }
+    if (!is.null(object$model.object$p.value)){
+        cat("P-value (2-sided): ", object$model.object$p.value, "\n")
+    }
+
 }
 

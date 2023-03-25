@@ -40,23 +40,21 @@ set.seed(5)
 k_vec <- round(runif(20, min = 6, max = 60))
 
 CRTscenario <- function(k, CRT, buffer.width) {
-    ex <- specify.clusters(CRT, k = k, algo = "kmeans") %>%
-        randomizeCRT() %>%
-        specify.buffer(buffer.width = buffer.width)
-    sink(file = "output.log", type = "output")
-    GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = TRUE,
-        baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
-    sink()
-    locations <- GEEanalysis$description$locations
-    ICC <- GEEanalysis$pt.ests$ICC
-    powerCalculations <- calculateCRTpower(locations = locations, alpha = 0.05,
-        desiredPower = 0.8, effect = 0.3, yC = GEEanalysis$pt.ests$controlY,
-        outcome.type = "p", N = GEEanalysis$description$sum.denominators/locations,
-        ICC = ICC, k = ex$geom.core$k, sd_h = ex$geom.core$sd_h)
-    value <- c(k_full = k, k_core = ex$geom.core$k, clustersRequired = powerCalculations$geom.full$clustersRequired,
-        power = powerCalculations$geom.full$power, mean_h = powerCalculations$geom.full$mean_h,
-        locations = locations, ICC = ICC)
-    return(value)
+  ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
+    randomizeCRT() %>%
+    specify_buffer(buffer.width = buffer.width)
+  sink(file = "output.log", type = "output")
+  GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = TRUE,
+                             baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
+  sink()
+  locations <- GEEanalysis$description$locations
+  ex_power <- CRTpower(trial = ex, effect = 0.3, yC = GEEanalysis$pt.ests$controlY,
+                    outcome.type = "p", N = GEEanalysis$description$sum.denominators/locations, k = k,
+                    ICC = GEEanalysis$pt.ests$ICC)
+  value <- c(k_full = k, k_core = ex_power$geom.core$k, clustersRequired = ex_power$geom.full$clustersRequired,
+             power = ex_power$geom.full$power, mean_h = ex_power$geom.full$mean_h,
+             locations = locations, ICC = GEEanalysis$pt.ests$ICC)
+  return(value)
 }
 
 results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
@@ -93,14 +91,14 @@ and k = 40 (Figures 4.2 and 4.3).
 ```{r example4c.r, fig.keep = 'none', echo = TRUE}
 set.seed(7)
 library(dplyr)
-example6 <- specify.clusters(example, k = 6, algo = "kmeans") %>%
+example6 <- specify_clusters(example, k = 6, algo = "kmeans") %>%
     randomizeCRT() %>%
-    specify.buffer(buffer.width = 0.5)
+    specify_buffer(buffer.width = 0.5)
 plot(example6, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
     labelsize = 2, maskbuffer = 0.2)
-example40 <- specify.clusters(example, k = 40, algo = "kmeans") %>%
+example40 <- specify_clusters(example, k = 40, algo = "kmeans") %>%
     randomizeCRT() %>%
-    specify.buffer(buffer.width = 0.5)
+    specify_buffer(buffer.width = 0.5)
 plot(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
     labelsize = 2, maskbuffer = 0.2)
 ```
