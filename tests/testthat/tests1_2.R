@@ -1,9 +1,9 @@
 set.seed(1234)
 test_that("designCRT() creates the default trial", {
   get_test1 = function(){
-    Solarmal_baseline <- readdata("Solarmal_baseline.csv")
-    testLocationsxy <- latlong_as_xy(Solarmal_baseline) #test_site is simulated
-    test_buffered <- as_CRTspat(testLocationsxy) %>%
+    test_locationsLatLong <- readdata("example_latlong.csv")
+    testLocationsxy <- latlong_as_xy(test_locationsLatLong)
+    test_buffered <- CRTspat(testLocationsxy) %>%
       specify_clusters(h = 50, algorithm = 'NN') %>%
       randomizeCRT(matchedPair = FALSE) %>%
       specify_buffer(buffer.width = 0.05)
@@ -14,27 +14,26 @@ test_that("designCRT() creates the default trial", {
                             ICC = 0.175,
                             yC = 0.4,
                             k = 20,
-                            outcome.type ="d")
-
+                            outcome_type ="d")
+    design <- test_design$design
     # To recreate test file
     # design <- test_design$design
-    # dump(c("design"), file = "inst/extdata/analysis_design.txt")
-    return(test_design$design)
+    # dump(c("design"), file = "inst/extdata/example_design.txt", evaluate = TRUE)
+    return(design)
   }
-  expect_equal(get_test1(),readdata("analysis_design.txt"))
+  expect_equal(get_test1(),readdata("example_design.txt"))
 })
 
 set.seed(1234)
 test_that("simulate_site() creates the default site", {
   get_test2 = function(){
     CRT <- simulate_site(geoscale = 0.5,
-                        locations = 2500,
+                        locations = 5,
                         kappa = 4,
                         mu = 50)
-    trial <- CRT$trial
     # To recreate test file
     # write.csv(trial, file = "inst/extdata/test_site.csv", row.names = FALSE)
-    return(trial)
+    return(round(CRT$trial$x[3]*1000))
   }
-  expect_equal(get_test2(),readdata("test_site.csv"))
+  expect_equal(get_test2(),-309)
 })

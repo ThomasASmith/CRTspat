@@ -8,15 +8,15 @@
 #' @param desiredPower numeric: desired power
 #' @param effect numeric: required effect size
 #' @param yC numeric: baseline value of outcome
-#' @param outcome.type character with options -
+#' @param outcome_type character with options -
 #' \code{'y'}: continuous;
 #' \code{'n'}: count;
 #' \code{'e'}: event rate;
 #' \code{'p'}: proportion;
 #' \code{'d'}: dichotomous.
-#' @param sigma2 numeric: variance of the outcome (required for \code{outcome.type = 'y'})
-#' @param phi numeric: overdispersion parameter (for \code{outcome.type = 'n'} or \code{outcome.type = 'e'})
-#' @param N numeric: mean of the denominator for proportions (for \code{outcome.type = 'p'})
+#' @param sigma2 numeric: variance of the outcome (required for \code{outcome_type = 'y'})
+#' @param phi numeric: overdispersion parameter (for \code{outcome_type = 'n'} or \code{outcome_type = 'e'})
+#' @param N numeric: mean of the denominator for proportions (for \code{outcome_type = 'p'})
 #' @param ICC numeric: Intra-Cluster Correlation
 #' @param k integer: number of clusters in each arm (required if \code{trial} is not specified)
 #' @param sd_h standard deviation of number of units per cluster (required if \code{trial} is not specified)
@@ -24,9 +24,9 @@
 #' trial description and results of power calculations
 #'  \tabular{llll}{
 #'  \code{design} \tab list \tab specification of the design\tab\cr
-#'  \code{geom.full}   \tab list \tab summary statistics describing the site,
+#'  \code{geom_full}   \tab list \tab summary statistics describing the site,
 #'  cluster assignments, randomization, and power calculations.\tab\cr
-#'  \code{geom.core}   \tab list \tab summary statistics describing the cluster core,
+#'  \code{geom_core}   \tab list \tab summary statistics describing the cluster core,
 #'   and corresponding power calculations.\tab\cr
 #'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
@@ -54,30 +54,26 @@
 #' @examples
 #' # Example without input geolocations
 #' examplePower = CRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
-#'     outcome.type = 'd', desiredPower = 0.8, yC=0.35, k = 20, sd_h=5)
+#'     outcome_type = 'd', desiredPower = 0.8, yC=0.35, k = 20, sd_h=5)
 #' # Example with input geolocations and randomisation
-#' examplePower = CRTpower(trial = readdata('test_site.csv'), desiredPower = 0.8,
-#'     effect=0.4, yC=0.35, outcome.type = 'd', ICC = 0.05, k = 20)
+#' examplePower = CRTpower(trial = readdata('example_site.csv'), desiredPower = 0.8,
+#'     effect=0.4, yC=0.35, outcome_type = 'd', ICC = 0.05, k = 20)
 CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower = 0.8,
-    effect = NULL, yC = NULL, outcome.type = "d", sigma2 = NULL, phi = 1,
+    effect = NULL, yC = NULL, outcome_type = "d", sigma2 = NULL, phi = 1,
     N = 1, ICC = NULL, k = NULL, sd_h = 0) {
 
-    if (is.null(trial)) {
-        CRT <- list(trial = NULL)
-        class(CRT) <- 'CRTspat'
-    }
-    if (!is.null(trial)) CRT <- as_CRTspat(trial)
+    CRT <- CRTspat(trial)
 
     # populate a design list with a data about the input trial (if
     # available) and the input parameters
 
     # sigma2 is only required for continuous data, so its absence
     # should otherwise not crash the program
-    if (!identical(outcome.type, "y")) sigma2 <- NA
+    if (!identical(outcome_type, "y")) sigma2 <- NA
 
-    design <- ifelse(is.null(CRT$design), list(), CRT$design)
-    design$locations <- ifelse(is.null(CRT$trial), locations, nrow(CRT$trial))
-    parnames <- c("alpha", "desiredPower", "effect", "yC", "outcome.type",
+    design <- ifelse(is.null(CRT$design$locations), list(), CRT$design)
+    design$locations <- ifelse((nrow(CRT$trial) == 0), locations, nrow(CRT$trial))
+    parnames <- c("alpha", "desiredPower", "effect", "yC", "outcome_type",
         "sigma2", "phi", "N", "ICC", "k", "sd_h")
     # Identify which variables to retrieve from the pre-existing design
     from_old <- lapply(mget(parnames), FUN = is.null)
@@ -88,8 +84,7 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
             " ***")
         return()
     }
-    CRT$design <- design
-    CRT <- as_CRTspat(trial = CRT, design = CRT$design)
+    CRT <- CRTspat(CRT, design = design)
 }
 
 
@@ -98,15 +93,29 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
 # CRTspat object
 get_geom <- function(trial = NULL, design = NULL) {
 
-    sd_distance <- k <- mean_h <- clustersRequired <- DE <- power <- NULL
+    sd_distance <- clustersRequired <- DE <- power <- NULL
+    if(!is.null(design)) {
+        locations <- design$locations
+        sd_h <- design$sd_h
+        k <- design$k
+        mean_h = locations/(2 * k)
+    } else {
+        mean_h <- k <- sd_h <- locations <- NULL
+    }
+    geom <- list(locations = locations,
+                 sd_h = sd_h,
+                 k= k,
+                 records = 0,
+                 mean_h = mean_h,
+                 DE = NULL,
+                 power = NULL,
+                 clustersRequired = NULL)
 
-    geom <- list(locations = design$locations, sd_h = design$sd_h, k= design$k)
-
-    # overwrite values from the design with those from the data frame
-    if (!is.null(trial)) {
+    # overwrite values from the design with those from the data frame if these are present
+    if (!is.null(trial) & nrow(trial) > 0) {
         coordinates <- data.frame(cbind(x = trial$x, y = trial$y))
         geom$records <- nrow(trial)
-        geom$locations = nrow(dplyr::distinct(coordinates))
+        geom$locations <- nrow(dplyr::distinct(coordinates))
 
         if (!is.null(trial$cluster)) {
             # reassign the cluster levels in case some are not
@@ -118,30 +127,21 @@ get_geom <- function(trial = NULL, design = NULL) {
             # mean number of locations randomized in each cluster
             geom$mean_h <- mean(table(trial$cluster))
 
-            # standard deviation of locations assisgned to each
+            # standard deviation of locations assigned to each
             # cluster
             geom$sd_h <- stats::sd(table(trial$cluster))
 
         }
         if (!is.null(trial$arm)) {
-
-            arm <- unique(cbind(trial$cluster, trial$arm))[, 2]  #assignments
-
-            # Step L computation of characteristics of the
-            # randomization
-            if (is.null(trial$nearestDiscord)) {
-                # TODO calculate nearest discord here
-                trial$nearestDiscord <- NA
-            }
-
             geom$sd_distance <- stats::sd(trial$nearestDiscord)
+            arms <- unique(cbind(trial$cluster, trial$arm))[, 2]  #assignments
         }
     }
     # cluster size
     geom$k <- ifelse(is.null(geom$k), NA, round(geom$k))
     geom$mean_h <- geom$locations/(2 * geom$k)
 
-    if (!is.null(design)) {
+    if (!is.null(design$effect)) {
         if (is.null(geom$locations)) {
             cat("*** Number of locations is a required input ***")
             return("")
@@ -164,7 +164,7 @@ get_geom <- function(trial = NULL, design = NULL) {
         # G\ coordinates of households in study area Step H: proposal
         # for the number of households in each cluster
 
-        link <- switch(design$outcome.type, y = "identity", n = "log", e = "log",
+        link <- switch(design$outcome_type, y = "identity", n = "log", e = "log",
             p = "logit", d = "logit")
         if (identical(link, "identity")) {
             yI <- yC - effect

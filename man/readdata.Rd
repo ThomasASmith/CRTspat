@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{readdata}
 \alias{readdata}
-\title{Read test dataset}
+\title{Read example dataset}
 \usage{
 readdata(filename)
 }
@@ -13,7 +13,7 @@ readdata(filename)
 R object corresponding to the text file
 }
 \description{
-\code{readdata} reads a file from the package library of test datasets
+\code{readdata} reads a file from the package library of example datasets
 }
 \details{
 The input file name should include the extension (either .csv or .txt).

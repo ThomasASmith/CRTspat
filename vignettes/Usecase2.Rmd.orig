@@ -42,8 +42,8 @@ set.seed(1234)
 example_locations <- readdata('example_site.csv')
 example_locations$base_denom <- 1
 library(dplyr)
-example_randomized <- as_CRTspat(example_locations) %>%
-  aggregate(auxiliaries = c("RDT_test_result", "base_denom")) %>%
+example_randomized <- CRTspat(example_locations) %>%
+  aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom")) %>%
   specify_clusters(h = 50, algorithm = 'NN') %>%
   randomizeCRT(matchedPair = FALSE)
 summary(example_randomized)
@@ -89,7 +89,7 @@ set.seed(1234)
      # propensity surface generated as an arbitrary linear function of x the co-ordinate
      new_site$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
      library(dplyr)
-     example2b<- as_CRTspat(new_site) %>%
+     example2b<- CRTspat(new_site) %>%
        specify_clusters(h = 40, algorithm = 'NN') %>%
        randomizeCRT(matchedPair = FALSE) %>%
        simulateCRT(example_simulated,

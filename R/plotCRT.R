@@ -43,7 +43,6 @@
 #' #Plot arms
 #' plot(readdata('testCRT.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
 #'
-
 plot.CRTspat <- function(x, ..., map = FALSE, fill = "arms", showLocations = FALSE,
     showClusterBoundaries = TRUE, showClusterLabels = FALSE, cpalette = NULL,
     maskbuffer = 0.2, labelsize = 4, legend.position = NULL) {
@@ -88,8 +87,7 @@ vectorPlot <- function(trial, fill, showLocations, showClusterBoundaries,
     showArms <- identical(fill, "arms")
 
     # The plotting routines require unique locations
-    CRT <- as_CRTspat(trial)
-    CRT <- aggregate(CRT)
+    CRT <- aggregateCRT(trial)
 
     # The plotting routines use (x,y) coordinates
     if (is.null(CRT$trial$x)) {
@@ -258,7 +256,7 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' (mean of exp(log(x + 1))) - 1) \cr
 #' @export
 #' @examples
-#' analysis <- CRTanalysis(readdata('testCRT.csv')); plot(x = analysis, map = FALSE)
+#' analysis <- CRTanalysis(readdata('testCRT.csv')); plot(analysis, map = FALSE)
 plot.CRTanalysis <- function(x, ..., map = FALSE, fill = "prediction", showLocations = FALSE,
     showClusterLabels = FALSE, showClusterBoundaries = FALSE, showContamination = FALSE,
     cpalette = NULL, maskbuffer = 0.2, labelsize = 4, legend.position = NULL) {

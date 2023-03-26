@@ -6,9 +6,9 @@ get_test9 = function(){
   example_locations <- readdata('example_site.csv')
   example_locations$base_denom <- 1
   library(dplyr)
-  example_randomized <- as_CRTspat(example_locations) %>%
-    aggregate(auxiliaries = c("RDT_test_result", "base_denom")) %>%
-    specify.clusters(h = 50, algorithm = 'NN') %>%
+  example_randomized <- CRTspat(example_locations) %>%
+    aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom")) %>%
+    specify_clusters(h = 50, algorithm = 'NN') %>%
     randomizeCRT(matchedPair = FALSE)
   example2a <- simulateCRT(example_randomized,
                            effect = 0.8,

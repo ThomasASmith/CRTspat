@@ -66,14 +66,11 @@
 #' @importFrom utils head read.csv
 #' @export
 #' @examples
-#' Analysis of test dataset by t-test
-#' exampleT = CRTanalysis(readdata("testCRT.csv"), method = "T")
-#' Standard GEE analysis of test dataset ignoring contamination
-#' exampleGEE = CRTanalysis(readdata("testCRT.csv"), method = "GEE")
-#' Analysis GEE analysis of test dataset ignoring contamination
-
+#' # Analysis of test dataset by t-test
+#' exampleT = CRTanalysis(readdata("exampleCRT.csv"), method = "T")
+#' # Standard GEE analysis of test dataset ignoring contamination
+#' exampleGEE = CRTanalysis(readdata("exampleCRT.csv"), method = "GEE")
 #'
-
 CRTanalysis <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
@@ -265,11 +262,11 @@ CRTanalysis <- function(
         }
         options$ftext <- paste(fterms, collapse = " + ")
 
-        summary_fit <- summary(fit)
+        summary.fit <- summary(fit)
 
         z <- -qnorm(alpha/2)  #standard deviation score for calculating confidence intervals
-        lp_yC <- summary_fit$coefficients[1, 1]
-        se_lp_yC <- summary_fit$coefficients[1, 2]
+        lp_yC <- summary.fit$coefficients[1, 1]
+        se_lp_yC <- summary.fit$coefficients[1, 2]
 
         clusterSize <- nrow(trial)/nlevels(as.factor(trial$cluster))
 
@@ -285,8 +282,8 @@ CRTanalysis <- function(
         model.object <- fit
 
         # Intracluster correlation
-        pt.ests$ICC <- noLabels(summary_fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
-        se_ICC <- noLabels(summary_fit$corr[2])
+        pt.ests$ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
+        se_ICC <- noLabels(summary.fit$corr[2])
         int.ests$ICC <- namedCL(
             noLabels(c(pt.ests$ICC - z * se_ICC, pt.ests$ICC + z * se_ICC)),
             alpha = alpha
@@ -298,7 +295,7 @@ CRTanalysis <- function(
         pt.ests$effect.size <- NULL
         if (cfunc == "X")
         {
-            lp_yI <- summary_fit$coefficients[1, 1] + summary_fit$coefficients[2,
+            lp_yI <- summary.fit$coefficients[1, 1] + summary.fit$coefficients[2,
                 1]
             se_lp_yI <- sqrt(
                 fit$geese$vbeta[1, 1] + fit$geese$vbeta[2, 2] + 2 * fit$geese$vbeta[1,
@@ -310,7 +307,7 @@ CRTanalysis <- function(
                 alpha = alpha)
 
             int.ests$effect.size <- estimateCLeffect.size(
-                mu = summary_fit$coefficients[, 1], Sigma = fit$geese$vbeta,
+                mu = summary.fit$coefficients[, 1], Sigma = fit$geese$vbeta,
                 alpha = alpha, resamples = resamples, method = method,
                 link = link)
 
@@ -1208,11 +1205,12 @@ Tinterval <- function(x, alpha, option){
 #' Summary of the results of a statistical analysis of a CRT
 #'
 #' \code{summary.CRTanalysis} generates a summary of a \code{CRTanalysis} analysis and the main results
-#' @param ... other arguments
-#' @param object name of analysis
-#' @export
-summary.CRTanalysis <- function(object, ...) {
+#' @param x an object of class \code{"CRTanalysis"}
+#' @param ... other arguments used by print
+#'
+summary.CRTanalysis <- function(x, ...) {
     cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
+    object <- x
     cat(
         "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n"
     )

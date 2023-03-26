@@ -7,7 +7,7 @@
 #' @param mu mean  number of points per settlement cluster
 #' @returns A list of class \code{"CRTspat"} containing the following components:
 #'  \tabular{llll}{
-#'  \code{geom.full}   \tab list: \tab summary statistics describing the site\tab\cr
+#'  \code{geom_full}   \tab list: \tab summary statistics describing the site\tab\cr
 #'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
@@ -31,7 +31,7 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
     x <- p$x[seq(1:locations)]
     y <- p$y[seq(1:locations)]
     coordinates <- data.frame(x = x - mean(x), y = y - mean(y))
-    CRT <- as_CRTspat(coordinates, design = NULL)
+    CRT <- CRTspat(coordinates, design = NULL)
     return(CRT)
 }
 
@@ -59,7 +59,7 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #' @param vr numeric. ratio of location variance to cluster variance (for continuous outcomes)
 #' @returns A list of class \code{"CRTspat"} containing the following components:
 #' \tabular{llll}{
-#' \code{geom.full}\tab list: \tab summary statistics describing the site
+#' \code{geom_full}\tab list: \tab summary statistics describing the site
 #' cluster assignments, and randomization \tab\cr
 #' \code{design}\tab list: \tab values of input parameters to the design \tab\cr
 #' \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
@@ -145,13 +145,8 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
     cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
     bw <- NULL
-    if (identical(class(trial), "data.frame")) {
-        CRT <- list(trial = trial, design = NULL)
-        class(CRT) <- "CRTspat"
-    } else {
-        CRT <- trial
-        trial <- CRT$trial
-    }
+    if (!is.null(trial)) CRT <- CRTspat(trial)
+    trial <- CRT$trial
 
     if (is.null(trial$cluster)){
       cat("*** Clusters not yet assigned ***")
@@ -231,8 +226,8 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
 
     trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
                              outcome0 = outcome0, denominator = denominator)
-    CRT <- updateCRT(CRT = CRT, trial = trial)
-    return(CRT)
+    CRT$trial <- trial
+    return(CRTspat(CRT))
 }
 
 # Assign expected outcome to each location assuming a fixed effect size.
@@ -328,9 +323,9 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, 
                              outcome0 = outcome0, denominator = "denom")
     trial$neg <- trial$denom - trial$num
     fit <- geepack::geeglm(cbind(num, neg) ~ arm, id = cluster, corstr = "exchangeable", data = trial, family = binomial(link = "logit"))
-    summary_fit <- summary(fit)
+    summary.fit <- summary(fit)
     # Intracluster correlation
-    ICC <- noLabels(summary_fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
+    ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
     cat("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")
     loss <- (ICC - ICC_inp)^2
     return(loss)

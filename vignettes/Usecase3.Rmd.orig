@@ -29,7 +29,7 @@ example_locations <- readdata("example_baseline.csv")
 example_locations$base_denom <- 1
 library(dplyr)
 example <- latlong_as_xy(example_locations) %>%
-    aggregate(auxiliaries = c("RDT_test_result", "base_denom"))
+    aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example)
 
 # randomly sample an array of values of k (use a small sample size for testing

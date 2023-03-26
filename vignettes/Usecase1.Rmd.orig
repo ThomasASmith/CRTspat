@@ -45,11 +45,11 @@ example_locations <- readdata('example_site.csv')
 # assign the denominator to the baseline data
 example_locations$base_denom <- 1
 # convert to a `CRTspat` object
-exampleCRT <- as_CRTspat(example_locations)
+exampleCRT <- CRTspat(example_locations)
 summary(exampleCRT)
 # Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
 # auxiliary variables
-example <- aggregate(exampleCRT, auxiliaries = c("RDT_test_result", "base_denom"))
+example <- aggregateCRT(exampleCRT, auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example)
 # Plot map of locations
 plot(example, map = TRUE, showLocations = TRUE, maskbuffer = 0.2)

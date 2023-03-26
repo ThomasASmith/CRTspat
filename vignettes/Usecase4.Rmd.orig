@@ -32,8 +32,8 @@ The example shown here uses the baseline prevalence data introduced in [Use Case
 library(CRTspat)
 example_locations <- readdata('example_site.csv')
 example_locations$base_denom <- 1
-exampleCRT <- as_CRTspat(example_locations)
-example <- aggregate(exampleCRT,
+exampleCRT <- CRTspat(example_locations)
+example <- aggregateCRT(exampleCRT,
       auxiliaries = c("RDT_test_result", "base_denom"))
 # randomly sample an array of numbers of clusters to allocate
 set.seed(5)
@@ -49,10 +49,10 @@ CRTscenario <- function(k, CRT, buffer.width) {
   sink()
   locations <- GEEanalysis$description$locations
   ex_power <- CRTpower(trial = ex, effect = 0.3, yC = GEEanalysis$pt.ests$controlY,
-                    outcome.type = "p", N = GEEanalysis$description$sum.denominators/locations, k = k,
+                    outcome_type = "p", N = GEEanalysis$description$sum.denominators/locations, k = k,
                     ICC = GEEanalysis$pt.ests$ICC)
-  value <- c(k_full = k, k_core = ex_power$geom.core$k, clustersRequired = ex_power$geom.full$clustersRequired,
-             power = ex_power$geom.full$power, mean_h = ex_power$geom.full$mean_h,
+  value <- c(k_full = k, k_core = ex_power$geom_core$k, clustersRequired = ex_power$geom_full$clustersRequired,
+             power = ex_power$geom_full$power, mean_h = ex_power$geom_full$mean_h,
              locations = locations, ICC = GEEanalysis$pt.ests$ICC)
   return(value)
 }
@@ -64,7 +64,7 @@ results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
 Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (k). There is also variation in the estimated Intracluster Correlation (see Use Case tbd.) for any value of k.
 
 ```{r example4b.r, fig.keep = 'none', echo = TRUE}
-total_locations <- example$geom.full$locations
+total_locations <- example$geom_full$locations
 results$proportion_included <- results$k_core * results$mean_h * 2/total_locations
 results$corelocations_required <- results$clustersRequired * results$mean_h
 results$totallocations_required <- with(results, total_locations/locations *
