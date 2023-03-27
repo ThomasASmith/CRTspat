@@ -46,7 +46,7 @@ CRTscenario3 <- function(k, CRT) {
           baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
     ))
     locations <- GEEanalysis$description$locations
-    ICC <- GEEanalysis$pt.ests$ICC
+    ICC <- GEEanalysis$pt_ests$ICC
     value <- c(k = k, ICC = ICC, mean_h = locations/k)
     return(value)
 }

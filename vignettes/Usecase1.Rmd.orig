@@ -84,7 +84,7 @@ baselineanalysis <- CRTanalysis(trial=example_clustered,
                         method = 'INLA', link='logit', baselineOnly = TRUE,
                         baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom",
                         clusterEffects = FALSE, spatialEffects = TRUE,
-                        requireMesh = TRUE, inla.mesh = examplemesh100)
+                        requireMesh = TRUE, inla_mesh = examplemesh100)
 plot(baselineanalysis, map = TRUE, fill = 'prediction')
 ```
 <p>

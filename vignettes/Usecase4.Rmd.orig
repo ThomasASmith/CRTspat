@@ -43,17 +43,17 @@ CRTscenario <- function(k, CRT, buffer.width) {
   ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
     randomizeCRT() %>%
     specify_buffer(buffer.width = buffer.width)
-  sink(file = "output.log", type = "output")
-  GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = TRUE,
-                             baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
-  sink()
+  invisible(capture.output(
+    GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = TRUE,
+                               baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
+  ))
   locations <- GEEanalysis$description$locations
-  ex_power <- CRTpower(trial = ex, effect = 0.3, yC = GEEanalysis$pt.ests$controlY,
+  ex_power <- CRTpower(trial = ex, effect = 0.3, yC = GEEanalysis$pt_ests$controlY,
                     outcome_type = "p", N = GEEanalysis$description$sum.denominators/locations, k = k,
-                    ICC = GEEanalysis$pt.ests$ICC)
+                    ICC = GEEanalysis$pt_ests$ICC)
   value <- c(k_full = k, k_core = ex_power$geom_core$k, clustersRequired = ex_power$geom_full$clustersRequired,
              power = ex_power$geom_full$power, mean_h = ex_power$geom_full$mean_h,
-             locations = locations, ICC = GEEanalysis$pt.ests$ICC)
+             locations = locations, ICC = GEEanalysis$pt_ests$ICC)
   return(value)
 }
 

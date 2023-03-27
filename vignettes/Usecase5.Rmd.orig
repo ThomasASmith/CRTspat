@@ -41,10 +41,10 @@ Data analysts are invited to use the JAGS code provided for the
 
 
 ```{r example3.r, fig.path=('vignettes/'),echo=TRUE}
-results6a <- Analyse_CRT(trial = example5a, method = 'INLA', inla.mesh = inlaMeshTest)
+results6a <- Analyse_CRT(trial = example5a, method = 'INLA', inla_mesh = inlaMeshTest)
 Plot_CRTmap(trial = example5a, analysis = results6a, showPrediction = TRUE)
 Plot_Contamination(results6a)
-results5a <- Analyse_CRT(trial = example5a, method = "INLA", inla.mesh = inlaMeshTest)
+results5a <- Analyse_CRT(trial = example5a, method = "INLA", inla_mesh = inlaMeshTest)
 Plot_Contamination(analysis = results5a)
 Plot_CRTmap(analysis = results5a, trial = example5a, showPrediction = TRUE)
 ```
@@ -53,7 +53,7 @@ mesh <- new_mesh(trial = CRT, pixel = 0.1)
 analysis <- CRTanalysis(trial=CRT,
 method = 'INLA', link='logit', cfunc='P',
 spatialEffects= TRUE,
-requireMesh = TRUE, inla.mesh = mesh)
+requireMesh = TRUE, inla_mesh = mesh)
 plot(analysis, map=TRUE, fill = 'prediction')
 
 

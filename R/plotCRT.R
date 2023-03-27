@@ -7,7 +7,7 @@
 #' @param map logical: indicator of whether a map is required
 #' @param fill fill layer of map
 #' \tabular{ll}{
-#' \code{'cluster'} \tab cluster assignment \cr
+#' \code{'clusters'} \tab cluster assignment \cr
 #' \code{'arms'}   \tab arm assignment \cr
 #' \code{'none'}\tab No fill \cr
 #' }
@@ -23,7 +23,7 @@
 #' @details If \code{map = TRUE} a map is produced
 #' #' If \code{map = TRUE} a plot corresponding to the value of \code{fill} is generated.
 #'  \itemize{
-#' \item \code{fill = 'cluster'} or leads to thematic map showing the locations of the clusters
+#' \item \code{fill = 'clusters'} or leads to thematic map showing the locations of the clusters
 #' \item \code{fill = 'arms'} leads to a thematic map showing the geography of the randomization
 #' }
 #' If \code{map = FALSE} a stacked bar plot of the data is produced
@@ -42,7 +42,8 @@
 #' plot(readdata('exampleCRT.csv'), map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
 #'           labelsize=2, maskbuffer=0.2)
 #' #Plot arms
-#' plot(readdata('exampleCRT.csv'),  map = TRUE, fill = 'arms', maskbuffer=0.2, legend.position=c(0.2,0.8))
+#' plot(readdata('exampleCRT.csv'), map = TRUE,
+#'         fill = 'arms', maskbuffer=0.2, legend.position=c(0.2,0.8))
 #'
 plot.CRTsp <- function(x, ..., map = FALSE, fill = "arms", showLocations = FALSE,
     showClusterBoundaries = TRUE, showClusterLabels = FALSE, cpalette = NULL,
@@ -74,15 +75,16 @@ plot.CRTsp <- function(x, ..., map = FALSE, fill = "arms", showLocations = FALSE
 
         trial <- x$trial
         g <- vectorPlot(trial = trial, fill = fill, showLocations = showLocations,
-                   showClusterBoundaries = showClusterBoundaries, cpalette = cpalette,
-                   showClusterLabels = showClusterLabels, maskbuffer = maskbuffer,
-                   labelsize = labelsize, legend.position = legend.position, g = NULL)
+            showClusterBoundaries = showClusterBoundaries, cpalette = cpalette,
+            showClusterLabels = showClusterLabels, maskbuffer = maskbuffer,
+            labelsize = labelsize, legend.position = legend.position, g = NULL)
     }
     return(g)
 }
 
 vectorPlot <- function(trial, fill, showLocations, showClusterBoundaries,
-    showClusterLabels, cpalette = NULL, maskbuffer, labelsize, legend.position, g = NULL) {
+    showClusterLabels, cpalette = NULL, maskbuffer, labelsize, legend.position,
+    g = NULL) {
     arm <- cluster <- x <- y <- NULL
     colourClusters <- identical(fill, "clusters")
     showArms <- identical(fill, "arms")
@@ -143,7 +145,8 @@ vectorPlot <- function(trial, fill, showLocations, showClusterBoundaries,
     if (totalClusters == 1)
         cpalette <- c("white")
 
-    if (is.null(g)) g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
+    if (is.null(g))
+        g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
 
     if (colourClusters) {
         g <- g + ggplot2::geom_sf(data = clusters, aes(fill = cluster), fill = cpalette,
@@ -248,7 +251,7 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' @details
 #' If \code{map = TRUE} a plot corresponding to the value of \code{fill} is generated.
 #'  \itemize{
-#' \item \code{fill = 'cluster'} or  \code{fill = 'arm'} leads to vector plot identical to
+#' \item \code{fill = 'clusters'} or  \code{fill = 'arm'} leads to vector plot identical to
 #'  that available for the input dataset.
 #' \item \code{fill = 'distance'} leads to a raster plot of the distance to the nearest discordant location.
 #' \item \code{fill = 'prediction'} leads to a raster plot of predictions from an \code{'INLA'} model.
@@ -306,8 +309,8 @@ plot.CRTanalysis <- function(x, ..., map = FALSE, fill = "prediction", showLocat
         if (!identical(analysis$options$method, "INLA")) {
             cat("*** Raster plots only available for outputs from INLA analysis ***")
         } else {
-            pixel <- analysis$inla.mesh$pixel
-            raster <- analysis$inla.mesh$prediction
+            pixel <- analysis$inla_mesh$pixel
+            raster <- analysis$inla_mesh$prediction
             if (showPrediction) {
                 g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
                   fill = prediction), alpha = 0.5, width = pixel, height = pixel)
@@ -333,9 +336,10 @@ plot.CRTanalysis <- function(x, ..., map = FALSE, fill = "prediction", showLocat
                   ], aes(x = x, y = y), fill = "black", alpha = 0.2)
             }
         }
-        g <- vectorPlot(trial = trial, fill = fill, showLocations = showLocations, cpalette = cpalette,
-                        showClusterBoundaries = showClusterBoundaries, showClusterLabels = showClusterLabels,
-                        maskbuffer = maskbuffer, labelsize = labelsize, legend.position = legend.position, g = g)
+        g <- vectorPlot(trial = trial, fill = fill, showLocations = showLocations,
+            cpalette = cpalette, showClusterBoundaries = showClusterBoundaries,
+            showClusterLabels = showClusterLabels, maskbuffer = maskbuffer,
+            labelsize = labelsize, legend.position = legend.position, g = g)
     }
     return(g)
 }

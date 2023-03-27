@@ -32,7 +32,7 @@ test_that("Anonymisation, randomization, and creation of buffer produces expecte
 test_that("Analysis using T option gives expected efficacy", {
    get_test6 = function(extdata){
       analysis <- CRTanalysis(readdata("exampleCRT.csv"),method = 'T',link='identity')
-      value <- round(as.numeric(10000 * analysis$pt.ests$effect.size))
+      value <- round(as.numeric(10000 * analysis$pt_ests$effect.size))
       return(value)}
    expect_equal(get_test6(extdata), 709)
 })
@@ -40,7 +40,7 @@ test_that("Analysis using T option gives expected efficacy", {
 test_that("Analysis using GEE option gives expected ICC", {
    get_test7 = function(extdata){
       analysis <- CRTanalysis(readdata("exampleCRT.csv"),method = 'GEE',link='log')
-      value <- round(as.numeric(10000 * analysis$pt.ests$ICC))
+      value <- round(as.numeric(10000 * analysis$pt_ests$ICC))
       return(value)}
    expect_equal(get_test7(extdata), 464)
 })

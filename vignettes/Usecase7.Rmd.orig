@@ -1,0 +1,28 @@
+---
+title: "Use Case 7: Preparation of datasets for `CRTspat`"
+output:
+  rmarkdown::html_vignette:
+  toc: true
+vignette: >
+  %\VignetteIndexEntry{Use Case 7: Preparation of datasets for `CRTspat`}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+<!--To build the vignette
+# since the vignette takes a long time to run, it is not run with every build
+# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
+# to Knit this vignette without this time consuming step being part of the default build
+knitr::knit("vignettes/Usecase3.Rmd.orig", output = "vignettes/Usecase3.Rmd")
+rmarkdown.html_vignette.check_title = FALSE
+devtools::install(build_vignettes = TRUE)
+-->
+
+The starting point for the analyses is the co-ordinates for the spatial units that are to be randomized. These can be provided as lat-long coordinates, or as Cartesian point co-ordinates.
+Geolocated data from completed field studies or trials in progress can be read into `CRTstat` in the form of data frames, preferably with one record for each location in the trial.
+
+Simulated co-ordinate sets can also be generated *de novo* (function [`CRTsp()`](../reference/CRTsp.html)) for use in methods development and testing.
+
+To make it possible to share data files without compromising confidentiality the [`anonymize.site()`](../reference/anonymize.site.html) function is provided. This removes absolute geolocations and applies a transformation to the coordinates to conserve distances between them but modifying the orientation.
+
+The [`latlong_as_xy`](../reference/latlong_as_xy.html) function is available to convert co-ordinates provided as decimal degrees into Cartesian co-ordinates with units of km with centroid (0,0). If the input co-ordinates are provided using a different projection then they must be converted externally to the package.
+

@@ -6,7 +6,7 @@
 # as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
 # to run the vignettes, execute the code from the vignettes via:
 
-library(CRTspat)
+detach("package:CRTspat", unload = TRUE)
 knitr::opts_chunk$set(error=FALSE)
 knitr::knit("vignettes/CRTspat.Rmd.orig", output = "vignettes/CRTspat.Rmd")
 knitr::knit("vignettes/Usecase1.Rmd.orig", output = "vignettes/Usecase1.Rmd")

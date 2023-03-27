@@ -62,19 +62,16 @@ summary(example2aanalysis)
 example2aINLA <- CRTanalysis(trial=example2a,
                                  method = 'INLA', link='logit', cfunc = 'X',
                                  clusterEffects = TRUE,
-                                 requireMesh = TRUE, inla.mesh = examplemesh100)
+                                 requireMesh = TRUE, inla_mesh = examplemesh100)
 plot(example2aINLA)
 plot(example2aINLA, map = TRUE, fill = 'prediction', showClusterBoundaries = TRUE)
 ```
-
 
 <p>
     <img src="example2a.r-1.png" > <br>
     <em>Fig 2.1 Map of simulated outcome at cluster level</em>
 </p>
 
-
-example2a.r-1.png
 <p>
     <img src="example2a.r-2.png" > <br>
     <em>Fig 2.2 Variation in outcome by distance from boundary</em>
@@ -83,32 +80,41 @@ example2a.r-1.png
 #### Example with infectiousness proxy surface generated externally
 ```{r example2b.r, fig.keep = 'none', echo = TRUE}
 set.seed(1234)
-     # Simulate a site with 2000 locations
-     new_site <- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40)
-     # propensity surface generated as an arbitrary linear function of x the co-ordinate
-     new_site$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
-     library(dplyr)
-     example2b<- CRTsp(new_site) %>%
-       specify_clusters(h = 40, algorithm = 'NN') %>%
-       randomizeCRT(matchedPair = FALSE) %>%
-       simulateCRT(example_simulated,
-                              effect = 0.8,
-                              outcome0 = 0.5,
-                              generateBaseline = TRUE,
-                              ICC_inp = 0.05,
-                              theta_inp = 0.5)
-     summary(example2b)
-     results2b <- CRTanalysis(example2b, method = 'GEE')
-     summary(results2b)
-     plot(example, map = TRUE, showLocations = TRUE, maskbuffer = 0.2)
-     plot(results2b)
+# Simulate a site with 2000 locations
+new_site <- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40)
+# propensity surface generated as an arbitrary linear function of x the co-ordinate
+new_site$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
+library(dplyr)
+invisible(capture.output(
+example2b<- CRTsp(new_site) %>%
+   specify_clusters(h = 40, algorithm = 'NN') %>%
+   randomizeCRT(matchedPair = FALSE) %>%
+   simulateCRT(example_simulated,
+                          effect = 0.8,
+                          outcome0 = 0.5,
+                          generateBaseline = TRUE,
+                          ICC_inp = 0.05,
+                          theta_inp = 0.5)
+))
+summary(example2b)
+results2b <- CRTanalysis(example2b, method = 'GEE')
+summary(results2b)
+plot(example2b, map = TRUE, fill = 'clusters', showClusterLabels = TRUE, maskbuffer = 0.5)
 ```
+<p>
+    <img src="example2b.r-1.png" > <br>
+    <em>Fig 2.3 Map of clusters in simulated trial</em>
+</p>
 
 #### Example with baseline generated from user-provided values of the overall initial prevalence and ICC
 ```{r example2c.r, fig.keep = 'none', echo = TRUE}
 set.seed(1234)
 # use co-ordinates, cluster and arm assignments, and baseline data from `example_simulated`
-example2c <- simulateCRT(new_site,
+invisible(capture.output(
+example2c<- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40) %>%
+   specify_clusters(h = 40, algorithm = 'NN') %>%
+   randomizeCRT(matchedPair = FALSE) %>%
+   simulateCRT(new_site,
        effect = 0.8,
        outcome0 = 0.5,
        generateBaseline = TRUE,
@@ -116,7 +122,7 @@ example2c <- simulateCRT(new_site,
        baselineDenominator = 'base_denom',
        ICC_inp = 0.08,
        theta_inp = 0.2)
-
+))
 results2c <- CRTanalysis(example2c, method = 'GEE')
 summary(results2c)
 ```
