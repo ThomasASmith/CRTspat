@@ -1,7 +1,7 @@
 #' Analysis of cluster randomized trial with contamination
 #'
 #' \code{CRTanalysis} carries out a statistical analysis of a cluster randomized trial (CRT).
-#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
+#' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome data (see details).
 #' @param method statistical method with options:
 #'  \tabular{ll}{
@@ -101,7 +101,7 @@ CRTanalysis <- function(
 
     cluster <- NULL
 
-    if (identical(class(trial),"CRTspat")) trial <- trial$trial
+    if (identical(class(trial),"CRTsp")) trial <- trial$trial
 
     if ("buffer" %in% colnames(trial) & excludeBuffer)
         {
@@ -960,8 +960,8 @@ estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
 
 # functions for INLA analysis
 
-#' \code{new_mesh} create objects required for INLA analysis of an object of class \code{"CRTspat"}.
-#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
+#' \code{new_mesh} create objects required for INLA analysis of an object of class \code{"CRTsp"}.
+#' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome.
 #' @param offset (see \code{inla.mesh.2d} documentation)
 #' @param max.edge  (see \code{inla.mesh.2d} documentation)
@@ -978,20 +978,21 @@ estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
 #' \item \code{pixel} pixel size (km)
 #' }
 #' @details \code{new_mesh} carries out the computationally intensive steps required for setting-up an
-#' INLA analysis of an object of class \code{"CRTspat"}, creating the prediction mesh and the projection matrices.
+#' INLA analysis of an object of class \code{"CRTsp"}, creating the prediction mesh and the projection matrices.
 #' The mesh can be reused for different models fitted to the same
 #' geography. The computational resources required depend largely on the resolution of the prediction mesh.
 #' The prediction mesh is thinned to include only pixels centred at a distance less than
 #' \code{maskbuffer} from the nearest point.\cr
+#' A warning may be generated unless the \code{Matrix} library is loaded.
 #' @export
 #' @examples
 #' # low resolution mesh for test dataset
-#' exampleMesh=new_mesh(trial = readdata('testCRT.csv'), pixel = 0.5)
+#' library(Matrix); exampleMesh=new_mesh(trial = readdata('exampleCRT.csv'), pixel = 0.5)
 new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
                      inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
     {
-    # extract the trial data frame from the "CRTspat" object
-    if (identical(class(trial),"CRTspat")) trial <- trial$trial
+    # extract the trial data frame from the "CRTsp" object
+    if (identical(class(trial),"CRTsp")) trial <- trial$trial
     # create an id variable if this does not exist
     if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
 
@@ -1204,13 +1205,12 @@ Tinterval <- function(x, alpha, option){
 
 #' Summary of the results of a statistical analysis of a CRT
 #'
-#' \code{summary.CRTanalysis} generates a summary of a \code{CRTanalysis} analysis and the main results
-#' @param x an object of class \code{"CRTanalysis"}
-#' @param ... other arguments used by print
+#' \code{summary.CRTanalysis} generates a summary of a \code{CRTanalysis} including the main results
+#' @param object an object of class \code{"CRTanalysis"}
+#' @param ... other arguments used by summary
 #'
-summary.CRTanalysis <- function(x, ...) {
+summary.CRTanalysis <- function(object, ...) {
     cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
-    object <- x
     cat(
         "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n"
     )

@@ -1,8 +1,8 @@
 #' Graphical display of the geography of a CRT
 #'
-#' \code{plot.CRTspat} returns a stacked bar chart of the
+#' \code{plot.CRTsp} returns a stacked bar chart of the
 #' the outcome grouped by distance from the arm boundary
-#' @param x an object of class \code{'CRTspat'}; \cr
+#' @param x an object of class \code{'CRTsp'}; \cr
 #' @param ... other arguments of \code{base::plot}
 #' @param map logical: indicator of whether a map is required
 #' @param fill fill layer of map
@@ -21,29 +21,30 @@
 #' @param legend.position (using \code{ggplot2::themes} syntax)
 #' @return graphics object produced by the \code{ggplot2} package
 #' @details If \code{map = TRUE} a map is produced
+#' #' If \code{map = TRUE} a plot corresponding to the value of \code{fill} is generated.
+#'  \itemize{
+#' \item \code{fill = 'cluster'} or leads to thematic map showing the locations of the clusters
+#' \item \code{fill = 'arms'} leads to a thematic map showing the geography of the randomization
+#' }
 #' If \code{map = FALSE} a stacked bar plot of the data is produced
 #' @importFrom ggplot2 aes alpha
 #' @export
 #' @examples
 #' #Plot of data by distance
-#' plot(readdata('testCRT.csv'))
-#'
+#' plot(readdata('exampleCRT.csv'))
 #' #Map of locations only
-#' plot(readdata('testCRT.csv'), map = TRUE, fill = 'none', showLocations = TRUE,
+#' plot(readdata('exampleCRT.csv'), map = TRUE, fill = 'none', showLocations = TRUE,
 #'            showClusterBoundaries=FALSE, maskbuffer=0.2)
-#'
 #' #Show cluster boundaries and number clusters
-#' plot(readdata('testCRT.csv'), map = TRUE, fill ='none', showClusterBoundaries=TRUE,
+#' plot(readdata('exampleCRT.csv'), map = TRUE, fill ='none', showClusterBoundaries=TRUE,
 #'            showClusterLabels=TRUE, maskbuffer=0.2)
-#'
 #' #Plot clusters in colour
-#' plot(readdata('testCRT.csv'), map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
+#' plot(readdata('exampleCRT.csv'), map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
 #'           labelsize=2, maskbuffer=0.2)
-#'
 #' #Plot arms
-#' plot(readdata('testCRT.csv'), maskbuffer=0.2, legend.position=c(0.2,0.8))
+#' plot(readdata('exampleCRT.csv'),  map = TRUE, fill = 'arms', maskbuffer=0.2, legend.position=c(0.2,0.8))
 #'
-plot.CRTspat <- function(x, ..., map = FALSE, fill = "arms", showLocations = FALSE,
+plot.CRTsp <- function(x, ..., map = FALSE, fill = "arms", showLocations = FALSE,
     showClusterBoundaries = TRUE, showClusterLabels = FALSE, cpalette = NULL,
     maskbuffer = 0.2, labelsize = 4, legend.position = NULL) {
     if (is.null(x$trial)) {
@@ -245,18 +246,26 @@ add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
 #' @importFrom ggplot2 geom_polygon
 #' @importFrom ggplot2 aes
 #' @details
-#' If \code{map = TRUE} a plot corresponding to the value of \code{fill} is generated
-#' If \code{map = FALSE} a plot of the estimated contamination function is generated.\cr
+#' If \code{map = TRUE} a plot corresponding to the value of \code{fill} is generated.
+#'  \itemize{
+#' \item \code{fill = 'cluster'} or  \code{fill = 'arm'} leads to vector plot identical to
+#'  that available for the input dataset.
+#' \item \code{fill = 'distance'} leads to a raster plot of the distance to the nearest discordant location.
+#' \item \code{fill = 'prediction'} leads to a raster plot of predictions from an \code{'INLA'} model.
+#' }
+#' If \code{showContamination = TRUE} the map is overlaid with a grey transparent layer showing showing which
+#' areas are within the contamination zone estimated by an \code{'INLA'} model.\cr
+#' If \code{map = FALSE} a plot of the estimated contamination function is generated.
 #' The fitted contamination function is plotted as a continuous blue line against the distance
-#' from the nearest discordant
-#' location.Using the same axes, data summaries are plotted for ten categories of distance from the boundary. Both the
+#' from the nearest discordant location.Using the same axes, data summaries are plotted for
+#' ten categories of distance from the boundary. Both the
 #' average of the outcome and confidence intervals are plotted. \cr
 #' For analyses with logit link function the outcome is plotted as a proportion. \cr
 #' For analyses with log link function the outcome is plotted on a scale of the Williams' mean
 #' (mean of exp(log(x + 1))) - 1) \cr
 #' @export
 #' @examples
-#' analysis <- CRTanalysis(readdata('testCRT.csv')); plot(analysis, map = FALSE)
+#' analysis <- CRTanalysis(readdata('exampleCRT.csv')); plot(analysis, map = FALSE)
 plot.CRTanalysis <- function(x, ..., map = FALSE, fill = "prediction", showLocations = FALSE,
     showClusterLabels = FALSE, showClusterBoundaries = FALSE, showContamination = FALSE,
     cpalette = NULL, maskbuffer = 0.2, labelsize = 4, legend.position = NULL) {

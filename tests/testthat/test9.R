@@ -1,4 +1,4 @@
-set.seed(1234)
+
 # a stochastic optimisation is involved, but the test can fail because INLA uses parallel processing
 # A separate seed should be set for each processor.
 get_test9 = function(){
@@ -6,7 +6,7 @@ get_test9 = function(){
   example_locations <- readdata('example_site.csv')
   example_locations$base_denom <- 1
   library(dplyr)
-  example_randomized <- CRTspat(example_locations) %>%
+  example_randomized <- CRTsp(example_locations) %>%
     aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom")) %>%
     specify_clusters(h = 50, algorithm = 'NN') %>%
     randomizeCRT(matchedPair = FALSE)

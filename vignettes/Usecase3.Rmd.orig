@@ -41,10 +41,10 @@ k_vec <- round(runif(20, min = 6, max = 150))
 CRTscenario3 <- function(k, CRT) {
     ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
         randomizeCRT()
-    sink(file = "output.log", type = "output")
-    GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = FALSE,
-        baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
-    sink()
+    invisible(capture.output(
+      GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = FALSE,
+          baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
+    ))
     locations <- GEEanalysis$description$locations
     ICC <- GEEanalysis$pt.ests$ICC
     value <- c(k = k, ICC = ICC, mean_h = locations/k)

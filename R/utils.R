@@ -1,21 +1,18 @@
 #' Aggregate data across records with duplicated locations
 #'
-#' \code{aggregateCRT} aggregates data from a \code{"CRTspat"} object containing multiple records with the same location,
-#' and outputs a list of class \code{"CRTspat"} containing single values for each location, for both the coordinates and the auxiliary variables.
-#' @param trial An object of class \code{"CRTspat"} containing locations (x,y) and variables to be summed
+#' \code{aggregateCRT} aggregates data from a \code{"CRTsp"} object or trial data frame containing multiple records with the same location,
+#' and outputs a list of class \code{"CRTsp"} containing single values for each location, for both the coordinates and the auxiliary variables.
+#' @param trial An object of class \code{"CRTsp"} containing locations (x,y) and variables to be summed
 #' @param auxiliaries vector of names of auxiliary variables to be summed across each location
-#' @returns A list of class \code{"CRTspat"} containing the following components:
-#'  \tabular{llll}{
-#'  \code{geom_full}   \tab list: \tab summary statistics describing the site\tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{...} \tab numeric vectors: \tab auxiliary variables containing the sum(s) of the input auxiliaries\cr
-#'  }
+#' @returns A list of class \code{"CRTsp"}
+#' @details
+#' Variables that in the trial dataframe that are not included in \code{auxiliaries} are retained in the output
+#' algorithm \code{"CRTsp"} object, with the value corresponding to that of the first record for the location
+#' in the input data frame
 #' @export
 #'
 aggregateCRT <- function(trial, auxiliaries = NULL) {
-    CRT <- CRTspat(trial)
+    CRT <- CRTsp(trial)
     location <- NULL
     trial <- CRT$trial[order(CRT$trial$x, CRT$trial$y),]
     trial$location <- paste(trial$x,trial$y)
@@ -41,7 +38,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
     }
     trial1$location <- NULL
     CRT$trial <- trial1
-    return(CRTspat(CRT))
+    return(CRTsp(CRT))
 }
 
 #' Specification of buffer zone in a cluster randomized trial
@@ -50,11 +47,11 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #' trial (CRT) by flagging those locations that are within a defined distance of
 #' those in the opposite arm.
 #'
-#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
+#' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).
 #' @param buffer.width minimum distance between locations in
 #'   opposing arms for them to qualify to be included in the core area (km)
-#' @returns A list of class \code{"CRTspat"} containing the following components:
+#' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\tab\cr
@@ -66,14 +63,14 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
 #'  \tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
 #'  \tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
 #' #Specify a buffer of 200m
 #' exampletrial <- specify_buffer(trial = readdata('exampleCRT.csv'), buffer.width = 0.2)
 specify_buffer <- function(trial, buffer.width = 0) {
-  CRT <- CRTspat(trial)
+  CRT <- CRTsp(trial)
   trial <- CRT$trial
   if (is.null(trial$arm)) return('*** Randomization is required before buffer specification ***')
   # nearestDiscord: nearest coordinate in the discordant arm, for the
@@ -83,7 +80,7 @@ specify_buffer <- function(trial, buffer.width = 0) {
     trial$buffer <- (abs(trial$nearestDiscord) < buffer.width)
   }
   CRT$trial <- trial
-  return(CRTspat(CRT))
+  return(CRTsp(CRT))
 }
 
 #' Randomize a two-armed cluster randomized trial
@@ -91,7 +88,7 @@ specify_buffer <- function(trial, buffer.width = 0) {
 #' \code{randomizeCRT} carries out randomization of clusters for a CRT and
 #' augments the trial dataframe with assignments to arms \cr
 #'
-#' @param trial an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
+#' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.
 #' @param matchedPair logical: indicator of whether pair-matching on the
@@ -100,7 +97,7 @@ specify_buffer <- function(trial, buffer.width = 0) {
 #'   matched-pair randomization)
 #' @param baselineDenominator name of denominator variable for baseline data (required for
 #'   matched-pair randomization)
-#' @returns A list of class \code{"CRTspat"} containing the following components:
+#' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site,
 #'  cluster assignments, and randomization.\tab\cr
@@ -111,7 +108,7 @@ specify_buffer <- function(trial, buffer.width = 0) {
 #'  \tab \code{pair} \tab factor \tab assigned matched pair of each location
 #'  (if \code{matchedPair} randomisation was carried out) \cr
 #'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -120,7 +117,7 @@ specify_buffer <- function(trial, buffer.width = 0) {
 randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_num",
     baselineDenominator = "base_denom") {
 
-    CRT <- CRTspat(trial)
+    CRT <- CRTsp(trial)
     trial <- CRT$trial
 
     # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
@@ -164,19 +161,19 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
     trial$nearestDiscord <- get_nearestDiscord(trial)
 
     CRT$trial <- trial
-    return(CRTspat(CRT))
+    return(CRTsp(CRT))
 }
 
-new_CRTspat <- function(x = list()) {
+new_CRTsp <- function(x = list()) {
   stopifnot(is.data.frame(x$trial))
   stopifnot(is.list(x$design))
   stopifnot(is.list(x$geom_full))
   stopifnot(is.list(x$geom_core))
-  return(structure(x, class = "CRTspat"))
+  return(structure(x, class = "CRTsp"))
 }
 
-validate_CRTspat <- function(x) {
-  stopifnot(inherits(x, "CRTspat"))
+validate_CRTsp <- function(x) {
+  stopifnot(inherits(x, "CRTsp"))
   values <- unclass(x)
   if (is.null(values$trial) & is.null(values$design)) {
     stop("There must be either a design or a trial data frame in `x`")
@@ -192,23 +189,64 @@ validate_CRTspat <- function(x) {
   return(x)
 }
 
-#' Helper for class \code{"CRTspat"}
+#' Create or update a \code{"CRTsp"} object
 #'
-#' #' \code{CRTspat} coerces data frames containing co-ordinates and location attributes
-#' into objects of class \code{"CRTspat"}
-#' @param x an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
+#' \code{CRTsp} coerces data frames containing co-ordinates and location attributes
+#' into objects of class \code{"CRTsp"} or creates a new \code{"CRTsp"} object by simulating a set of Cartesian co-ordinates for use as the locations in a simulated trial site
+#' @param x an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.
 #' @param design list: an optional list containing the requirements for the power of the trial
+#' @param geoscale standard deviation of random displacement from each settlement cluster center
+#' @param locations number of locations in population
+#' @param kappa intensity of Poisson process of settlement cluster centers
+#' @param mu mean  number of points per settlement cluster
 #' @export
-CRTspat <- function(x = NULL, design = NULL) {
-  if(identical(class(x),"CRTspat")) {
+#' @returns A list of class \code{"CRTsp"} containing the following components:
+#'  \tabular{llll}{
+#'  \code{design}   \tab list: \tab parameters required for power calculations\tab\cr
+#'  \code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
+#'  \code{geom_core}   \tab list: \tab summary statistics describing the core area
+#'  (when a buffer is specified)\tab\cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
+#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
+#'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
+#'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
+#'  \tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
+#'  \tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+#'  }
+#' @details
+#' If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"} object is validated. A description
+#' of the geography is computed and power calculations are carried out.\cr
+#' If \code{geoscale, locations, kappa} and \code{mu} are specified then a new trial dataframe is constructed
+#' corresponding to a novel simulated human settlement pattern. This is generated using the
+#' Thomas algorithm (\code{rThomas}) in [\code{spatstat}](http://spatstat.org/)
+#' allowing the user to defined the density of locations and degree of spatial clustering.
+#' The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
+#' @export
+#' @examples
+#' # Generate a simulated area with 10,000 locations
+#' example_area = CRTsp(geoscale = 1, locations=10000, kappa=3, mu=40)
+#'
+CRTsp <- function(x = NULL, design = NULL,
+                    geoscale = NULL, locations = NULL, kappa = NULL, mu = NULL) {
+  if(identical(class(x),"CRTsp")) {
     CRT <- x
     if(!is.null(design)) CRT$design <- design
   } else if(identical(class(x),"data.frame")) {
     CRT <- list(trial = x, design = design)
   } else if(is.null(x)) {
-    CRT <- list(trial = data.frame(x=numeric(0),y=numeric(0)), design = design)
+    if (!is.null(geoscale) & !is.null(locations)
+        & !is.null(kappa) & !is.null(mu)){
+        trial <- simulate_site(geoscale = geoscale, locations=locations, kappa=kappa, mu=mu)
+        CRT <- list(trial = trial, design = design)
+    } else {
+        cat("*** All of geoscale, locations, kappa, mu needed to simulate a new site ***")
+        CRT <- list(trial = data.frame(x=numeric(0),y=numeric(0)), design = design)
+    }
   }
   if(is.null(CRT$design)) CRT$design <- list(locations = NULL,
       alpha = NULL, desiredPower = NULL, effect = NULL, yC = NULL,
@@ -227,8 +265,25 @@ CRTspat <- function(x = NULL, design = NULL) {
     CRT$geom_core <- get_geom(trial = CRT$trial[CRT$trial$buffer == FALSE, ],
                               design = CRT$design)
   }
-  return(validate_CRTspat(new_CRTspat(CRT)))
+  return(validate_CRTsp(new_CRTsp(CRT)))
 }
+
+simulate_site <- function(geoscale, locations, kappa, mu) {
+  scaling = geoscale * 10
+  # Poisson point pattern with Thomas algorithm
+  p <- spatstat.random::rThomas(kappa, geoscale, mu, win = spatstat.geom::owin(c(0, scaling), c(0, scaling)))
+  # expected number of points: kappa*mu*scaling^2
+
+  # create locations and specify co-ordinates
+  hhID <- c(1:locations)
+  x <- p$x[seq(1:locations)]
+  y <- p$y[seq(1:locations)]
+  coordinates <- data.frame(x = x - mean(x), y = y - mean(y))
+  trial <- coordinates
+  return(trial)
+}
+
+
 
 
 #' Algorithmically assign locations to clusters in a CRT
@@ -243,7 +298,7 @@ CRTspat <- function(x = NULL, design = NULL) {
 #' \code{NN} (the default),  \code{kmeans},  \code{TSP}
 #' @param reuseTSP logical: indicator of whether a pre-existing path should be used by
 #'   the TSP algorithm
-#' @returns A list of class \code{"CRTspat"} containing the following components:
+#' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site,
 #'  and cluster assignments.\tab\cr
@@ -251,7 +306,7 @@ CRTspat <- function(x = NULL, design = NULL) {
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
 #'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @details Clustering is carried out using one of three algorithms:
 #' \tabular{lll}{
@@ -273,7 +328,7 @@ CRTspat <- function(x = NULL, design = NULL) {
 specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN",
     reuseTSP = FALSE) {
 
-    CRT <- CRTspat(trial)
+    CRT <- CRTsp(trial)
     trial <- CRT$trial
 
     # Local data from study area (ground survey and/or satellite
@@ -305,26 +360,26 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
     }
 
     CRT$trial <- trial
-    return(CRT)
+    return(CRTsp(CRT))
 }
 
 
 #' Convert lat long co-ordinates to x,y
 #'
 #' \code{latlong_as_xy} converts co-ordinates expressed as decimal degrees into x,y
-#' @param trial A list of class \code{"CRTspat"} containing latitudes and longitudes in decimal degrees
+#' @param trial A list of class \code{"CRTsp"} containing latitudes and longitudes in decimal degrees
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
 #' @details The output object contains the input locations replaced with Cartesian
 #'   coordinates in units of km, centred on (0,0). Other data are unchanged.
 #'   The equirectangular projection (valid for small areas) is used for the calculations.
-#' @returns A list of class \code{"CRTspat"} containing the following components:
+#' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
 #'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
 #'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
 #'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
+#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -333,7 +388,7 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   if (identical(class(trial),"data.frame")){
     CRT <- list(trial = trial, design = NULL)
-    class(CRT) <- "CRTspat"
+    class(CRT) <- "CRTsp"
   } else {
     CRT <- trial
     trial <- CRT$trial
@@ -349,7 +404,7 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   trial$x <- R * (longradians - meanlong)
   drops <- c("lat", "long")
   trial <- trial[, !(names(trial) %in% drops)]
-  CRT <- CRTspat(trial, design = NULL)
+  CRT <- CRTsp(trial, design = NULL)
   return(CRT)
 }
 
@@ -357,18 +412,11 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 #' Anonymize locations of a trial site
 #'
 #' \code{anonymize.site} Transforms coordinates to maintain confidentiality
-#' @param trial \code{"CRTspat"} object or trial data frame with co-ordinates of
+#' @param trial \code{"CRTsp"} object or trial data frame with co-ordinates of
 #'   households
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
-#' @returns A list of class \code{"CRTspat"} containing the following components:
-#'  \tabular{llll}{
-#'  \code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTspat"} object or data frame \cr
-#'  }
+#' @returns A list of class \code{"CRTsp"} containing the following components:
 #' @export
 #' @details
 #' The coordinates are transformed in order to obscure geographical information, to support confidentiality of
@@ -383,7 +431,7 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 anonymize.site <- function(trial, latvar = "lat", longvar = "long") {
     # Local data from study area (ground survey and/or satellite
     # images) random rotation angle
-    CRT <- CRTspat(trial)
+    CRT <- CRTsp(trial)
     trial <- CRT$trial
     if (latvar %in% colnames(trial)) {
       CRT <- latlong_as_xy(trial)
@@ -411,7 +459,7 @@ anonymize.site <- function(trial, latvar = "lat", longvar = "long") {
     trial$y <- recentred[2, ]
 
     CRT$trial <- trial
-    return(CRTspat(CRT))
+    return(CRTsp(CRT))
 }
 
 
@@ -445,25 +493,25 @@ readdata <- function(filename) {
       sourced <- source(file = paste0(extdata, "/", fname))
       robject <- sourced$value
     }
-    if (unlist(gregexpr("CRT", fname)) > 0) robject <- CRTspat(robject)
+    if (unlist(gregexpr("CRT", fname)) > 0) robject <- CRTsp(robject)
     return(robject)
 }
 
-is_CRTspat <- function(x) {
-  return(inherits(x, "CRTspat"))
+is_CRTsp <- function(x) {
+  return(inherits(x, "CRTsp"))
 }
 
-#' Summary description of CRTspat object
-#' \code{summary.CRTspat} provides a description of a \code{"CRTspat"} object
-#' @param x an object of class \code{"CRTspat"} or a data frame containing locations in (x,y) coordinates, cluster
+#' Summary description of CRTsp object
+#'
+#' \code{summary.CRTsp} provides a description of a \code{"CRTsp"} object
+#' @param object an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.
 #' @param maskbuffer radius of area around a location to include in calculation of areas
-#' @param ... other arguments used by print
+#' @param ... other arguments used by summary
 #' @export
 #'
-summary.CRTspat <- function(x, maskbuffer = 0.2, ...) {
-  object <- x
+summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
   cat("===============================CLUSTER RANDOMISED TRIAL ===========================\n")
   output <- matrix("  ", nrow = 22, ncol = 2)
   rownames(output) <- paste0("row ", 1:nrow(output))

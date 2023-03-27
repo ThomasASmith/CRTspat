@@ -67,9 +67,9 @@ Examples of the workflow for each use case are as follows:
 [Anonymising input locations (if required for sharing reference datasets)](../reference/anonymize.site.html)
 
 
-    Step J: specify or compute cluster boundaries
+specify or compute cluster boundaries
 
-    Step K: Random assignment of clusters to arms
+ Random assignment of clusters to arms
 
 ## Package functions
 

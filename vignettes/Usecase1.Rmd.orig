@@ -19,11 +19,11 @@ devtools::install(build_vignettes = TRUE)
 
 The way in which clusters are assigned in cluster randomized trials (CRTs) can profoundly affect the efficiency of the trial. Allocating clusters by algorithm makes it easy to generate alternative cluster allocations for any given trial site, both for real-world trials and for exploring this neglected aspect of trial design in simulations. The `CRTspat` package contains R functions developed for this purpose.
 
-Input to the package is in the form of a data frame with one record for each geo-location in a trial area. Most of the functions of the package return a list of class `CRTspat`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. Objects of class `CRTspat` can also be used as input to most of the functions.
+Input to the package is in the form of a data frame with one record for each geo-location in a trial area. Most of the functions of the package return a list of class `CRTsp`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. Objects of class `CRTsp` can also be used as input to most of the functions.
 
-After each step, `summary` can be used to provide a description of the output `CRTspat` object and `plot` can be used to output a descriptive plot, or a map of the locations, clusters, arms, buffer zones or other geographically structured analysis results.
+After each step, `summary` can be used to provide a description of the output `CRTsp` object and `plot` can be used to output a descriptive plot, or a map of the locations, clusters, arms, buffer zones or other geographically structured analysis results.
 
-+ In general the package functions do not expect to find repeated values for outcomes for the same location. The `aggregateCRT` function is used to aggregate data with the same co-ordinates so that this condition is satisfied. In particular, if the input database contains outcome data (e.g. if it contains baseline survey results), these should be provided in the form of a numerator `base_num` and denominator `base_denom` for each record. These values will be summed by `aggregateCRT` over all records with the same co-ordinates. An object of class `CRTspat` is output.
++ In general the package functions do not expect to find repeated values for outcomes for the same location. The `aggregateCRT` function is used to aggregate data with the same co-ordinates so that this condition is satisfied. In particular, if the input database contains outcome data (e.g. if it contains baseline survey results), these should be provided in the form of a numerator `base_num` and denominator `base_denom` for each record. These values will be summed by `aggregateCRT` over all records with the same co-ordinates. An object of class `CRTsp` is output.
 
 + The `specify_clusters` function carries out algorithmic assignment of clusters and outputs a `trial` data frame augmented with the cluster assignments. One of three different algorithms must be selected:
   + `algorithm = "NN"` implements a [nearest neighbour algorithm](https://en.wikipedia.org/wiki/Nearest-neighbor_chain_algorithm) which takes a collection of points as input, and creates clusters of points by repeatedly merging in points to form larger clusters. This is the default option.
@@ -44,8 +44,8 @@ library(CRTspat)
 example_locations <- readdata('example_site.csv')
 # assign the denominator to the baseline data
 example_locations$base_denom <- 1
-# convert to a `CRTspat` object
-exampleCRT <- CRTspat(example_locations)
+# convert to a `CRTsp` object
+exampleCRT <- CRTsp(example_locations)
 summary(exampleCRT)
 # Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
 # auxiliary variables

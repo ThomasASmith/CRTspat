@@ -2,7 +2,7 @@
 #'
 #' \code{CRTpower} carries out power and sample size calculations for CRTs.
 #'
-#' @param trial dataframe or \code{'CRTspat'} object containing Cartesian coordinates of locations in columns 'x' and 'y'.
+#' @param trial dataframe or \code{'CRTsp'} object containing Cartesian coordinates of locations in columns 'x' and 'y'.
 #' @param locations numeric: total number of units available for randomization (required if \code{trial} is not specified)
 #' @param alpha numeric: confidence level
 #' @param desiredPower numeric: desired power
@@ -20,34 +20,20 @@
 #' @param ICC numeric: Intra-Cluster Correlation
 #' @param k integer: number of clusters in each arm (required if \code{trial} is not specified)
 #' @param sd_h standard deviation of number of units per cluster (required if \code{trial} is not specified)
-#' @returns A list of class \code{'CRTspat'} object comprising the input data, cluster and arm assignments,
+#' @returns A list of class \code{'CRTsp'} object comprising the input data, cluster and arm assignments,
 #' trial description and results of power calculations
-#'  \tabular{llll}{
-#'  \code{design} \tab list \tab specification of the design\tab\cr
-#'  \code{geom_full}   \tab list \tab summary statistics describing the site,
-#'  cluster assignments, randomization, and power calculations.\tab\cr
-#'  \code{geom_core}   \tab list \tab summary statistics describing the cluster core,
-#'   and corresponding power calculations.\tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \tab \code{arm} \tab factor \tab assignments to \code{'control'} or \code{'intervention'} for each location \cr
-#'  \tab \code{buffer} \tab logical \tab indicator of whether the point is within the buffer \cr
-#'  \tab \code{...} \tab other objects included in the input \code{'CRTspat'} object or data frame \cr
-#'  }
 #' @export
 #' @details
-#' #' Power and sample size calculations are for a two-arm trial using the formulae of
+#' Power and sample size calculations are for a two-arm trial using the formulae of
 #' [Hemming et al, 2011](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102) which use a
 #' normal approximation for the inter-cluster variation. For counts
 #' or event rate data a quasi–Poisson model is assumed. The functions do not consider any loss
 #' in power due to contamination, loss to follow-up etc.
 #' If geolocations are not input power and sample size calculations are based on the scalar input parameters.
-#' If a trial dataframe or \code{'CRTspat'} object containing a pre-existing randomization is input then the
+#' If a trial dataframe or \code{'CRTsp'} object containing a pre-existing randomization is input then the
 #' numbers and sizes of clusters are in the input data are used to estimate the power. If buffer zones have been specified
 #' then separate calculations are made for the core area and for the full site\cr
-#' The output is an object of class \code{'CRTspat'} containing any input trial data.frame and values for:
+#' The output is an object of class \code{'CRTsp'} containing any input trial data.frame and values for:
 #' - The required numbers of clusters to achieve the specified power.\cr
 #' - The design effect based on the input ICC.\cr
 #' - Calculations of the nominal power (ignoring any bias caused by contamination effects)\cr
@@ -62,7 +48,7 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
     effect = NULL, yC = NULL, outcome_type = "d", sigma2 = NULL, phi = 1,
     N = 1, ICC = NULL, k = NULL, sd_h = 0) {
 
-    CRT <- CRTspat(trial)
+    CRT <- CRTsp(trial)
 
     # populate a design list with a data about the input trial (if
     # available) and the input parameters
@@ -84,13 +70,13 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
             " ***")
         return()
     }
-    CRT <- CRTspat(CRT, design = design)
+    CRT <- CRTsp(CRT, design = design)
 }
 
 
 # Characteristics of a trial design. The input is a data frame or
-# CRTspat object. The output list conforms to the requirements for a
-# CRTspat object
+# CRTsp object. The output list conforms to the requirements for a
+# CRTsp object
 get_geom <- function(trial = NULL, design = NULL) {
 
     sd_distance <- clustersRequired <- DE <- power <- NULL

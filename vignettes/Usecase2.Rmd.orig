@@ -16,11 +16,10 @@ knitr::knit("vignettes/Usecase2.Rmd.orig", output = "vignettes/Usecase2.Rmd")
 rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 -->
-### Use Case 2: Simulation of trials with spillover effects
-
 Effects of settlement patterns, choices of cluster size and buffer widths, and the extent of contamination between arms on the outcomes of CRTs do not lend themselves to mathematical analysis. Simulations of trials are used to explore the effects of these variables on trial power and on the robustness of statistical methodologies.
 
-Trials can be simulated using the `simulateCRT` function, which augments a `trial` data frame (created externally) or object of class `CRT` (created by package functions) with simulated outcome data.  The input object must contain location information and both cluster and arm assignments (see [Use Case 1](Usecase1.html)).
+Trials can be simulated using the `simulateCRT` function, which augments a `trial` data frame (created externally) or object of class `CRTsp` (created by package functions) with simulated outcome data.  The input object must be given location information and both cluster and arm assignments (see [Use Case 1](Usecase1.html)) (or the package can
+generate these if the objective is purely simulation.
 
 Information about the underlying spatial pattern of disease is used in the form of the intra-cluster correlation of the outcome, which is input to the simulation as variable `ICC_inp`, and of the `propensity`. The former takes a single value for the chosen design. The latter takes a positive real value for each location. In the case of malaria, `propensity` can be thought of as measuring exposure to infectious mosquitoes.
 
@@ -33,7 +32,7 @@ function depends on which variables are supplied, and the value of `generateBase
 |Baseline data are supplied by user and `propensity` is not supplied |`propensity` is created from the baseline data|
 |Neither baseline data nor `propensity` are supplied |`propensity` is generated as a normal kernel, with the bandwidth adjusted to achieve the input value of the `ICC_inp` (after the further smoothing stage to simulate contamination)|
 
-Contamination or spillover between trial arms is modelled as a additional smoothing process applied to the `propensity` via a normal kernel. In the case of malaria this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a contamination range with the `theta_inp` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. In either case,
+Contamination or spillover between trial arms is modelled as a additional smoothing process applied to the `propensity` via a normal kernel. In the case of malaria this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a contamination range with the `theta_inp` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. If both are provided then it is the value of `theta_inp` that is used.
 
 #### Example with baseline data provided as proportions
 ```{r example2a.r, fig.keep = 'none',echo=TRUE}
@@ -42,7 +41,7 @@ set.seed(1234)
 example_locations <- readdata('example_site.csv')
 example_locations$base_denom <- 1
 library(dplyr)
-example_randomized <- CRTspat(example_locations) %>%
+example_randomized <- CRTsp(example_locations) %>%
   aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom")) %>%
   specify_clusters(h = 50, algorithm = 'NN') %>%
   randomizeCRT(matchedPair = FALSE)
@@ -85,11 +84,11 @@ example2a.r-1.png
 ```{r example2b.r, fig.keep = 'none', echo = TRUE}
 set.seed(1234)
      # Simulate a site with 2000 locations
-     new_site <- simulate_site(geoscale = 2, locations=2000, kappa=3, mu=40)
+     new_site <- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40)
      # propensity surface generated as an arbitrary linear function of x the co-ordinate
      new_site$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
      library(dplyr)
-     example2b<- CRTspat(new_site) %>%
+     example2b<- CRTsp(new_site) %>%
        specify_clusters(h = 40, algorithm = 'NN') %>%
        randomizeCRT(matchedPair = FALSE) %>%
        simulateCRT(example_simulated,

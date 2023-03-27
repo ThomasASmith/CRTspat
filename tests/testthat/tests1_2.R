@@ -3,7 +3,7 @@ test_that("designCRT() creates the default trial", {
   get_test1 = function(){
     test_locationsLatLong <- readdata("example_latlong.csv")
     testLocationsxy <- latlong_as_xy(test_locationsLatLong)
-    test_buffered <- CRTspat(testLocationsxy) %>%
+    test_buffered <- CRTsp(testLocationsxy) %>%
       specify_clusters(h = 50, algorithm = 'NN') %>%
       randomizeCRT(matchedPair = FALSE) %>%
       specify_buffer(buffer.width = 0.05)
@@ -25,14 +25,12 @@ test_that("designCRT() creates the default trial", {
 })
 
 set.seed(1234)
-test_that("simulate_site() creates the default site", {
+test_that("CRTsp() creates the default site", {
   get_test2 = function(){
-    CRT <- simulate_site(geoscale = 0.5,
+    CRT <- CRTsp(geoscale = 0.5,
                         locations = 5,
                         kappa = 4,
                         mu = 50)
-    # To recreate test file
-    # write.csv(trial, file = "inst/extdata/test_site.csv", row.names = FALSE)
     return(round(CRT$trial$x[3]*1000))
   }
   expect_equal(get_test2(),-309)
