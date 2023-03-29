@@ -189,18 +189,23 @@ validate_CRTsp <- function(x) {
   return(x)
 }
 
+plt <- function(object) {
+  UseMethod("plt")
+}
+
+
 #' Create or update a \code{"CRTsp"} object
 #'
 #' \code{CRTsp} coerces data frames containing co-ordinates and location attributes
 #' into objects of class \code{"CRTsp"} or creates a new \code{"CRTsp"} object by simulating a set of Cartesian co-ordinates for use as the locations in a simulated trial site
 #' @param x an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
-#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.
 #' @param design list: an optional list containing the requirements for the power of the trial
-#' @param geoscale standard deviation of random displacement from each settlement cluster center
-#' @param locations number of locations in population
-#' @param kappa intensity of Poisson process of settlement cluster centers
-#' @param mu mean  number of points per settlement cluster
+#' @param geoscale standard deviation of random displacement from each settlement cluster center (for new objects)
+#' @param locations number of locations in population (for new objects)
+#' @param kappa intensity of Poisson process of settlement cluster centers (for new objects)
+#' @param mu mean  number of points per settlement cluster (for new objects)
 #' @export
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{llll}{
@@ -215,7 +220,6 @@ validate_CRTsp <- function(x) {
 #'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
 #'  \tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
 #'  \tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @details
@@ -501,7 +505,7 @@ is_CRTsp <- function(x) {
   return(inherits(x, "CRTsp"))
 }
 
-#' Summary description of CRTsp object
+#' Summary description of a \code{"CRTsp"} object
 #'
 #' \code{summary.CRTsp} provides a description of a \code{"CRTsp"} object
 #' @param object an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
@@ -509,6 +513,7 @@ is_CRTsp <- function(x) {
 #'   any other variables required for subsequent analysis.
 #' @param maskbuffer radius of area around a location to include in calculation of areas
 #' @param ... other arguments used by summary
+#' @method summary CRTsp
 #' @export
 #'
 summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
@@ -540,7 +545,7 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     cat("Total area (within ", maskbuffer,"km of a location) : ", format(area, digits = 3), "sq.km\n\n")
   }
   rownames(output)[5] <- "Available clusters (across both arms)                 "
-  if (identical(object$geom_full$locations, 0)) {
+  if (is.na(object$geom_full$k)) {
     output[5, 1] <- "Not assigned"
   } else {
     clustersAvailableFull <- with(object$geom_full, floor(locations/mean_h))

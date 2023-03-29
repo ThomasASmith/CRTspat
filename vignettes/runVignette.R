@@ -6,18 +6,19 @@
 # as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
 # to run the vignettes, execute the code from the vignettes via:
 
-detach("package:CRTspat", unload = TRUE)
+library(CRTspat)
 knitr::opts_chunk$set(error=FALSE)
 knitr::knit("vignettes/CRTspat.Rmd.orig", output = "vignettes/CRTspat.Rmd")
 knitr::knit("vignettes/Usecase1.Rmd.orig", output = "vignettes/Usecase1.Rmd")
 knitr::knit("vignettes/Usecase2.Rmd.orig", output = "vignettes/Usecase2.Rmd")
 knitr::knit("vignettes/Usecase3.Rmd.orig", output = "vignettes/Usecase3.Rmd")
 knitr::knit("vignettes/Usecase4.Rmd.orig", output = "vignettes/Usecase4.Rmd")
+knitr::knit("vignettes/Usecase5.Rmd.orig", output = "vignettes/Usecase5.Rmd")
 knitr::knit("vignettes/Usecase7.Rmd.orig", output = "vignettes/Usecase7.Rmd")
 # knitr::knit("vignettes/Usecase5.Rmd.orig", output = "vignettes/Usecase5.Rmd")
 rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
-
+detach("package:CRTspat", unload = TRUE)
 # to build package website
 usethis::use_pkgdown()
 pkgdown::build_site()

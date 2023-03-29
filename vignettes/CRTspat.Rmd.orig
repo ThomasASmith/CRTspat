@@ -24,31 +24,15 @@ devtools::install(build_vignettes = TRUE)
 The `CRTspat` package is intended to support the design and analysis of cluster-randomized trials (CRTs) where there is geographical contamination between the arms. It can also be used in simulation of such CRTs to support development of improved methodology. An important set of applications is in field trials of vector-control interventions against malaria.
 
 The package can facilitate design of efficient trials by providing algorithms for:
-+ algorithmic assignment of clusters (and buffer zones)
-+ analysis of the effects of spill-over
++ algorithmic assignment of clusters (and buffer zones), and analysis of the implications of different choices.
++ analysis of the effects of contamination between arms
 + simulation of trials based on the geography of previously studied field sites and trials, and observed spatial patterns of outcomes, or on geographical information from novel sites.
 
-The function `CRTanalysis` is a wrapper for the statistical analysis packages:
-
-+ [geepack](https://www.jstatsoft.org/article/view/v015i02)
-+ [INLA](https://www.r-inla.org/)
-+ [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html)
-+ and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) function in the `stats` package
-
-The methods are described in the papers [Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
+The package builds on the work of [Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
 
 ##  Anticipated use cases
 
-+ Algorithmic definition of clusters and of buffer zones (if required)
-+ Simulation of trials (for evaluating power and testing methods)
-+ Analysis of trials allowing for spillover effects
-+ Determination of optimal cluster size
-+ Determining the effects of different sizes of buffer zones
-+ Estimation of intracluster correlations (ICC), contamination ranges and efficacy
-+ Power and sample size calculations allowing for contamination
-+ Anonymising input locations (if required for sharing reference datasets).
-
-Examples of the workflow for each use case are as follows:
+Examples are provided of the workflow for different use cases, as follows:
 
 [1. Algorithmic definition of clusters and of buffer zones](Usecase1.html)
 
@@ -60,16 +44,11 @@ Examples of the workflow for each use case are as follows:
 
 [5. Analysis of trials (including methods for analysing contamination)](Usecase5.html)
 
-+ Determining the effects of different sizes of buffer zones
-
 + Power and sample size calculations allowing for contamination
 
-[Anonymising input locations (if required for sharing reference datasets)](../reference/anonymize.site.html)
+[7: Preparation of datasets for `CRTspat`](Usecase7.html)
 
-
-specify or compute cluster boundaries
-
- Random assignment of clusters to arms
+[8: Anonymising input locations (if required for sharing reference datasets)](../reference/anonymize.site.html)
 
 ## Package functions
 

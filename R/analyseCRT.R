@@ -79,15 +79,15 @@ CRTanalysis <- function(
     resamples = 10000, requireMesh = FALSE, inla_mesh = NULL)
     {
     # Test of validity of inputs
-    if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA"))
+    if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4"))
         {
-        cat("Error: Invalid value for statistical method\n")
+        stop("*** Invalid value for statistical method ***")
         return(NULL)
     }
 
-    if (!cfunc %in% c("S", "L", "P", "X"))
+    if (!cfunc %in% c("S", "L", "P", "X", "Z"))
         {
-        cat("Error: Invalid contamination function\n")
+        stop("*** Invalid contamination function ***")
         return(NULL)
     }
 
@@ -108,19 +108,14 @@ CRTanalysis <- function(
         trial <- trial[!trial$buffer, ]
     }
 
-
     # trial needs to be ordered for some analyses
     if(!is.null(trial$cluster)) trial <- trial[order(trial$cluster), ]
-
-    # create skeleton for output object
-    analysis <- list(trial = trial, pt_ests = list(), int_ests = list())
-    model_object <- list()
 
     # Some statistical methods do not allow for contamination
     if (method %in% c("EMP", "T", "GEE")) cfunc <- "X"
 
     if (baselineOnly){
-        if (method %in% c("EMP", "T", "GEE", "MCMC"))
+        if (method %in% c("EMP", "T", "GEE", "MCMC", "LME4"))
             {
             method <- "GEE"
             cat("Analysis of baseline only, using GEE\n")
@@ -153,40 +148,48 @@ CRTanalysis <- function(
                     alpha = alpha, baselineOnly = baselineOnly,
                     ftext = NULL)
 
-    if (method %in% c("MCMC", "INLA")) {
-        # create model formula for display even though this is only used for INLA models
-
-        fterms <- switch(link,
-                         "identity" = "y1/y_off ~ 0",
-                         "log" = "y1 ~ 0",
-                         "logit" = "y1 ~ 0"
-        )
-        fterms <- c(fterms, switch(
-            cfunc, Z = "b0",
-            X = "b0 + arm",
-            L = "b0 + pvar",
-            P = "b0 + pvar"
-        ))
-
-        if (localisedEffects & cfunc != 'X')
-            fterms <- c(fterms, "arm")
-        if (clusterEffects)
-            fterms <- c(fterms, "f(cluster, model = \'iid\')")
-        if (spatialEffects)
-            fterms <- c(fterms, "f(s, model = spde)")
-        if (link == 'log')
-            fterms <- c(fterms, "f(id, model = \'iid\')")
-        options$ftext <- paste(fterms, collapse = " + ")
-    }
+    # create scaffolds for lists
     pt_ests <- list(contamination.par = NA, pr.contaminated = NA, contamination.interval = NA)
     int_ests <- list(controlY = NA, interventionY = NA, effect.size = NA)
+    model_object <- list()
     description <- get_description(trial=trial, link=link, baselineOnly)
+    analysis <- list(trial = trial, pt_ests = pt_ests, int_ests = int_ests)
+
+    # create model formula for display even though this is not used for MCMC models
+    fterms <- switch(cfunc,
+        Z = "",
+        X = "arm",
+        L = "pvar",
+        P = "pvar",
+        S = "pvar"
+    )
+
+    if (localisedEffects & cfunc != 'X') fterms <- c(fterms, "arm")
+    if (clusterEffects) {
+        if (identical(method, "INLA")) {
+            fterms <- c(fterms, "f(cluster, model = \'iid\')")
+        } else if(identical(method, "GEE")) {
+            fterms <- fterms
+        } else {
+            fterms <- c(fterms, "(1 | cluster)")
+        }
+    }
+    if (identical(method, "INLA")){
+        if (spatialEffects) fterms <- c(fterms, "f(s, model = spde)")
+        if (identical(link,"log")) fterms <- c(fterms, "f(id, model = \'iid\')")
+    }
+    options$ftext <- paste(fterms, collapse = " + ")
+
+    # TODO: remove the duplication and simplify here
     # Specify the function used for calculating the linear predictor
     LPfunction <- c(
         "CalculateNoEffect", "CalculateNoContaminationFunction", "CalculatePiecewiseLinearFunction",
         "CalculateLogisticFunction", "CalculateProbitFunction")[which(cfunc == c("Z", "X", "S", "L", "P"))]
-    FUN2 <- FUN1 <- eval(parse(text = LPfunction))
-
+    FUN1 <- eval(parse(text = LPfunction))
+    # specify functional form of sigmoid in distance from boundary 'L' inverse logit; 'P' inverse probit; 'X'
+    # or 'Z' do not model contamination
+    FUN <- switch(
+        cfunc, L = "invlink(link='logit', x)", P = "stats::pnorm(x)", X = NULL, Z = NULL)
 
     if (method == "EMP"){
         pt_ests$controlY <- unname(description$controlY)
@@ -237,32 +240,27 @@ CRTanalysis <- function(
         }
     } else if (method == "GEE") {
         # GEE analysis of cluster effects
-
-        if (link == "log")
-        {
-            fterms <- ifelse(
-                cfunc == "Z", "y1 ~ 1 + offset(log(y_off))", "y1 ~ arm + offset(log(y_off))")
-            formula <- stats::as.formula(fterms)
-            fit <- geepack::geeglm(
+        fterms <- c(switch(link,
+                     "identity" = "y1/y_off ~ 1",
+                     "log" = "y1 ~ 1 + offset(log(y_off))",
+                     "logit" = "cbind(y1,y0) ~ 1"),
+                    fterms)
+        formula <- stats::as.formula(paste(fterms, collapse = "+"))
+        if (link == "log") {
+            model_object <- geepack::geeglm(
                 formula = formula, id = cluster, data = trial, family = poisson(link = "log"),
                 corstr = "exchangeable", scale.fix = FALSE)
         } else if (link == "logit") {
-            fterms <- ifelse(cfunc == "Z", "cbind(y1,y0) ~ 1", "cbind(y1,y0) ~ arm")
-            formula <- stats::as.formula(fterms)
-            fit <- geepack::geeglm(
+            model_object <- geepack::geeglm(
                 formula = formula, id = cluster, corstr = "exchangeable",
                 data = trial, family = binomial(link = "logit"))
         } else if (link == "identity") {
-            fterms <- ifelse(cfunc == "Z", "y1/y_off ~ 1", "y1/y_off ~ arm")
-            formula <- stats::as.formula(fterms)
-            fit <- geepack::geeglm(
+            model_object <- geepack::geeglm(
                 formula = formula, id = cluster, corstr = "exchangeable",
-                data = trial, family = gaussian
-            )
+                data = trial, family = gaussian)
         }
-        options$ftext <- paste(fterms, collapse = " + ")
 
-        summary.fit <- summary(fit)
+        summary.fit <- summary(model_object)
 
         z <- -qnorm(alpha/2)  #standard deviation score for calculating confidence intervals
         lp_yC <- summary.fit$coefficients[1, 1]
@@ -272,14 +270,12 @@ CRTanalysis <- function(
 
 
         # remove the temporary objects from the dataframe
-        fit$model_object$data$y1 <- fit$model_object$data$y0 <- fit$model_object$data$y_off <- NULL
+        model_object$data$y1 <- model_object$data$y0 <- model_object$data$y_off <- NULL
         pt_ests$controlY <- invlink(link, lp_yC)
         int_ests$controlY <- namedCL(
             invlink(link, c(lp_yC - z * se_lp_yC, lp_yC + z * se_lp_yC)),
             alpha = alpha
         )
-
-        model_object <- fit
 
         # Intracluster correlation
         pt_ests$ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
@@ -293,13 +289,13 @@ CRTanalysis <- function(
 
         # Estimation of effect.size does not apply if analysis is of baseline only (cfunc='Z')
         pt_ests$effect.size <- NULL
-        if (cfunc == "X")
-        {
+        if (cfunc == "X") {
             lp_yI <- summary.fit$coefficients[1, 1] + summary.fit$coefficients[2,
                 1]
             se_lp_yI <- sqrt(
-                fit$geese$vbeta[1, 1] + fit$geese$vbeta[2, 2] + 2 * fit$geese$vbeta[1,
-                  2]
+                model_object$geese$vbeta[1, 1] +
+                model_object$geese$vbeta[2, 2] +
+                2 * model_object$geese$vbeta[1,2]
             )
 
             int_ests$interventionY <- namedCL(
@@ -307,14 +303,48 @@ CRTanalysis <- function(
                 alpha = alpha)
 
             int_ests$effect.size <- estimateCLeffect.size(
-                mu = summary.fit$coefficients[, 1], Sigma = fit$geese$vbeta,
+                mu = summary.fit$coefficients[, 1], Sigma = model_object$geese$vbeta,
                 alpha = alpha, resamples = resamples, method = method,
                 link = link)
 
             pt_ests$interventionY <- invlink(link, lp_yI)
             pt_ests$effect.size <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
         }
+    } else if (method == "LME4"){
+        dummy <- 'rabbit'
 
+        beta <- NA
+        if (cfunc %in% c("L", "P")) {
+            if (identical(Sys.getenv("TESTTHAT"), "true") | 2 == 2) {
+                beta <- 2.0
+            } else {
+                cat("Estimating scale parameter for contamination range", "\n")
+#                beta <- stats::optimize(
+#                    f = estimateContaminationLME4, interval = c(-10, 10),
+#                    trial = trial, FUN = FUN, formula = formula,
+#                    tol = 0.1, link = link)$minimum
+                beta <- 3.0
+            }
+            x <- trial$nearestDiscord * exp(beta)
+            trial$pvar <- eval(parse(text = FUN))
+            # set up linear contrasts (not required for cfunc='X' or 'Z')
+        }
+        if (link == "log") {
+            fterms <- c(fterms,"offset(log(y_off))")
+            formula <- stats::as.formula(paste(fterms, collapse = "+"))
+            model_object <-lme4::glmer(formula = formula, data = trial,
+                                       family = quasipoisson)
+        } else if (link == "logit") {
+            fterms <- c(fterms,"cbind(y1,y0) ~ 1", "cbind(y1,y0) ~ arm")
+            formula <- stats::as.formula(paste(fterms, collapse = "+"))
+            model_object <-lme4::glmer(formula = formula, data = trial,
+                                 family = binomial)
+        } else if (link == "identity") {
+            fterms <- ifelse(cfunc == "Z", "y1/y_off ~ 1", "y1/y_off ~ arm")
+            formula <- stats::as.formula(paste(fterms, collapse = "+"))
+            model_object <-lme4::glmer(formula = formula, data = trial,
+                                       family = gaussian)
+        }
     # MCMC Methods
     } else if (method == "MCMC"){
         nchains <- 2
@@ -360,7 +390,7 @@ CRTanalysis <- function(
         )
 
         # construct linear predictor
-        text4 <- "lp[i] <- b0 + arm * pvar[i]"
+        text4 <- "lp[i] <- int + arm * pvar[i]"
         text5 <- ifelse(clusterEffects,
             " + gamma[cluster[i]] \n
             }\n
@@ -374,22 +404,22 @@ CRTanalysis <- function(
             "beta ~ dnorm(0, 1E-1) \n
             ebeta <- exp(beta) \n
             alpha <- 0.05 \n
-            b0 ~ dnorm(0, 1E-2) \n
+            int ~ dnorm(0, 1E-2) \n
             arm ~ dnorm(0, 1E-2) \n"
 
         text7 <- switch(link,
-                        "identity" = "yC <- b0 \n
-                                      yI <- b0 + arm \n
+                        "identity" = "yC <- int \n
+                                      yI <- int + arm \n
                                       tau1 <- 1/(sigma1 * sigma1) \n
                                       sigma1 ~ dunif(0, 2) \n
                                       Es <- yC - yI \n",
-                        "log" = "yC <- exp(b0) \n
-                                 yI <- exp(b0 + arm) \n
+                        "log" = "yC <- exp(int) \n
+                                 yI <- exp(int + arm) \n
                                  tau1 <- 1/(sigma1 * sigma1) \n
                                  sigma1 ~ dunif(0, 2) \n
                                  Es <- 1 - yI/yC \n",
-                        "logit" = "yC <- 1/(1 + exp(-b0)) \n
-                                   yI <- 1/(1 + exp(-(b0 + arm))) \n
+                        "logit" = "yC <- 1/(1 + exp(-int)) \n
+                                   yI <- 1/(1 + exp(-(int + arm))) \n
                                    Es <- 1 - yI/yC \n"
         )
 
@@ -421,7 +451,12 @@ CRTanalysis <- function(
     # INLA methods
     } else if (method == "INLA")
         {
-
+        if (identical(link,"identity")) {
+            fterms <- c("y1/y_off ~ 0 + int", fterms)
+        } else {
+            fterms <- c("y1 ~ 0 + int", fterms)
+        }
+        formula <- stats::as.formula(paste(fterms, collapse = "+"))
         trial <- dplyr::mutate(trial, id =  dplyr::row_number())
         # If spatial predictions are not required a minimal mesh is generated
         pixel <- 0.5
@@ -432,37 +467,29 @@ CRTanalysis <- function(
                     maskbuffer = 0.5, pixel = pixel)
         }
         y_off <- NULL
-        # specify functional form of sigmoid in distance from boundary 'L' inverse logit; 'P' inverse probit; 'X'
-        # or 'Z' do not model contamination
-        FUN <- switch(
-            cfunc, L = "invlink(link='logit', x)", P = "stats::pnorm(x)", X = NULL, Z = NULL)
-
-        formula <- stats::as.formula(options$ftext)
-
         spde <- inla_mesh$spde
         df = data.frame(
-            b0 = rep(1, nrow(trial)),
+            int = rep(1, nrow(trial)),
             id = trial$id)
-        if ("b0 + arm" %in% fterms | "arm" %in% fterms) df$arm = ifelse(trial$arm == "intervention", 1, 0)
+        if ("int + arm" %in% fterms | "arm" %in% fterms) df$arm = ifelse(trial$arm == "intervention", 1, 0)
         if ("f(cluster, model = \'iid\')" %in% fterms) df$cluster = trial$cluster
         effectse <- list(df = df, s = inla_mesh$indexs)
         dfp = data.frame(
-            b0 = rep(1, nrow(inla_mesh$prediction)),
+            int = rep(1, nrow(inla_mesh$prediction)),
             id = inla_mesh$prediction$id)
-        if ("b0 + arm" %in% fterms | "arm" %in% fterms) dfp$arm = ifelse(inla_mesh$prediction$arm == "intervention", 1, 0)
+        if ("int + arm" %in% fterms | "arm" %in% fterms) dfp$arm = ifelse(inla_mesh$prediction$arm == "intervention", 1, 0)
         if ("f(cluster, model = \"iid\")" %in% fterms) dfp$cluster = inla_mesh$prediction$cluster
         effectsp <- list(df = dfp, s = inla_mesh$indexs)
 
         lc <- NULL
         beta <- NA
-        if (cfunc %in% c("L", "P"))
-            {
+        if (cfunc %in% c("L", "P")) {
             if (identical(Sys.getenv("TESTTHAT"), "true")) {
                 beta <- 2.0
             } else {
                 cat("Estimating scale parameter for contamination range", "\n")
                 beta <- stats::optimize(
-                    f = estimateContamination, interval = c(-10, 10),
+                    f = estimateContaminationINLA, interval = c(-10, 10),
                     trial = trial, FUN = FUN, inla_mesh = inla_mesh, formula = formula,
                     tol = 0.1, link = link)$minimum
             }
@@ -478,14 +505,14 @@ CRTanalysis <- function(
             # set up linear contrasts (not required for cfunc='X' or 'Z')
             if (grepl("pvar", options$ftext, fixed = TRUE))
                 {
-                lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1)
+                lc <- INLA::inla.make.lincomb(int = 1, pvar = 1)
                 if (grepl("arm", options$ftext, fixed = TRUE))
                   {
-                  lc <- INLA::inla.make.lincomb(b0 = 1, pvar = 1, arm = 1)
+                  lc <- INLA::inla.make.lincomb(int = 1, pvar = 1, arm = 1)
                 }
             } else if (grepl("arm", options$ftext, fixed = TRUE))
                 {
-                lc <- INLA::inla.make.lincomb(b0 = 1, arm = 1)
+                lc <- INLA::inla.make.lincomb(int = 1, arm = 1)
             }
         }
         # stack for estimation stk.e
@@ -549,23 +576,23 @@ CRTanalysis <- function(
             # Specify the covariance matrix of the variables
             cov <- inla_result$misc$lincomb.derived.covariance.matrix
             sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
-            sample$controlY <- invlink(link, sample$b0)
+            sample$controlY <- invlink(link, sample$int)
             # pr.contaminated is the proportion of effect subject to contamination
             if ("arm" %in% names(mu) &
                 "pvar" %in% names(mu))
                   {
                 sample$interventionY <- invlink(link, sample$lc)
                 sample$pr.contaminated <- with(
-                  sample, 1 - (controlY - invlink(link, b0 + arm))/(controlY -
+                  sample, 1 - (controlY - invlink(link, int + arm))/(controlY -
                     interventionY)
               )
             } else if ("arm" %in% names(mu))
                 {
-                sample$interventionY <- invlink(link, sample$b0 + sample$arm)
+                sample$interventionY <- invlink(link, sample$int + sample$arm)
                 sample$pr.contaminated <- 0
             } else if ("pvar" %in% names(mu))
                 {
-                sample$interventionY <- invlink(link, sample$b0 + sample$pvar)
+                sample$interventionY <- invlink(link, sample$int + sample$pvar)
                 sample$pr.contaminated <- 1
             }
             sample$effect.size <- 1 - sample$interventionY/sample$controlY
@@ -582,7 +609,7 @@ CRTanalysis <- function(
         {
             controlY <- unlist(
                 invlink(
-                  link, inla_result$summary.fixed["b0", c("0.025quant", "0.5quant", "0.975quant")]
+                  link, inla_result$summary.fixed["int", c("0.025quant", "0.5quant", "0.975quant")]
               )
             )
             bounds <- data.frame(
@@ -1095,7 +1122,7 @@ calcNearestDiscord <- function(x, trial , prediction , distM)
 }
 
 # Use profiling to estimate beta
-estimateContamination <- function(
+estimateContaminationINLA <- function(
     beta = beta, trial = trial, FUN = FUN, inla_mesh = inla_mesh, formula = formula, link = link){
     y1 <- y0 <- y_off <- NULL
     x <- trial$nearestDiscord * exp(beta)
@@ -1106,7 +1133,7 @@ estimateContamination <- function(
         A = list(1, A = inla_mesh$A),
         effects = list(
             data.frame(
-                b0 = rep(1, nrow(trial)),
+                int = rep(1, nrow(trial)),
                 arm = ifelse(trial$arm == "intervention", 1, 0),
                 pvar = trial$pvar, id = trial$id, cluster = trial$cluster
             ),
@@ -1208,6 +1235,8 @@ Tinterval <- function(x, alpha, option){
 #' \code{summary.CRTanalysis} generates a summary of a \code{CRTanalysis} including the main results
 #' @param object an object of class \code{"CRTanalysis"}
 #' @param ... other arguments used by summary
+#' @method summary CRTanalysis
+#' @export
 #'
 summary.CRTanalysis <- function(object, ...) {
     cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")

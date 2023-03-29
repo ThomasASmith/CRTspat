@@ -46,7 +46,7 @@ example_randomized <- CRTsp(example_locations) %>%
   specify_clusters(h = 50, algorithm = 'NN') %>%
   randomizeCRT(matchedPair = FALSE)
 summary(example_randomized)
-plot(example_randomized, map = TRUE)
+plotCRT(example_randomized, map = TRUE)
 example2a <- simulateCRT(example_randomized,
        effect = 0.8,
        outcome0 = 0.5,
@@ -63,8 +63,8 @@ example2aINLA <- CRTanalysis(trial=example2a,
                                  method = 'INLA', link='logit', cfunc = 'X',
                                  clusterEffects = TRUE,
                                  requireMesh = TRUE, inla_mesh = examplemesh100)
-plot(example2aINLA)
-plot(example2aINLA, map = TRUE, fill = 'prediction', showClusterBoundaries = TRUE)
+plotCRT(example2aINLA)
+plotCRT(example2aINLA, map = TRUE, fill = 'prediction', showClusterBoundaries = TRUE)
 ```
 
 <p>
@@ -99,7 +99,7 @@ example2b<- CRTsp(new_site) %>%
 summary(example2b)
 results2b <- CRTanalysis(example2b, method = 'GEE')
 summary(results2b)
-plot(example2b, map = TRUE, fill = 'clusters', showClusterLabels = TRUE, maskbuffer = 0.5)
+plotCRT(example2b, map = TRUE, fill = 'clusters', showClusterLabels = TRUE, maskbuffer = 0.5)
 ```
 <p>
     <img src="example2b.r-1.png" > <br>

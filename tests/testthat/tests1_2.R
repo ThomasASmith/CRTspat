@@ -24,8 +24,9 @@ test_that("designCRT() creates the default trial", {
   expect_equal(get_test1(),readdata("example_design.txt"))
 })
 
-set.seed(1234)
+
 test_that("CRTsp() creates the default site", {
+  set.seed(1234)
   get_test2 = function(){
     CRT <- CRTsp(geoscale = 0.5,
                         locations = 5,
@@ -33,5 +34,5 @@ test_that("CRTsp() creates the default site", {
                         mu = 50)
     return(round(CRT$trial$x[3]*1000))
   }
-  expect_equal(get_test2(),-309)
+  expect_equal(get_test2(),112)
 })

@@ -1,0 +1,5 @@
+design <-
+list(NULL, locations = 50L, alpha = 0.050000000000000003, desiredPower = 0.80000000000000004, 
+    effect = 0.59999999999999998, yC = 0.40000000000000002, outcome_type = "d", 
+    sigma2 = NA, phi = 1, N = 1, ICC = 0.17499999999999999, k = 20, 
+    sd_h = 0)

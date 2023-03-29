@@ -52,7 +52,7 @@ summary(exampleCRT)
 example <- aggregateCRT(exampleCRT, auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example)
 # Plot map of locations
-plot(example, map = TRUE, showLocations = TRUE, maskbuffer = 0.2)
+plotCRT(example, map = TRUE, showLocations = TRUE, maskbuffer = 0.2)
 ```
 <p>
   <img src="example1a.r-1.png"> <br>
@@ -65,7 +65,7 @@ the locations leads to considerable variation in the number of locations assigne
 ```{r example1b.r,  fig.keep = 'none', echo = TRUE}
 example_clustered <- specify_clusters(trial = example, h = 50, algorithm = 'NN')
 summary(example_clustered)
-plot(example_clustered, map = TRUE, showClusterLabels = TRUE, maskbuffer = 0.2, labelsize = 2)
+plotCRT(example_clustered, map = TRUE, showClusterLabels = TRUE, maskbuffer = 0.2, labelsize = 2)
 ```
 <p>
   <img src="example1b.r-1.png"> <br>
@@ -85,7 +85,7 @@ baselineanalysis <- CRTanalysis(trial=example_clustered,
                         baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom",
                         clusterEffects = FALSE, spatialEffects = TRUE,
                         requireMesh = TRUE, inla_mesh = examplemesh100)
-plot(baselineanalysis, map = TRUE, fill = 'prediction')
+plotCRT(baselineanalysis, map = TRUE, fill = 'prediction')
 ```
 <p>
   <img src="example1c.r-1.png"> <br>
@@ -99,7 +99,7 @@ then generate a randomisation based on matched pairs.
 example_randomized <- randomizeCRT(example_clustered, matchedPair = TRUE,
   baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
 summary(example_randomized)
-plot(example_randomized, map = TRUE, maskbuffer=0.2, legend.position=c(0.8,0.8))
+plotCRT(example_randomized, map = TRUE, maskbuffer=0.2, legend.position=c(0.8,0.8))
 ```
 <p>
   <img src="example1d.r-1.png"> <br>
