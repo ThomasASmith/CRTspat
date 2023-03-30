@@ -22,9 +22,9 @@ get_test9 = function(){
   inla_mesh <- readdata("examplemesh100.txt")
   analysis <- CRTanalysis(trial=example2a,
                           method = 'INLA', link='logit', cfunc='P',
-                          localisedEffects = TRUE, clusterEffects= TRUE,
+                          personalProtection = TRUE, clusterEffects= TRUE,
                           requireMesh = TRUE, inla_mesh = inla_mesh)
-  value <- round(analysis$model_object$dic$dic)
+  value <- round(analysis$pt_ests$DIC)
   return(value)}
 test_that("Analysis using INLA option gives expected DIc", {
   expect_equal(get_test9(), 1354)

@@ -24,8 +24,8 @@ The [`CRTanalysis`](../reference/CRTanalysis.html) The function `CRTanalysis` is
 + `method = "MCMC". [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html)
 + `method = "INLA"`uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. Generation of this mesh using [`new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
 
-The function `CRTanalysis` is a wrapper for implementations of several statistical analysis packages set up
-to analyse geographically structured CRT data:
+`CRTanalysis` is design to facilitate simulations of different analytical methods for spatial CRTs by automating the data processing and selecting appropriate analysis options. It does not replace conventional use of these packages.  The `CRTanalysis` object that is returned includes the usual object output by the statistical analysis package, which can be accessed by the usual methods (e.g `predict()`, `summary()`, `plot()`). Real field trials very often entail complications that are not catered for any of the analysis options in
+by the likely to
 
 
 | Method | What it is | What it offers       |Limitations        |
@@ -35,7 +35,6 @@ to analyse geographically structured CRT data:
 | 'INLA' | [INLA](https://www.r-inla.org/) | Geostatistical analysis and spatially structured outputs | Computationally intensive |
 | 'MCMC' | [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html) | Interval estimates for contamination parameters | Identifiability issues and slow convergence are possible |
 
-
 S: Sample proportions; ML: Maximum likelihood; GEE: Generalised estimating equations; MCMC: Bayesian Markov chain Monte Carlo.
 
 In each case the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$.
@@ -44,8 +43,7 @@ $\hat{E}_{s} = 1- \frac{\hat{p}_{I}}{\hat{p}_{C}}$.
 $\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$.
 $\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$.
 
-Real field trials very often entail complications that are not catered for any of the analysis options in
-by the likely to
+
 
 
 To create a 100m INLA mesh for `<MyTrial>`, use:

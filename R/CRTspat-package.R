@@ -6,5 +6,6 @@
 #' @importFrom stats gaussian
 #' @importFrom stats poisson
 #' @importFrom stats quasipoisson
+#' @importFrom stats vcov
 ## usethis namespace: end
 NULL

@@ -517,6 +517,8 @@ is_CRTsp <- function(x) {
 #' @export
 #'
 summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
+  defaultdigits <- getOption("digits")
+  options(digits = 3)
   cat("===============================CLUSTER RANDOMISED TRIAL ===========================\n")
   output <- matrix("  ", nrow = 22, ncol = 2)
   rownames(output) <- paste0("row ", 1:nrow(output))
@@ -681,6 +683,7 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
   output <- output[trimws(output[, 1]) != "", ]
   # display and return table
   utils::write.table(output, quote = FALSE, col.names = FALSE, sep = "          ")
+  options(digits = defaultdigits)
   invisible(object)
 }
 

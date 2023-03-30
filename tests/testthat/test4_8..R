@@ -1,6 +1,8 @@
 set.seed(1234)
 test_that("Toy GEE analysis creates correct output", {
    get_test4 = function(){
+      # To recreate input file from vignette 2
+      # write.csv(example2a$trial, file = "inst/extdata/exampleCRT.csv", row.names = FALSE)
       trial <- readdata("exampleCRT.csv")
       test_Estimates <- CRTanalysis(trial = trial,
                                    method = 'GEE',excludeBuffer = FALSE,

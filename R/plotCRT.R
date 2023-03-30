@@ -83,10 +83,10 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
         if (isa(object, what = 'CRTanalysis')) {
             # if the object is the output from analysisCRT
             analysis <- object
-            if (is.null(analysis$contamination$contamination.limits))
+            if (is.null(analysis$contamination$contamination_limits))
                 stop("*** No analysis of contamination available ***")
             d <- average <- upper <- lower <- contaminationFunction <- NULL
-            interval <- analysis$contamination$contamination.limits
+            interval <- analysis$contamination$contamination_limits
             g <- ggplot2::ggplot(data = analysis$contamination$data, ggplot2::aes(x = d,
                                                                            y = average))
             g <- g + ggplot2::theme_bw()
@@ -161,7 +161,7 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
                         # augment the prediction grid with a classifier of
                         # whether the point is within the contamination
                         # interval
-                        range <- contamination$contamination.limits
+                        range <- contamination$contamination_limits
                         raster$contaminated <- ifelse(dplyr::between(raster$nearestDiscord,
                                                          range[1], range[2]), TRUE, FALSE)
                         g <- g + ggplot2::geom_tile(data = raster[raster$contaminated, ],
