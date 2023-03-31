@@ -158,7 +158,7 @@ CRTanalysis <- function(
 
     # create model formula for display even though this is not used for MCMC models
     fterms <- switch(cfunc,
-        Z = "",
+        Z = NULL,
         X = "arm",
         L = "pvar",
         P = "pvar",
@@ -249,8 +249,7 @@ if (identical(method,"GEE")) {
         # Estimation of effect.size does not apply if analysis is of baseline only (cfunc='Z')
         pt_ests$effect.size <- NULL
         if (cfunc == "X") {
-            lp_yI <- summary.fit$coefficients[1, 1] + summary.fit$coefficients[2,
-                1]
+            lp_yI <- summary.fit$coefficients[1, 1] + summary.fit$coefficients[2, 1]
             se_lp_yI <- sqrt(
                 model_object$geese$vbeta[1, 1] +
                 model_object$geese$vbeta[2, 2] +
@@ -268,10 +267,10 @@ if (identical(method,"GEE")) {
 
             pt_ests$interventionY <- invlink(link, lp_yI)
             pt_ests$effect.size <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
-            analysis$model_object <- model_object
-            analysis$pt_ests <- pt_ests[names(pt_ests) != "model_object"]
-            analysis$int_ests <- int_ests
         }
+        analysis$model_object <- model_object
+        analysis$pt_ests <- pt_ests[names(pt_ests) != "model_object"]
+        analysis$int_ests <- int_ests
     } else if (method == "LME4"){
 
         beta <- NA
@@ -554,9 +553,9 @@ else if (identical(method,"MCMC")){
         analysis$model_object <- model_object
 }
 if (method %in% c("INLA","LME4")) {
-    sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
-    sample$controlY <- invlink(link, sample$int)
     if (cfunc != "Z") {
+        sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = mu, Sigma = cov))
+        sample$controlY <- invlink(link, sample$int)
         # personal_protection is the proportion of effect due to personal protection proportion
         if ("arm" %in% names(mu) & "pvar" %in% names(mu)) {
             if (identical(method,"LME4")) sample$lc <- with(sample, int + pvar + arm)

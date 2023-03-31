@@ -17,11 +17,8 @@ rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 -->
 
-The starting point for the analyses is the co-ordinates for the spatial units that are to be randomized. These can be provided as lat-long coordinates, or as Cartesian point co-ordinates.
-Geolocated data from completed field studies or trials in progress can be read into `CRTspat` in the form of data frames, preferably with one record for each location in the trial. Pre-existing data from the field should be
+The starting point for the analyses is the co-ordinates for the spatial units that are to be randomized. These can be provided as lat-long coordinates, or as Cartesian point co-ordinates. Geolocated data from completed field studies or trials in progress can be read into `CRTspat` in the form of data frames, preferably with one record for each location in the trial. Pre-existing data from the field should be
 coded as follows:
-
-data frame:	rows correspond to geolocated points, as follows:
 
 | Description of variable    | Variable name | Type and values                                            |
 |----------------------------|---------------|-------------------------------------------------|

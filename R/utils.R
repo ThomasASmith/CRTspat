@@ -482,7 +482,7 @@ readdata <- function(filename) {
     if (unlist(gregexpr("mesh", fname)) > 0) {
       # The mesh was stored using 'dump' e.g.
       # library(Matrix)
-      # dump("testmesh100",file = "inst/extdata/testmesh100.txt", evaluate= TRUE)
+      # dump("mesh",file = "inst/extdata/testmesh100.txt", evaluate= TRUE)
       sourced <- source(file = paste0(extdata, "/", fname))
       robject <- sourced$value
     } else if (unlist(gregexpr("analysis", fname)) > 0) {

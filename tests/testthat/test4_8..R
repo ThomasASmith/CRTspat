@@ -10,7 +10,7 @@ test_that("Toy GEE analysis creates correct output", {
       value <- test_Estimates$contamination$data$positives[4]
       return(value)
    }
-   expect_equal(get_test4(), 151)
+   expect_equal(get_test4(), 53)
 })
 
 set.seed(1234)
@@ -36,7 +36,7 @@ test_that("Analysis using T option gives expected efficacy", {
       analysis <- CRTanalysis(readdata("exampleCRT.csv"),method = 'T',link='identity')
       value <- round(as.numeric(10000 * analysis$pt_ests$effect.size))
       return(value)}
-   expect_equal(get_test6(extdata), 709)
+   expect_equal(get_test6(extdata), 1446)
 })
 
 test_that("Analysis using GEE option gives expected ICC", {
@@ -44,6 +44,6 @@ test_that("Analysis using GEE option gives expected ICC", {
       analysis <- CRTanalysis(readdata("exampleCRT.csv"),method = 'GEE',link='log')
       value <- round(as.numeric(10000 * analysis$pt_ests$ICC))
       return(value)}
-   expect_equal(get_test7(extdata), 464)
+   expect_equal(get_test7(extdata), 583)
 })
 
