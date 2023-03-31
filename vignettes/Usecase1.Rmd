@@ -1,0 +1,223 @@
+---
+title: "Use Case 1: Algorithmic specification of clusters and of buffer zones"
+output:
+  rmarkdown::html_vignette:
+  toc: true
+vignette: >
+  %\VignetteIndexEntry{Use Case 1: Algorithmic specification of clusters and of buffer zones}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+<!--To build the vignette
+# since the vignette takes a long time to run, it is not run with every build
+# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
+# to Knit this vignette without this time consuming step being part of the default build
+knitr::knit("vignettes/Usecase1.Rmd.orig", output = "vignettes/Usecase1.Rmd")
+rmarkdown.html_vignette.check_title = FALSE
+devtools::install(build_vignettes = TRUE)
+-->
+
+The way in which clusters are assigned in cluster randomized trials (CRTs) can profoundly affect the efficiency of the trial. Allocating clusters by algorithm makes it easy to generate alternative cluster allocations for any given trial site, both for real-world trials and for exploring this neglected aspect of trial design in simulations. The `CRTspat` package contains R functions developed for this purpose.
+
+Input to the package is in the form of a data frame with one record for each geo-location in a trial area. Most of the functions of the package return a list of class `CRTsp`, which consists of the input data frame augmented with additional vectors (e.g. coding clusters, arms, or buffer zones), and lists containing descriptors of the dataset. Objects of class `CRTsp` can also be used as input to most of the functions.
+
+After each step, `summary` can be used to provide a description of the output `CRTsp` object and `plot` can be used to output a descriptive plot, or a map of the locations, clusters, arms, buffer zones or other geographically structured analysis results.
+
++ In general the package functions do not expect to find repeated values for outcomes for the same location. The `aggregateCRT` function is used to aggregate data with the same co-ordinates so that this condition is satisfied. In particular, if the input database contains outcome data (e.g. if it contains baseline survey results), these should be provided in the form of a numerator `base_num` and denominator `base_denom` for each record. These values will be summed by `aggregateCRT` over all records with the same co-ordinates. An object of class `CRTsp` is output.
+
++ The `specify_clusters` function carries out algorithmic assignment of clusters and outputs a `trial` data frame augmented with the cluster assignments. One of three different algorithms must be selected:
+  + `algorithm = "NN"` implements a [nearest neighbour algorithm](https://en.wikipedia.org/wiki/Nearest-neighbor_chain_algorithm) which takes a collection of points as input, and creates clusters of points by repeatedly merging in points to form larger clusters. This is the default option.
+  + `algorithm = "TSP"` implements the `repetitive_nn` option of the
+  [`TSP` package](https://cran.r-project.org/web/packages/TSP/vignettes/TSP.pdf) for solving the travelling salesman problem. This finds an efficient path through the study locations. Clusters are formed by grouping the required number of locations sequentially along the path. Note that this is not guaranteed to give rise to congruent clusters.
+  + `algorithm = "kmeans"` implements a [k-means algorithm](https://en.wikipedia.org/wiki/K-means_clustering) that aims to partition the locations into the required number of clusters in which each observation belongs to the cluster with the nearest cluster centroid. k-means clustering minimizes within-cluster variances (squared Euclidean distances) but does not necessarily give equal-sized clusters.
+Irrespective of the algorithm, the target number of points allocated to each cluster is specified by the parameter `h`.
++ The `randomizeCRT` function carries out a simple randomization of clusters to arms, and outputs a `trial` data frame augmented with the assignments. (If baseline data are available matched pair randomization is available as an option)
+
+The units to be randomized will usually be households, but the algorithms can be used to generate clusters with equal geographical areas by randomizing pixels. In this case a dataset containing x,y coordinates for each pixel should be
+used as input.
+
+The example uses locations and baseline test positivity data from a site in Kenya. The input dataset contains a single
+record for each test so there are multiple records of test positivity for many locations.
+
+
+```r
+library(CRTspat)
+example_locations <- readdata('example_site.csv')
+# assign the denominator to the baseline data
+example_locations$base_denom <- 1
+# convert to a `CRTsp` object
+exampleCRT <- CRTsp(example_locations)
+summary(exampleCRT)
+```
+
+```
+## ===============================CLUSTER RANDOMISED TRIAL ===========================
+## 
+## Summary of coordinates
+## ----------------------
+##         Min.   : 1st Qu.: Median : Mean   : 3rd Qu.: Max.   :
+##       x -3.20    -1.31    -0.24     0.00     1.35     5.16   
+##       y -5.08    -2.84    -0.17     0.00     2.49     6.16   
+## Total area (within  0.2 km of a location) :  27.6 sq.km
+## 
+## Locations and Clusters
+## ----------------------                                          -            
+## Coordinate system                      (x, y)            
+## Not aggregated. Total records: 3172. Unique locations:          1181            
+## Available clusters (across both arms)                           Not assigned            
+## Cluster randomization:                      Independently randomized            
+## No power calculations to report          -            
+## 
+## Other variables in dataset
+## --------------------------          RDT_test_result  base_denom
+```
+
+```r
+# Aggregate data for multiple observations for the same location Only the (x,y) co-ordinates and numerical
+# auxiliary variables
+example <- aggregateCRT(exampleCRT, auxiliaries = c("RDT_test_result", "base_denom"))
+summary(example)
+```
+
+```
+## ===============================CLUSTER RANDOMISED TRIAL ===========================
+## 
+## Summary of coordinates
+## ----------------------
+##         Min.   : 1st Qu.: Median : Mean   : 3rd Qu.: Max.   :
+##       x -3.20    -1.40    -0.30    -0.07     1.26     5.16   
+##       y -5.08    -2.84     0.19     0.05     2.49     6.16   
+## Total area (within  0.2 km of a location) :  27.6 sq.km
+## 
+## Locations and Clusters
+## ----------------------                                          -            
+## Coordinate system                      (x, y)            
+## Locations:                                                      1181            
+## Available clusters (across both arms)                           Not assigned            
+## Cluster randomization:                      Independently randomized            
+## No power calculations to report          -            
+## 
+## Other variables in dataset
+## --------------------------          RDT_test_result  base_denom
+```
+
+```r
+# Plot map of locations
+plotCRT(example, map = TRUE, showLocations = TRUE, maskbuffer = 0.2)
+```
+<p>
+  <img src="example1a.r-1.png"> <br>
+  <em>Fig 1.1 Map of locations</em>
+  </p>
+
+In the example shown here a target cluster size of 50 locations is set, but the heterogeneity in spatial density of
+the locations leads to considerable variation in the number of locations assigned to each cluster.
+
+
+```r
+example_clustered <- specify_clusters(trial = example, h = 50, algorithm = 'NN')
+summary(example_clustered)
+```
+
+```
+## ===============================CLUSTER RANDOMISED TRIAL ===========================
+## 
+## Summary of coordinates
+## ----------------------
+##         Min.   : 1st Qu.: Median : Mean   : 3rd Qu.: Max.   :
+##       x -3.20    -1.40    -0.30    -0.07     1.26     5.16   
+##       y -5.08    -2.84     0.19     0.05     2.49     6.16   
+## Total area (within  0.2 km of a location) :  27.6 sq.km
+## 
+## Locations and Clusters
+## ----------------------                                          -            
+## Coordinate system                      (x, y)            
+## Locations:                                                      1181            
+## Available clusters (across both arms)                           24            
+##   Per cluster mean number of points                             49.2            
+##   Per cluster s.d. number of points                             3.9            
+## Cluster randomization:                      Independently randomized            
+## No power calculations to report          -            
+## 
+## Other variables in dataset
+## --------------------------          RDT_test_result  base_denom
+```
+
+```r
+plotCRT(example_clustered, map = TRUE, showClusterLabels = TRUE, maskbuffer = 0.2, labelsize = 2)
+```
+<p>
+  <img src="example1b.r-1.png"> <br>
+  <em>Fig 1.2 Map of clusters</em>
+</p>
+
+A smoothed map of the baseline prevalence surface is produced using a geostatistical model
+in [R-INLA](https://www.r-inla.org/). Details of the implementation in `CRTspat`
+are in the [documentation of `CRTanalysis`](../reference/CRTanalysis.html) and
+of [Use Case 5](Usecase5.html).
+
+
+```r
+library(Matrix)
+examplemesh100 <- readdata("examplemesh100.txt")
+baselineanalysis <- CRTanalysis(trial=example_clustered,
+                        method = 'INLA', link='logit', baselineOnly = TRUE,
+                        baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom",
+                        clusterEffects = FALSE, spatialEffects = TRUE,
+                        requireMesh = TRUE, inla_mesh = examplemesh100)
+```
+
+```
+## Analysis of baseline only, using INLA
+```
+
+```r
+plotCRT(baselineanalysis, map = TRUE, fill = 'prediction')
+```
+<p>
+  <img src="example1c.r-1.png"> <br>
+  <em>Fig 1.3 Smoothed surface of baseline prevalence</em>
+</p>
+
+A summary of the baseline prevalence at cluster level is used in this example to match clusters on baseline prevalence and
+then generate a randomisation based on matched pairs.
+
+
+```r
+example_randomized <- randomizeCRT(example_clustered, matchedPair = TRUE,
+  baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
+summary(example_randomized)
+```
+
+```
+## ===============================CLUSTER RANDOMISED TRIAL ===========================
+## 
+## Summary of coordinates
+## ----------------------
+##         Min.   : 1st Qu.: Median : Mean   : 3rd Qu.: Max.   :
+##       x -3.20    -1.40    -0.30    -0.07     1.26     5.16   
+##       y -5.08    -2.84     0.19     0.05     2.49     6.16   
+## Total area (within  0.2 km of a location) :  27.6 sq.km
+## 
+## Locations and Clusters
+## ----------------------                                          -            
+## Coordinate system                      (x, y)            
+## Locations:                                                      1181            
+## Available clusters (across both arms)                           24            
+##   Per cluster mean number of points                             49.2            
+##   Per cluster s.d. number of points                             3.9            
+## S.D. of distance to nearest discordant location (km):           0.73          
+## Cluster randomization:                      Matched pairs randomized            
+## No power calculations to report          -            
+## 
+## Other variables in dataset
+## --------------------------          RDT_test_result  base_denom  base_num  pair
+```
+
+```r
+plotCRT(example_randomized, map = TRUE, maskbuffer=0.2, legend.position=c(0.8,0.8))
+```
+<p>
+  <img src="example1d.r-1.png"> <br>
+  <em>Fig 1.4 Map of arm assignments</em>
+  </p>
