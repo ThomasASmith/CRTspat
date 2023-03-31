@@ -17,7 +17,7 @@ set.seed(1234)
 get_test5 = function(){
    test_locationsLatLong <- readdata("example_latlong.csv")
    test_locationsxy <- latlong_as_xy(test_locationsLatLong) #test_site is simulated
-   test_anonymizedlocations <- anonymize.site(test_locationsxy)
+   test_anonymizedlocations <- anonymize_site(test_locationsxy)
    test_clusters <- specify_clusters(test_anonymizedlocations,h = 50)
    test_arms <- randomizeCRT(trial = test_clusters,matchedPair = FALSE)
    test_buffer <- specify_buffer(trial = test_arms, buffer.width = 0.1)

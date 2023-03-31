@@ -397,8 +397,8 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
     CRT <- trial
     trial <- CRT$trial
   }
-  colnames(trial)[identical(colnames(trial), latvar)] <- "lat"
-  colnames(trial)[identical(colnames(trial), longvar)] <- "long"
+  colnames(trial)[colnames(trial) == latvar] <- "lat"
+  colnames(trial)[colnames(trial) == longvar] <- "long"
   R <- 6371  # radius of the earth
   latradians <- with(trial, pi/180 * lat)
   longradians <- with(trial, pi/180 * long)
@@ -409,15 +409,18 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   drops <- c("lat", "long")
   trial <- trial[, !(names(trial) %in% drops)]
   CRT <- CRTsp(trial, design = NULL)
+  CRT$geom_full$meanlat <- meanlat
+  CRT$geom_full$meanlong <- meanlong
   return(CRT)
 }
 
 
 #' Anonymize locations of a trial site
 #'
-#' \code{anonymize.site} Transforms coordinates to maintain confidentiality
+#' \code{anonymize_site} Transforms coordinates to maintain confidentiality
 #' @param trial \code{"CRTsp"} object or trial data frame with co-ordinates of
 #'   households
+#' @param ID name of column used as an identifier for the points
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
 #' @returns A list of class \code{"CRTsp"} containing the following components:
@@ -427,18 +430,19 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 #' information linked to households. The input may have either \code{lat long} or \code{x,y} coordinates.
 #' The function first searches for any \code{lat long} co-ordinates and converts these to \code{x,y}
 #' Cartesian coordinates. These are then are rotated by a random angle about a random origin. The returned object
-#' has transformed co-ordinates re-centred at the origin. Other data are unchanged.
+#' has transformed co-ordinates re-centred at the origin.\cr
+#' Any centroid information stored in the \code{"CRTsp"} object is removed. Other data are unchanged.
 #' @examples
 #' #Rotate and reflect test site locations
-#' transformedTestlocations <- anonymize.site(trial =  readdata("exampleCRT.csv"))
+#' transformedTestlocations <- anonymize_site(trial =  readdata("exampleCRT.csv"))
 
-anonymize.site <- function(trial, latvar = "lat", longvar = "long") {
+anonymize_site <- function(trial, ID = NULL, latvar = "lat", longvar = "long") {
     # Local data from study area (ground survey and/or satellite
     # images) random rotation angle
     CRT <- CRTsp(trial)
     trial <- CRT$trial
     if (latvar %in% colnames(trial)) {
-      CRT <- latlong_as_xy(trial)
+      CRT <- latlong_as_xy(trial, latvar = latvar, longvar = longvar)
       trial <- CRT$trial
     }
     theta <- 2 * pi * runif(n = 1)
@@ -462,6 +466,15 @@ anonymize.site <- function(trial, latvar = "lat", longvar = "long") {
     trial$x <- recentred[1, ]
     trial$y <- recentred[2, ]
 
+    # Remove ID variable
+    if (!is.null(ID)) {
+      colnames(trial)[colnames(trial) == ID] <- "ID"
+      trial$ID <- NULL
+    }
+
+    # Remove centroid information
+    CRT$geom_full$meanlat <- NULL
+    CRT$geom_full$meanlong <- NULL
     CRT$trial <- trial
     return(CRTsp(CRT))
 }
@@ -544,7 +557,11 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     buf1 <- sf::st_buffer(tr, maskbuffer)
     buf2 <- sf::st_union(buf1)
     area <- sf::st_area(buf2)
-    cat("Total area (within ", maskbuffer,"km of a location) : ", format(area, digits = 3), "sq.km\n\n")
+    cat("Total area (within ", maskbuffer,"km of a location) : ", area, "sq.km\n\n")
+    if (!is.null(object$geom_full$meanlat)) {
+    cat("Geolocation of centroid (radians): latitude: ",
+        object$geom_full$meanlat, "longitude: ", object$geom_full$meanlong,"\n\n")
+    }
   }
   rownames(output)[5] <- "Available clusters (across both arms)                 "
   if (is.na(object$geom_full$k)) {
