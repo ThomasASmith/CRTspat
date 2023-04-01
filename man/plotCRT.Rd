@@ -79,21 +79,23 @@ For analyses with log link function the outcome is plotted on a scale of the Wil
 (mean of exp(log(x + 1))) - 1) \cr
 }
 \examples{
+{example <- readdata('exampleCRT.txt')
 #Plot of data by distance
-plotCRT(readdata('exampleCRT.csv'))
+plotCRT(example)
 #Map of locations only
-plotCRT(readdata('exampleCRT.csv'), map = TRUE, fill = 'none', showLocations = TRUE,
+plotCRT(example, map = TRUE, fill = 'none', showLocations = TRUE,
            showClusterBoundaries=FALSE, maskbuffer=0.2)
 #show cluster boundaries and number clusters
-plotCRT(readdata('exampleCRT.csv'), map = TRUE, fill ='none', showClusterBoundaries=TRUE,
+plotCRT(example, map = TRUE, fill ='none', showClusterBoundaries=TRUE,
            showClusterLabels=TRUE, maskbuffer=0.2, labelsize = 2)
 #show clusters in colour
-plotCRT(readdata('exampleCRT.csv'), map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
+plotCRT(example, map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
           labelsize=2, maskbuffer=0.2)
 #show arms
-plotCRT(readdata('exampleCRT.csv'), map = TRUE,
+plotCRT(example, map = TRUE,
         fill = 'arms', maskbuffer=0.2, legend.position=c(0.2,0.8))
 #contamination plot
-analysis <- CRTanalysis(readdata('exampleCRT.csv')); plotCRT(analysis, map = FALSE)
-
+analysis <- CRTanalysis(example)
+plotCRT(analysis, map = FALSE)
+}
 }

@@ -111,9 +111,15 @@ and can be also be inspected with \code{summary()}, or analysed using \code{stat
 for purposes of evaluation of model fit etc..
 }
 \examples{
+{example <- readdata('exampleCRT.txt')
 # Analysis of test dataset by t-test
-exampleT <- CRTanalysis(readdata("exampleCRT.csv"), method = "T")
+exampleT <- CRTanalysis(example, method = "T")
+summary(exampleT)
 # Standard GEE analysis of test dataset ignoring contamination
-exampleGEE <- CRTanalysis(readdata("exampleCRT.csv"), method = "GEE")
-
+exampleGEE <- CRTanalysis(example, method = "GEE")
+summary(exampleGEE)
+# LME4 analysis with error function contamination function
+exampleLME4 <- CRTanalysis(example, method = "LME4", cfunc = "P")
+summary(exampleLME4)
+}
 }

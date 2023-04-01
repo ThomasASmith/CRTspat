@@ -67,11 +67,17 @@
 #' @importFrom utils head read.csv
 #' @export
 #' @examples
+#' {example <- readdata('exampleCRT.txt')
 #' # Analysis of test dataset by t-test
-#' exampleT <- CRTanalysis(readdata("exampleCRT.csv"), method = "T")
+#' exampleT <- CRTanalysis(example, method = "T")
+#' summary(exampleT)
 #' # Standard GEE analysis of test dataset ignoring contamination
-#' exampleGEE <- CRTanalysis(readdata("exampleCRT.csv"), method = "GEE")
-#'
+#' exampleGEE <- CRTanalysis(example, method = "GEE")
+#' summary(exampleGEE)
+#' # LME4 analysis with error function contamination function
+#' exampleLME4 <- CRTanalysis(example, method = "LME4", cfunc = "P")
+#' summary(exampleLME4)
+#' }
 CRTanalysis <- function(
     trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
@@ -965,8 +971,18 @@ estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
 #' A warning may be generated unless the \code{Matrix} library is loaded.
 #' @export
 #' @examples
+#' {
 #' # low resolution mesh for test dataset
-#' library(Matrix); exampleMesh=new_mesh(trial = readdata('exampleCRT.csv'), pixel = 0.5)
+#' library(Matrix)
+#' example <- readdata('exampleCRT.txt')
+#' exampleMesh=new_mesh(example, pixel = 0.5)
+#' }
+#' \dontrun{
+#' # 50m mesh for test dataset
+#' library(Matrix)
+#' example <- readdata('exampleCRT.txt')
+#' exampleMesh=new_mesh(example, pixel = 0.05)
+#' }
 new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
                      inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
     {

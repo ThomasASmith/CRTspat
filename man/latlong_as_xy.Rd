@@ -28,8 +28,8 @@ A list of class \code{"CRTsp"} containing the following components:
 }
 \details{
 The output object contains the input locations replaced with Cartesian
-coordinates in units of km, centred on (0,0). Other data are unchanged.
-The equirectangular projection (valid for small areas) is used for the calculations.
+coordinates in units of km, centred on (0,0), corresponding to using the equirectangular projection
+(valid for small areas). Other data are unchanged.
 }
 \examples{
 examplexy <- latlong_as_xy(readdata("example_latlong.csv"))

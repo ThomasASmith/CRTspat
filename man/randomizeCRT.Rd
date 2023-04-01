@@ -46,5 +46,5 @@ augments the trial dataframe with assignments to arms \cr
 }
 \examples{
 # Randomize the clusters in an example trial
-exampleCRT <- randomizeCRT(trial = readdata('exampleCRT.csv'), matchedPair = TRUE)
+exampleCRT <- randomizeCRT(trial = readdata('exampleCRT.txt'), matchedPair = TRUE)
 }

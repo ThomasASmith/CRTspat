@@ -8,4 +8,8 @@
 \description{
 CRTspat comprises a suite of functions to support design of cluster randomised trials of (health) interventions where there may be geographical contamination between the arms. cluster size and sample size for cluster randomized controls of interventions with geographical contamination, and for carrying out randomizations for such trials. The methods are described in Multerer et al. (in preparation). The package takes as inputs a table of geolocations of experimental units. Example datasets are provided taken from field trials of malaria interventions.
 }
+\author{
+\strong{Maintainer}: Thomas Smith \email{thomas-a.smith@unibas.ch} (\href{https://orcid.org/0000-0002-3650-9381}{ORCID})
+
+}
 \keyword{internal}

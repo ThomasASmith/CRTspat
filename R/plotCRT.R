@@ -52,23 +52,25 @@
 #' @export
 #' @importFrom ggplot2 aes alpha
 #' @examples
+#' {example <- readdata('exampleCRT.txt')
 #' #Plot of data by distance
-#' plotCRT(readdata('exampleCRT.csv'))
+#' plotCRT(example)
 #' #Map of locations only
-#' plotCRT(readdata('exampleCRT.csv'), map = TRUE, fill = 'none', showLocations = TRUE,
+#' plotCRT(example, map = TRUE, fill = 'none', showLocations = TRUE,
 #'            showClusterBoundaries=FALSE, maskbuffer=0.2)
 #' #show cluster boundaries and number clusters
-#' plotCRT(readdata('exampleCRT.csv'), map = TRUE, fill ='none', showClusterBoundaries=TRUE,
+#' plotCRT(example, map = TRUE, fill ='none', showClusterBoundaries=TRUE,
 #'            showClusterLabels=TRUE, maskbuffer=0.2, labelsize = 2)
 #' #show clusters in colour
-#' plotCRT(readdata('exampleCRT.csv'), map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
+#' plotCRT(example, map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
 #'           labelsize=2, maskbuffer=0.2)
 #' #show arms
-#' plotCRT(readdata('exampleCRT.csv'), map = TRUE,
+#' plotCRT(example, map = TRUE,
 #'         fill = 'arms', maskbuffer=0.2, legend.position=c(0.2,0.8))
 #' #contamination plot
-#' analysis <- CRTanalysis(readdata('exampleCRT.csv')); plotCRT(analysis, map = FALSE)
-#'
+#' analysis <- CRTanalysis(example)
+#' plotCRT(analysis, map = FALSE)
+#' }
 #' @export
 plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
     showClusterBoundaries = TRUE, showClusterLabels = FALSE, showContamination = FALSE,
@@ -183,6 +185,9 @@ vectorPlot <- function(trial, fill, showLocations, showClusterBoundaries,
     showClusterLabels, cpalette = NULL, maskbuffer, labelsize, legend.position,
     g = NULL) {
     arm <- cluster <- x <- y <- NULL
+    xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
+    ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
+
     colourClusters <- identical(fill, "clusters")
     showArms <- identical(fill, "arms")
 
@@ -216,25 +221,6 @@ vectorPlot <- function(trial, fill, showLocations, showClusterBoundaries,
         showClusterLabels <- FALSE
     }
 
-    # create pts
-    pts <- tidyr::tibble(y = trial$y, x = trial$x) %>%
-        sf::st_as_sf(coords = c("y", "x")) %>%
-        sf::st_set_crs("Euclidean")
-
-    tr <- sf::st_as_sf(trial, coords = c("x", "y"))
-    # voronoi of pts
-    vor <- sf::st_voronoi(sf::st_combine(tr))
-
-    vor <- sf::st_collection_extract(vor, "POLYGON")
-    vor <- sf::st_as_sf(vor)
-
-    if (!is.null(trial$cluster)) {
-        clusters <- vor %>%
-            sf::st_join(tr, sf::st_intersects) %>%
-            dplyr::group_by(cluster) %>%
-            dplyr::summarize()
-    }
-
     totalClusters <- length(unique(trial$cluster))
 
     if (is.null(cpalette))
@@ -242,79 +228,144 @@ vectorPlot <- function(trial, fill, showLocations, showClusterBoundaries,
     if (totalClusters == 1)
         cpalette <- c("white")
 
+    sf_objects <- sf_objects(trial = trial, maskbuffer = maskbuffer)
+
     if (is.null(g))
         g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
 
     if (colourClusters) {
-        g <- g + ggplot2::geom_sf(data = clusters, aes(fill = cluster), fill = cpalette,
+        g <- g + ggplot2::geom_sf(data =  sf_objects$clusters, aes(fill = cluster), fill = cpalette,
             alpha = 0.8)
     }
     if (showArms) {
-        arms <- vor %>%
-            sf::st_join(tr, sf::st_intersects) %>%
-            group_by(arm) %>%
-            dplyr::summarize()
-        g <- g + ggplot2::geom_sf(data = arms, aes(fill = arm))
+        g <- g + ggplot2::geom_sf(data =  sf_objects$arms, aes(fill = arm))
         # use standard colour-blind compatible palette
         g <- g + ggplot2::scale_fill_manual(name = "Arms", values = c("#b2df8a",
             "#1f78b4"), labels = c("Control", "Intervention"))
     }
     if (showClusterBoundaries) {
-        g <- g + ggplot2::geom_sf(data = clusters, color = "black", fill = NA)
+        g <- g + ggplot2::geom_sf(data =  sf_objects$clusters, color = "black", fill = NA)
     }
-    g <- add_annotations(trial = trial, showLocations = showLocations, showClusterLabels = showClusterLabels,
-        maskbuffer = maskbuffer, labelsize = labelsize, legend.position = legend.position,
-        g = g)
-    return(g)
-}
-
-
-
-add_annotations <- function(trial, showLocations, showClusterLabels, maskbuffer,
-    labelsize, legend.position, g) {
-    cluster <- x <- y <- NULL
-    # mask for remote areas the plot limits are determined by the min
-    # and max of the coordinates
-    xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
-    ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
-
-    # mask for excluded areas the mask needs to extend outside the plot
-    # area
-    x0 <- xlim[1] - 0.5
-    x1 <- xlim[2] + 0.5
-    y0 <- ylim[1] - 0.5
-    y1 <- ylim[2] + 0.5
-    bbox <- sf::st_polygon(list(cbind(x = c(x0, x1, x1, x0, x0), y = c(y0,
-        y0, y1, y1, y0))))
-    bbox <- sf::st_sfc(bbox)
-    tr <- sf::st_as_sf(trial, coords = c("x", "y"))
-    buf1 <- sf::st_buffer(tr, maskbuffer)
-    buf2 <- sf::st_union(buf1)
-    mask <- sf::st_difference(bbox, buf2)
-
-    g <- g + ggplot2::geom_sf(data = mask, fill = "grey")
-
+    g <- g + ggplot2::geom_sf(data = sf_objects$mask, fill = "grey")
     # Labels
     if (showClusterLabels) {
         showLocations <- FALSE
         # Positions of centroids of clusters for locating the labels
         cc <- data.frame(trial %>%
-            dplyr::group_by(cluster) %>%
-            dplyr::summarize(x = mean(x), y = mean(y), .groups = "drop"))
+                             dplyr::group_by(cluster) %>%
+                             dplyr::summarize(x = mean(x), y = mean(y), .groups = "drop"))
         g <- g + ggplot2::geom_text(data = cc, aes(x = x, y = y, label = cluster),
-            hjust = 0.5, vjust = 0.5, size = labelsize)
+                                    hjust = 0.5, vjust = 0.5, size = labelsize)
     }
     if (showLocations) {
         g <- g + ggplot2::geom_point(data = trial, aes(x = x, y = y), size = 0.5)
     }
-
-
     g <- g + ggplot2::theme(legend.position = legend.position)
     g <- g + ggplot2::theme(panel.border = ggplot2::element_blank())
     g <- g + ggplot2::theme(axis.title = ggplot2::element_blank())
     g <- g + ggplot2::coord_sf(expand = FALSE, xlim = xlim, ylim = ylim)
-
     return(g)
 }
 
+# Create simple feature objects either for plotting or export
+sf_objects <- function(trial, maskbuffer, crs = "Euclidean", centroid = NULL) {
+    clusters <- arms <- cluster <- arm <- x <- y <- NULL
+    if (!identical(crs, "Euclidean") & !is.null(centroid)) {
+    # convert coordinates to radians and apply crs of "WGS84"
+    # scalef is is the number of degrees per kilometer
+        scalef <- 180/(6371*pi)
+        crs <- 4326
+        trial$lat <- trial$y*scalef + centroid$lat
+        trial$long <- trial$x*scalef + centroid$long
+        coords <- c("lat", "long")
+        xlim <- c(min(trial$x - maskbuffer * scalef),
+                  max(trial$x + maskbuffer * scalef))
+        ylim <- c(min(trial$y - maskbuffer * scalef),
+                  max(trial$y + maskbuffer * scalef))
+        # create pts
+        pts <- tidyr::tibble(lat = trial$lat, long = trial$long) %>%
+            sf::st_as_sf(coords = coords) %>%
+            sf::st_set_crs(crs)
+    } else {
+        scalef <- 1
+        coords <- c("y", "x")
+        xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
+        ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
+        # create pts
+        pts <- tidyr::tibble(y = trial$y, x = trial$x) %>%
+            sf::st_as_sf(coords = coords) %>%
+            sf::st_set_crs("Euclidean")
+    }
+    tr <- sf::st_as_sf(trial, coords = coords) %>%
+            sf::st_set_crs(crs)
+    # voronoi of pts- if the coordinates are lat long this would generate a
+    # warning, but the issue is trivial if
+    suppressWarnings(
+        vor <- sf::st_voronoi(sf::st_combine(tr)) %>%
+        sf::st_collection_extract("POLYGON") %>%
+        sf::st_as_sf() %>%
+        sf::st_set_crs(crs)
+    )
+    if (!is.null(trial$cluster)) {
+        clusters <- vor %>%
+            sf::st_join(tr, sf::st_intersects) %>%
+            dplyr::group_by(cluster) %>%
+            dplyr::summarize()
+    }
+    if (!is.null(trial$arm)) {
+        arms <- vor %>%
+            sf::st_join(tr, sf::st_intersects) %>%
+            group_by(arm) %>%
+            dplyr::summarize()
+    }
 
+    # mask for excluded areas the mask needs to extend outside the plot
+    # area
+    x0 <- xlim[1] - 0.5 * scalef
+    x1 <- xlim[2] + 0.5 * scalef
+    y0 <- ylim[1] - 0.5 * scalef
+    y1 <- ylim[2] + 0.5 * scalef
+    bbox <- sf::st_polygon(list(cbind(x = c(x0, x1, x1, x0, x0), y = c(y0,
+                                                                       y0, y1, y1, y0))))
+    bbox <- sf::st_sfc(bbox)
+    tr <- sf::st_as_sf(trial, coords = coords)
+    buf1 <- sf::st_buffer(tr, maskbuffer * scalef)
+    buf2 <- sf::st_union(buf1)
+    mask <- sf::st_difference(bbox, buf2)
+    sf_objects <- list(clusters = clusters,
+                      arms = arms,
+                      mask = mask)
+return(sf_objects)
+}
+
+#' Export of GIS layer from \code{'CRTsp'}
+#'
+#' \code{CRTwrite} exports a simple features object in a GIS format
+#' @param object object of class \code{'CRTsp'}
+#' @param dsn dataset name for output objects
+#' @param feature feature to be exported, options are:
+#' \tabular{ll}{
+#' \code{'cluster'} \tab cluster assignments \cr
+#' \code{'arms'}   \tab arm assignments \cr
+#' \code{'mask'} \tab mask for areas that are distant from habitations \cr
+#' }
+#' @param maskbuffer radius of buffer drawn around inhabited areas (km)
+#' @param ... other arguments passed to \code{'sf::write_sf'}
+#' @return \code{obj}, invisibly
+#' @details
+#' \code{'sf::write_sf'} is used to format the output. \cr\cr
+#' If the input object contains a \code{'centroid'} then this is used to compute lat long
+#' coordinates, which are assigned the "WGS84" coordinate reference system. Otherwise the objects have
+#' equirectangular co-ordinates with centroid (0,0).\cr\cr
+#' The function returns TRUE on success, FALSE on failure, invisibly \cr
+#' @examples
+#' \dontrun{CRTwrite(readdata('exampleCRT.txt'), dsn = 'arms', feature = 'arms',
+#'          driver = 'ESRI Shapefile', maskbuffer = 0.2)}
+#' @export
+CRTwrite <- function(object, dsn, feature = 'clusters', maskbuffer = 0.2, ...){
+    if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
+    trial <- object$trial
+    centroid <- object$geom_full$centroid
+    sf_objects <- sf_objects(trial = trial, maskbuffer = maskbuffer, crs = "WGS84", centroid = centroid)
+    sf::st_write(sf_objects[[feature]], dsn = dsn, ...)
+}

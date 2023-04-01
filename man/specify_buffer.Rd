@@ -36,5 +36,5 @@ those in the opposite arm.
 }
 \examples{
 #Specify a buffer of 200m
-exampletrial <- specify_buffer(trial = readdata('exampleCRT.csv'), buffer.width = 0.2)
+exampletrial <- specify_buffer(trial = readdata('exampleCRT.txt'), buffer.width = 0.2)
 }

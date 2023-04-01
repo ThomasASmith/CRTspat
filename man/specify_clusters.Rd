@@ -56,6 +56,6 @@ the input value of \code{k} is ignored.\cr
 }
 \examples{
 #Assign clusters of average size h = 40 to a test set of co-ordinates, using the kmeans algorithm
-exampletrial <- specify_clusters(trial = readdata('exampleCRT.csv'),
+exampletrial <- specify_clusters(trial = readdata('exampleCRT.txt'),
                             h = 40, algorithm = 'kmeans', reuseTSP = FALSE)
 }

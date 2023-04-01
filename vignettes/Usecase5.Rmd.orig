@@ -51,7 +51,8 @@ To create a 100m INLA mesh for `<MyTrial>`, use:
 `mesh <- new_mesh(trial = <MyTrial> , pixel = 0.1)`
 
 ```{r example5.r, fig.keep = 'none', echo=TRUE}
-analysis <- CRTanalysis(trial=readdata('exampleCRT.csv'),
+example <- readdata('exampleCRT.txt')
+analysis <- CRTanalysis(trial=example,
   method = 'INLA', link='logit', cfunc='P',
   spatialEffects= TRUE, requireMesh = TRUE, inla_mesh = readdata('examplemesh100.txt'))
 plotCRT(analysis, map=FALSE)

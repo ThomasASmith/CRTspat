@@ -51,6 +51,16 @@ The prediction mesh is thinned to include only pixels centred at a distance less
 A warning may be generated unless the \code{Matrix} library is loaded.
 }
 \examples{
+{
 # low resolution mesh for test dataset
-library(Matrix); exampleMesh=new_mesh(trial = readdata('exampleCRT.csv'), pixel = 0.5)
+library(Matrix)
+example <- readdata('exampleCRT.txt')
+exampleMesh=new_mesh(example, pixel = 0.5)
+}
+\dontrun{
+# 50m mesh for test dataset
+library(Matrix)
+example <- readdata('exampleCRT.txt')
+exampleMesh=new_mesh(example, pixel = 0.05)
+}
 }

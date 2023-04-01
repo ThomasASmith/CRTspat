@@ -131,12 +131,14 @@ Contamination is simulated as arising from a diffusion-like process.
 For further details see \href{https://edoc.unibas.ch/85228/}{Multerer (2021)}
 }
 \examples{
-example_simulated_CRT =  simulateCRT(trial=readdata('exampleCRT.csv'),
-                                     effect=0.25,
-                                     ICC_inp=0.05,
-                                     outcome0=0.5,
-                                     matchedPair = FALSE,
-                                     scale='proportion',
-                                     sd=0.6,
-                                     tol=0.05)
+{exampleCRT <- readdata('exampleCRT.txt')
+ simulation <- simulateCRT(exampleCRT,
+  effect = 0.25,
+  ICC_inp = 0.05,
+  outcome0 = 0.5,
+  matchedPair = FALSE,
+  scale = 'proportion',
+  sd = 0.6,
+  tol = 0.05)
+ summary(simulation) }
 }

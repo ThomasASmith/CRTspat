@@ -68,7 +68,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #' @export
 #' @examples
 #' #Specify a buffer of 200m
-#' exampletrial <- specify_buffer(trial = readdata('exampleCRT.csv'), buffer.width = 0.2)
+#' exampletrial <- specify_buffer(trial = readdata('exampleCRT.txt'), buffer.width = 0.2)
 specify_buffer <- function(trial, buffer.width = 0) {
   CRT <- CRTsp(trial)
   trial <- CRT$trial
@@ -113,7 +113,7 @@ specify_buffer <- function(trial, buffer.width = 0) {
 #' @export
 #' @examples
 #' # Randomize the clusters in an example trial
-#' exampleCRT <- randomizeCRT(trial = readdata('exampleCRT.csv'), matchedPair = TRUE)
+#' exampleCRT <- randomizeCRT(trial = readdata('exampleCRT.txt'), matchedPair = TRUE)
 randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_num",
     baselineDenominator = "base_denom") {
 
@@ -237,9 +237,11 @@ plt <- function(object) {
 #'
 CRTsp <- function(x = NULL, design = NULL,
                     geoscale = NULL, locations = NULL, kappa = NULL, mu = NULL) {
+  centroid <- list(lat = NULL, long = NULL)
   if(identical(class(x),"CRTsp")) {
     CRT <- x
     if(!is.null(design)) CRT$design <- design
+    centroid <- if(!is.null(CRT$geom_full$centroid$lat)) CRT$geom_full$centroid
   } else if(identical(class(x),"data.frame")) {
     CRT <- list(trial = x, design = design)
   } else if(is.null(x)) {
@@ -261,6 +263,7 @@ CRTsp <- function(x = NULL, design = NULL,
     CRT$trial$nearestDiscord <- get_nearestDiscord(CRT$trial)
   }
   CRT$geom_full <- get_geom(trial = CRT$trial, design = CRT$design)
+  CRT$geom_full$centroid <- centroid
   if (is.null(CRT$trial$buffer)) {
      CRT$geom_core <- list(
      locations = 0,sd_h = NULL, k= NULL, records = 0, mean_h = NULL,
@@ -327,7 +330,7 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #'
 #' @examples
 #' #Assign clusters of average size h = 40 to a test set of co-ordinates, using the kmeans algorithm
-#' exampletrial <- specify_clusters(trial = readdata('exampleCRT.csv'),
+#' exampletrial <- specify_clusters(trial = readdata('exampleCRT.txt'),
 #'                             h = 40, algorithm = 'kmeans', reuseTSP = FALSE)
 specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN",
     reuseTSP = FALSE) {
@@ -375,8 +378,8 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
 #' @details The output object contains the input locations replaced with Cartesian
-#'   coordinates in units of km, centred on (0,0). Other data are unchanged.
-#'   The equirectangular projection (valid for small areas) is used for the calculations.
+#'   coordinates in units of km, centred on (0,0), corresponding to using the equirectangular projection
+#'   (valid for small areas). Other data are unchanged.
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{llll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
@@ -399,18 +402,16 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   }
   colnames(trial)[colnames(trial) == latvar] <- "lat"
   colnames(trial)[colnames(trial) == longvar] <- "long"
-  R <- 6371  # radius of the earth
-  latradians <- with(trial, pi/180 * lat)
-  longradians <- with(trial, pi/180 * long)
-  meanlat <- mean(latradians)
-  meanlong <- mean(longradians)
-  trial$y <- R * (latradians - meanlat) * cos(longradians)
-  trial$x <- R * (longradians - meanlong)
+  # scalef is the number of degrees per kilometer
+  scalef <- 180/(6371*pi)
+  centroid <- list(lat = mean(trial$lat),
+                   long = mean(trial$long))
+  trial$y <- (trial$lat - centroid$lat)/scalef
+  trial$x <- (trial$long - centroid$long) * cos(trial$lat * pi/180)/scalef
   drops <- c("lat", "long")
   trial <- trial[, !(names(trial) %in% drops)]
   CRT <- CRTsp(trial, design = NULL)
-  CRT$geom_full$meanlat <- meanlat
-  CRT$geom_full$meanlong <- meanlong
+  CRT$geom_full$centroid <- centroid
   return(CRT)
 }
 
@@ -434,7 +435,7 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 #' Any centroid information stored in the \code{"CRTsp"} object is removed. Other data are unchanged.
 #' @examples
 #' #Rotate and reflect test site locations
-#' transformedTestlocations <- anonymize_site(trial =  readdata("exampleCRT.csv"))
+#' transformedTestlocations <- anonymize_site(trial =  readdata("exampleCRT.txt"))
 
 anonymize_site <- function(trial, ID = NULL, latvar = "lat", longvar = "long") {
     # Local data from study area (ground survey and/or satellite
@@ -473,8 +474,7 @@ anonymize_site <- function(trial, ID = NULL, latvar = "lat", longvar = "long") {
     }
 
     # Remove centroid information
-    CRT$geom_full$meanlat <- NULL
-    CRT$geom_full$meanlong <- NULL
+    CRT$geom_full$centroid <- NULL
     CRT$trial <- trial
     return(CRTsp(CRT))
 }
@@ -558,9 +558,10 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     buf2 <- sf::st_union(buf1)
     area <- sf::st_area(buf2)
     cat("Total area (within ", maskbuffer,"km of a location) : ", area, "sq.km\n\n")
-    if (!is.null(object$geom_full$meanlat)) {
-    cat("Geolocation of centroid (radians): latitude: ",
-        object$geom_full$meanlat, "longitude: ", object$geom_full$meanlong,"\n\n")
+    if (!is.null(object$geom_full$centroid)) {
+    cat("Geolocation of centroid (radians):
+          latitude: ", object$geom_full$centroid$lat,
+        "longitude: ", object$geom_full$centroid$long,"\n\n")
     }
   }
   rownames(output)[5] <- "Available clusters (across both arms)                 "

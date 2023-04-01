@@ -44,3 +44,9 @@ To make it possible to share data files without compromising confidentiality the
 
 The [`latlong_as_xy`](../reference/latlong_as_xy.html) function is available to convert co-ordinates provided as decimal degrees into Cartesian co-ordinates with units of km with centroid (0,0). If the input co-ordinates are provided using a different projection then they must be converted externally to the package.
 
+The [`writeCRT`](../reference/writeCRT.html)] function exports simple features objects created within `CRTspat`
+(using functions from the `sf` package) to GIS files. This uses the [`sf::st_write()`](https://r-spatial.github.io/sf/articles/sf2.html) function which
+`writeCRT` attempts to assign an appropriate co-ordinate reference system (`crs`) to the exported object. By default `crs` is assigned the WGS1984 coordinate reference system is used, with the centroid location recorded in the `CRTspat` or `CRTanalysis` object used to
+compute the geolocations. If the dataset has been anonymised then it has no coordinate reference system and is
+exported using the Cartesian coordinates.
+
