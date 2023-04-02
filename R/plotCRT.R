@@ -89,7 +89,7 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
     cpalette = NULL, buffer_width = NULL, maskbuffer = 0.2, labelsize = 4,
     legend.position = NULL) {
 
-    contamination_limits <- g <- NULL
+    contamination_limits <- buffer <- g <- NULL
     if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
     trial <- object$trial
     if (is.null(trial)) {

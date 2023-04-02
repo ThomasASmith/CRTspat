@@ -157,7 +157,7 @@ CRTanalysis <- function(
 
     # create scaffolds for lists
     pt_ests <- list(contamination_par = NA, personal_protection = NA, contamination_interval = NA)
-    int_ests <- list(controlY = NA, interventionY = NA, effect.size = NA)
+    int_ests <- list(controlY = NA, interventionY = NA, effect_size = NA)
     model_object <- list()
     description <- get_description(trial=trial, link=link, baselineOnly)
     analysis <- list(trial = trial, pt_ests = pt_ests, int_ests = int_ests, description = description)
@@ -252,8 +252,8 @@ if (identical(method,"GEE")) {
         pt_ests$DesignEffect <- 1 + (clusterSize - 1) * pt_ests$ICC  #Design Effect
         int_ests$DesignEffect <- 1 + (clusterSize - 1) * int_ests$ICC
 
-        # Estimation of effect.size does not apply if analysis is of baseline only (cfunc='Z')
-        pt_ests$effect.size <- NULL
+        # Estimation of effect_size does not apply if analysis is of baseline only (cfunc='Z')
+        pt_ests$effect_size <- NULL
         if (cfunc == "X") {
             lp_yI <- summary.fit$coefficients[1, 1] + summary.fit$coefficients[2, 1]
             se_lp_yI <- sqrt(
@@ -266,13 +266,13 @@ if (identical(method,"GEE")) {
                 invlink(link, c(lp_yI - z * se_lp_yI, lp_yI + z * se_lp_yI)),
                 alpha = alpha)
 
-            int_ests$effect.size <- estimateCLeffect.size(
+            int_ests$effect_size <- estimateCLeffect_size(
                 mu = summary.fit$coefficients[, 1], Sigma = model_object$geese$vbeta,
                 alpha = alpha, resamples = resamples, method = method,
                 link = link)
 
             pt_ests$interventionY <- invlink(link, lp_yI)
-            pt_ests$effect.size <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
+            pt_ests$effect_size <- (1 - invlink(link, lp_yI)/invlink(link, lp_yC))
         }
         analysis$model_object <- model_object
         analysis$pt_ests <- pt_ests[names(pt_ests) != "model_object"]
@@ -285,9 +285,9 @@ if (identical(method,"GEE")) {
             if (identical(Sys.getenv("TESTTHAT"), "true")) {
                 beta <- 2.0
             } else {
-                cat("Estimating scale parameter for contamination range", "\n")
+#               cat("Estimating scale parameter for contamination range", "\n")
                 beta <- stats::optimize(
-                    f = estimateContaminationLME4, interval = c(-20, 20),
+                    f = estimateContaminationLME4, interval = c(-2, 10),
                     trial = trial, FUN = FUN, fterms = fterms,
                     tol = 0.1, link = link)$minimum
             }
@@ -311,7 +311,15 @@ if (identical(method,"GEE")) {
         }
 
         analysis$pt_ests$deviance <- unname(summary(model_object)$AICtab["deviance"])
-        analysis$pt_ests$AIC <- unname(summary(model_object)$AICtab["AIC"]) + 2
+        analysis$pt_ests$AIC <- unname(summary(model_object)$AICtab["AIC"])
+        analysis$pt_ests$df <- unname(summary(model_object)$AICtab["df.resid"])
+        # if the contamination parameter has been estimated then penalise the AIC and
+        # adjust the degrees of freedom in the output
+        # TODO this should apply to INLA models too
+        if (grepl("pvar", options$ftext, fixed = TRUE)) {
+            analysis$pt_ests$AIC <- analysis$pt_ests$AIC + 2
+            analysis$pt_ests$df <- analysis$pt_ests$df - 1
+        }
         if (grepl("pvar", options$ftext, fixed = TRUE) |
             grepl("arm", options$ftext, fixed = TRUE)) {
             mu <- summary(model_object)$coefficients[,1]
@@ -321,6 +329,7 @@ if (identical(method,"GEE")) {
             cov <- vcov(model_object)
             rownames(cov) <- colnames(cov) <- names(mu)
         }
+        analysis$pt_ests$WaldP <- summary(model_object)$coefficients['pvar',4]
 }
 # MCMC Methods
 else if (identical(method,"MCMC")){
@@ -415,8 +424,8 @@ else if (identical(method,"MCMC")){
         analysis$int_ests$controlY <- namedCL(c(jagsout$q2.5$yC, jagsout$q97.5$yC), alpha = alpha)
         analysis$pt_ests$interventionY <- jagsout$q50$yI
         analysis$int_ests$interventionY <- namedCL(c(jagsout$q2.5$yI, jagsout$q97.5$yI), alpha = alpha)
-        analysis$pt_ests$effect.size <- jagsout$q50$Es
-        analysis$int_ests$effect.size <- namedCL(c(jagsout$q2.5$Es, jagsout$q97.5$Es), alpha = alpha)
+        analysis$pt_ests$effect_size <- jagsout$q50$Es
+        analysis$int_ests$effect_size <- namedCL(c(jagsout$q2.5$Es, jagsout$q97.5$Es), alpha = alpha)
         analysis$pt_ests$contamination_interval <- jagsout$q50$theta
         analysis$int_ests$contamination_interval <- namedCL(c(jagsout$q2.5$theta, jagsout$q97.5$theta), alpha = alpha)
         analysis$pt_ests$contamination_par <- jagsout$q50$beta
@@ -544,7 +553,7 @@ else if (identical(method,"MCMC")){
         index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
         inla_mesh$prediction$prediction <-
                 invlink(link, model_object$summary.linear.predictor[index, "0.5quant"])
-        # Compute sample-based confidence limits for intervened outcome and effect.size
+        # Compute sample-based confidence limits for intervened outcome and effect_size
         # intervention effects are estimated
         if (grepl("pvar", options$ftext, fixed = TRUE) |
             grepl("arm", options$ftext, fixed = TRUE)) {
@@ -556,7 +565,6 @@ else if (identical(method,"MCMC")){
 
         }
         analysis$inla_mesh <- inla_mesh
-        analysis$model_object <- model_object
 }
 if (method %in% c("INLA","LME4")) {
     if (cfunc != "Z") {
@@ -578,7 +586,7 @@ if (method %in% c("INLA","LME4")) {
                 sample$interventionY <- invlink(link, sample$int + sample$pvar)
                 sample$personal_protection <- 1
         }
-        sample$effect.size <- 1 - sample$interventionY/sample$controlY
+        sample$effect_size <- 1 - sample$interventionY/sample$controlY
         bounds <- (apply(
                 sample, 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
                         alpha = alpha)}))
@@ -587,7 +595,7 @@ if (method %in% c("INLA","LME4")) {
         controlY <- unlist(invlink(link,
             model_object$summary.fixed["int", c("0.025quant", "0.5quant", "0.975quant")]))
         bounds <- data.frame(
-                controlY = controlY, interventionY = controlY, effect.size = rep(0, 3),
+                controlY = controlY, interventionY = controlY, effect_size = rep(0, 3),
                 personal_protection = rep(0, 3))
     }
     analysis <- add_estimates(analysis = analysis, bounds = bounds, CLnames = CLnames)
@@ -606,6 +614,7 @@ if (method %in% c("INLA","LME4")) {
         analysis$int_ests$personal_protection <- c(NA, NA)
     }
     analysis$pt_ests$contamination_par <- beta
+    analysis$model_object <- model_object
 }
 
 if (cfunc != "Z") {
@@ -662,7 +671,7 @@ getContaminationCurve <- function(trial, pt_ests, FUN1, link, alpha, bounds)
                invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par1)))
 
     # estimate contamination range The absolute values of the limits are used so that a positive range is
-    # obtained even with negative effect.size
+    # obtained even with negative effect_size
     thetaL <- thetaU <- NA
     if (abs(limits0[1] - curve[1000]) >
         0.025 * abs(limits0[1] - limits0[2]))
@@ -796,7 +805,7 @@ invlink <- function(link = link, x = x)
     return(value)
 }
 
-# Minimal data description and crude effect.size estimate
+# Minimal data description and crude effect_size estimate
 get_description <- function(trial, link, baselineOnly)
     {
     if(baselineOnly){
@@ -807,7 +816,7 @@ get_description <- function(trial, link, baselineOnly)
             sum.denominators = sum.denominators,
             controlY = sum.numerators/sum.denominators,
             interventionY = NULL,
-            effect.size = NULL,
+            effect_size = NULL,
             nclusters = max(as.numeric(as.character(trial$cluster))),
             locations = nrow(trial)
         )
@@ -815,7 +824,7 @@ get_description <- function(trial, link, baselineOnly)
         sum.numerators <- tapply(trial$y1, trial$arm, FUN = sum)
         sum.denominators <- tapply(trial$y_off, trial$arm, FUN = sum)
         ratio <- sum.numerators/sum.denominators
-        effect.size <- switch(link,
+        effect_size <- switch(link,
                "identity" = ratio[2] - ratio[1],
                "log" = 1 - ratio[2]/ratio[1],
                "logit" =  1 - ratio[2]/ratio[1])
@@ -824,7 +833,7 @@ get_description <- function(trial, link, baselineOnly)
             sum.denominators = sum.denominators,
             controlY = ratio[1],
             interventionY = ratio[2],
-            effect.size = effect.size,
+            effect_size = effect_size,
             nclusters = max(as.numeric(as.character(trial$cluster))),
             locations = nrow(trial)
         )
@@ -853,9 +862,9 @@ FittingResults <- function(trial, FUN1, par)
     {
     controlY <- invlink(link = "logit", x = par[1])
     interventionY <- invlink(link = "logit", x = (par[2] + par[1]))
-    effect.size <- (controlY - interventionY)/controlY
+    effect_size <- (controlY - interventionY)/controlY
     pt_ests <- list(
-        controlY = controlY, interventionY = interventionY, effect.size = effect.size,
+        controlY = controlY, interventionY = interventionY, effect_size = effect_size,
         contamination_par = par[3]
     )
     return(pt_ests)
@@ -881,7 +890,7 @@ CalculateNoContaminationFunction <- function(par, trial)
 # piecewise linear model
 CalculatePiecewiseLinearFunction <- function(par, trial)
     {
-    # constrain the slope parameter to be positive (par[2] is positive if effect.size is negative)
+    # constrain the slope parameter to be positive (par[2] is positive if effect_size is negative)
     theta <- exp(par[3])
     lp <- ifelse(
         trial$nearestDiscord > -theta, par[1] + par[2] * (theta + trial$nearestDiscord)/(2 *
@@ -919,7 +928,7 @@ noLabels <- function(x)
     return(xclean)
 }
 
-estimateCLeffect.size <- function(mu, Sigma, alpha, resamples, method, link)
+estimateCLeffect_size <- function(mu, Sigma, alpha, resamples, method, link)
     {
 
     # Use resampling approach to avoid need for Taylor approximation use at least 10000 samples (this is very
@@ -1178,7 +1187,7 @@ add_estimates <- function(analysis, bounds, CLnames)
 {
     analysis$pt_ests$controlY <- bounds[2, "controlY"]
     analysis$pt_ests$interventionY <- bounds[2, "interventionY"]
-    analysis$pt_ests$effect.size <- bounds[2, "effect.size"]
+    analysis$pt_ests$effect_size <- bounds[2, "effect_size"]
 
     # Extract interval estimates
     analysis$int_ests$controlY <- stats::setNames(
@@ -1189,9 +1198,9 @@ add_estimates <- function(analysis, bounds, CLnames)
         bounds[c(1, 3),
                "interventionY"], CLnames
     )
-    analysis$int_ests$effect.size <- stats::setNames(
+    analysis$int_ests$effect_size <- stats::setNames(
         bounds[c(1, 3),
-               "effect.size"], CLnames
+               "effect_size"], CLnames
     )
 return(analysis)
 }
@@ -1259,7 +1268,7 @@ summary.CRTanalysis <- function(object, ...) {
         CLtext, unlist(object$int_ests$controlY),
         ")\n"
     )
-    if (!is.null(object$pt_ests$effect.size))
+    if (!is.null(object$pt_ests$effect_size))
     {
         if (!is.null(object$pt_ests$interventionY))
         {
@@ -1270,7 +1279,7 @@ summary.CRTanalysis <- function(object, ...) {
             )
             effect.measure <- ifelse(object$options$link == 'identity', "Effect size: ","  Efficacy:  ")
             cat("          ",
-                effect.measure, object$pt_ests$effect.size, CLtext, unlist(object$int_ests$effect.size),
+                effect.measure, object$pt_ests$effect_size, CLtext, unlist(object$int_ests$effect_size),
                 ")\n"
             )
         }
@@ -1309,8 +1318,9 @@ summary.CRTanalysis <- function(object, ...) {
     if (!is.null(object$pt_ests$DIC) & object$options$cfunc %in% c("L", "P", "S")) {
         cat("DIC     : ", object$pt_ests$DIC,
             " including penalty for the contamination scale parameter\n")
-    } else if (!is.null(object$model_object$dic$dic)) {
-        cat("DIC     : ", object$model_object$dic$dic, "\n")
+# TODO: make sure the DIC is in pt_ests for each type of Bayesian model
+ #   } else if (!is.null(object$model_object$dic$dic)) {
+ #       cat("DIC     : ", object$model_object$dic$dic, "\n")
     }
     if (!is.null(object$pt_ests$AIC) & (object$options$cfunc %in% c("L", "P", "S"))) {
         cat("deviance: ", object$pt_ests$deviance, "\n")
@@ -1320,9 +1330,9 @@ summary.CRTanalysis <- function(object, ...) {
         cat("deviance: ", object$pt_ests$deviance, "\n")
         cat("AIC     : ", object$pt_ests$AIC, "\n")
     }
-
-    if (!is.null(object$model_object$p.value)){
-        cat("P-value (2-sided): ", object$model_object$p.value, "\n")
+# TODO: add the degrees of freedom to the output
+    if (!is.null(object$pt_ests$p.value)){
+        cat("P-value (2-sided): ", object$pt_ests$p.value, "\n")
     }
 
 }
@@ -1331,7 +1341,7 @@ EMPanalysis <- function(analysis, description){
     pt_ests <- list()
     pt_ests$controlY <- unname(description$controlY)
     pt_ests$interventionY <- unname(description$interventionY)
-    pt_ests$effect.size <- unname(description$effect.size)
+    pt_ests$effect_size <- unname(description$effect_size)
     pt_ests$contamination_interval <- NA
     pt_ests$personal_protection <- NA
     analysis$pt_ests <- pt_ests
@@ -1362,11 +1372,11 @@ Tanalysis <- function(analysis, trial, link, alpha) {
     analysis$pt_ests$p.value <- model_object$p.value
     analysisC <- stats::t.test(
         clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
-    analysis$pt_ests$controlY <- invlink(link, analysisC$estimate[1])
+    analysis$pt_ests$controlY <- unname(invlink(link, analysisC$estimate[1]))
     analysis$int_ests$controlY <- invlink(link, analysisC$conf.int)
     analysisI <- stats::t.test(
         clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
-    analysis$pt_ests$interventionY <- invlink(link, analysisI$estimate[1])
+    analysis$pt_ests$interventionY <- unname(invlink(link, analysisI$estimate[1]))
     analysis$int_ests$interventionY <- invlink(link, analysisI$conf.int)
 
     # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
@@ -1374,15 +1384,18 @@ Tanalysis <- function(analysis, trial, link, alpha) {
         data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
         nrow = 2, ncol = 2)
     if (link == 'identity'){
-        analysis$pt_ests$effect.size <- analysis$pt_ests$controlY -
+        analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
                                 analysis$pt_ests$interventionY
-        analysis$int_ests$effect.size <- unlist(model_object$conf.int)
+        analysis$int_ests$effect_size <- unlist(model_object$conf.int)
     }
     if (link %in% c("logit","log")){
-        analysis$pt_ests$effect.size <- 1 - analysis$pt_ests$interventionY/
-                                    analysis$pt_ests$controlY
-        analysis$int_ests$effect.size <- 1 - exp(-unlist(model_object$conf.int))
+        analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
+                                            analysis$pt_ests$controlY
+        analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
     }
+    analysis$pt_ests$t.statistic <- model_object$statistic
+    analysis$pt_ests$df <- unname(model_object$parameter)
+    analysis$pt_ests$p.value <- model_object$p.value
     # tidy up and consolidate the list of analysis
     analysis$model_object <- model_object
     return(analysis)

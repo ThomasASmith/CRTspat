@@ -6,7 +6,7 @@ test_that("designCRT() creates the default trial", {
     test_buffered <- CRTsp(testLocationsxy) %>%
       specify_clusters(h = 50, algorithm = 'NN') %>%
       randomizeCRT(matchedPair = FALSE) %>%
-      specify_buffer(buffer.width = 0.05)
+      specify_buffer(buffer_width = 0.05)
     test_design <- CRTpower(trial = test_buffered,
                             alpha = 0.05,
                             desiredPower = 0.8,

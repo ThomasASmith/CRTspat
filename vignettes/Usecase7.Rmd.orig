@@ -1,10 +1,10 @@
 ---
-title: "Use Case 3: Estimation of intracluster correlations (ICC) by cluster size"
+title: "Use Case 7: Power and sample size calculations allowing for contamination"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 3: Estimation of intracluster correlations (ICC) by cluster size}
+  %\VignetteIndexEntry{Use Case 7: Power and sample size calculations allowing for contamination}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -12,64 +12,92 @@ vignette: >
 # since the vignette takes a long time to run, it is not run with every build
 # as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
 # to Knit this vignette without this time consuming step being part of the default build
-knitr::knit("vignettes/Usecase3.Rmd.orig", output = "vignettes/Usecase3.Rmd")
+knitr::knit("vignettes/Usecase7.Rmd.orig", output = "vignettes/Usecase7.Rmd")
 rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
 -->
 
-The Intracluster Correlation Coefficient (ICC) is one of the inputs to standard power and sample size calculations for CRTs. Trialists often have difficulty identifying an appropriate source for their
-ICC calculations, or use a value from a source of questionable relevance.
+Contamination between the arms of a trial leads to downward bias in the estimates of efficacy
+In the case of malaria, this contamination is mainly caused by mosquito movement, and
+is therefore expected to be greatest near to the boundary between the trial arms.
 
-The [`CRTanalysis`](../reference/CRTanalysis.html) function has an option to use Generalised Estimating Equations, which provide an estimate of the ICC. This can be applied to baseline data, and hence to different cluster configurations. This makes it possible to estimate the ICC which is appropriate for any given cluster definition, in the chosen geography, assuming baseline data are available.
+Because the effective distance over which substantial contamination occurs is generally not known,
+sensitivity analyses must be used to get an idea of how great these effects are likely to be.
+The following workflow, similar to that used for [Use Case 3](Usecase3.html), explores the likely bias
+and loss of power for one specific simulated setting. The potential for using the `CRTanalysis()` function to model the contamination and hence correct the naive efficacy estimate (from a t-test) is also explored.
 
-```{r example3a.r, fig.keep = 'none', echo = TRUE}
-# use the same dataset as for Use Case 1.
+```{r example7a.r, fig.keep = 'none', echo = TRUE}
 library(CRTspat)
-example_locations <- readdata("example_baseline.csv")
-example_locations$base_denom <- 1
+# use the locations only from example dataset. The cluster, arm, and outcome assignments will be replaced
+example <- readdata("exampleCRT.txt")
+trial <- example$trial[ , c("x","y", "denom")]
+CRT <- CRTsp(trial)
 library(dplyr)
-example <- latlong_as_xy(example_locations) %>%
-    aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom"))
-summary(example)
+# specify:
+#   the number of simulations required (a small number, e.g. 5 is used for testing,
+#   a large number e.g. 10,000 for the definitve analysis)
+#   desired efficacy;
+#   prevalence in the absence of intervention;
+#   anticipated ICC;
+#   clusters in each arm
+nsimulations <- 5
+effect <- 0.4
+outcome0 <- 0.6
+ICC <- 0.05
+k <- 25
 
-# randomly sample an array of values of k (use a small sample size for testing
 # the plots were produced with n=5000)
-set.seed(5)
-k_vec <- round(runif(20, min = 6, max = 150))
+set.seed(7)
+# vector of input range of contamination
+theta_vec <- runif(nsimulations, min = 0, max = 1.5)
 
 # a user function randomizes and analyses each simulated trial
-CRTscenario3 <- function(k, CRT) {
+CRTscenario7 <- function(theta_inp) {
+  invisible(capture.output(
     ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
-        randomizeCRT()
-    invisible(capture.output(
-      GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = FALSE,
-          baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
-    ))
-    locations <- GEEanalysis$description$locations
-    ICC <- GEEanalysis$pt_ests$ICC
-    value <- c(k = k, ICC = ICC, mean_h = locations/k)
-    return(value)
+      randomizeCRT() %>%
+      simulateCRT(effect = 0.3, outcome0 = outcome0,   ICC_inp = ICC, theta_inp = theta_inp,
+          matchedPair = FALSE, scale="proportion", denominator = "denom", tol = 0.01)
+    examplePower = CRTpower(trial = ex, desiredPower = 0.8,
+                            effect=effect, yC=outcome0, outcome_type = 'd', ICC = ICC, k = k)
+    nominalpower <-  examplePower$geom_full$power
+    Tanalysis <- CRTanalysis(ex, method = "T")
+    LME4analysis <- CRTanalysis(ex, method = "LME4", cfunc = 'P')
+    Pvalue_t = Tanalysis$pt_ests$p.value
+    WaldP = LME4analysis$pt_ests$WaldP
+    effect_size_t = Tanalysis$pt_ests$effect_size
+    effect_size_LME = LME4analysis$pt_ests$effect_size
+    Efficacy_t <- Tanalysis$pt_ests$effect.size
+    nominalpower <-  examplePower$geom_full$power
+    Tanalysis <- CRTanalysis(ex, method = "T")
+    LME4analysis <- CRTanalysis(ex, method = "LME4", cfunc = 'P')
+    climits <- LME4analysis$contamination$contamination_limits
+
+    value <- c(
+      theta_inp = theta_inp,
+      nominalpower = nominalpower,
+      Pvalue_t = Tanalysis$pt_ests$p.value,
+      WaldP = LME4analysis$pt_ests$WaldP,
+      effect_size_t = Tanalysis$pt_ests$effect_size,
+      effect_size_LME = LME4analysis$pt_ests$effect_size,
+      contamination_interval = LME4analysis$pt_ests$contamination_interval,
+      contaminate_pop_pr = LME4analysis$contamination$contaminate_pop_pr)
+  )
+return(value)
 }
 
 # The results are collected in a data frame
-results <- t(sapply(k_vec, FUN = CRTscenario3, simplify = "array", CRT = example)) %>%
-    data.frame()
+results <- as.data.frame(t(sapply(theta_vec, FUN = CRTscenario7, simplify = "array")))
 ```
 
-There is a clear downward trend in the ICC estimates, as cluster size increases (Figure 3.1). The ICC for a trial
-in this, or similar, geographies can be read off the curve. Note that the ICC is expected to vary
-not just with cluster size, but also to vary between different outcomes.
 
-```{r example3b.r, fig.keep = 'none', echo = TRUE}
+
+
+```{r example4b.r, fig.keep = 'none', echo = TRUE}
 library(ggplot2)
 theme_set(theme_bw(base_size = 14))
-ggplot(data = results, aes(x = mean_h, y = ICC)) + geom_smooth() +
-  xlab("Mean locations per cluster") + ylab("Intracluster correlation") +
-  ylim(0.08, 0.15) + xlim(10, 600)
+ggplot(data = results, aes(x = k_full, y = k_core)) + geom_smooth() + xlab("Clusters allocated (per arm)") +
+    ylab("Clusters in core (per arm)") + geom_segment(aes(x = 5, xend = 35,
+    y = 18.5, yend = 18.5), arrow = arrow(length = unit(1, "cm")), lwd = 2,
+    color = "red")
 ```
-<p>
-    <img src="example3b.r-1.png" > <br>
-    <em>Fig 3.1 Intracluster correlation by size of cluster</em>
-</p>
-
-

@@ -20,7 +20,7 @@ get_test5 = function(){
    test_anonymizedlocations <- anonymize_site(test_locationsxy)
    test_clusters <- specify_clusters(test_anonymizedlocations,h = 5)
    test_arms <- randomizeCRT(trial = test_clusters,matchedPair = FALSE)
-   test_buffer <- specify_buffer(trial = test_arms, buffer.width = 0.1)
+   test_buffer <- specify_buffer(trial = test_arms, buffer_width = 0.1)
    trial <- test_buffer$trial
    trial$cluster <- as.numeric(trial$cluster)
    trial$arm <- as.character(trial$arm)
@@ -34,7 +34,7 @@ test_that("Anonymisation, randomization, and creation of buffer produces expecte
 test_that("Analysis using T option gives expected efficacy", {
    get_test6 = function(extdata){
       analysis <- CRTanalysis(readdata("exampleCRT.txt"),method = 'T',link='identity')
-      value <- round(as.numeric(10000 * analysis$pt_ests$effect.size))
+      value <- round(as.numeric(10000 * analysis$pt_ests$effect_size))
       return(value)}
    expect_equal(get_test6(extdata), 1446)
 })

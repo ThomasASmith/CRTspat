@@ -43,7 +43,7 @@
 #'     outcome_type = 'd', desiredPower = 0.8, yC=0.35, k = 20, sd_h=5)
 #' summary(examplePower1)
 #' # Example with input geolocations and randomisation
-#' examplePower = CRTpower(trial = readdata('example_site.csv'), desiredPower = 0.8,
+#' examplePower2 = CRTpower(trial = readdata('example_site.csv'), desiredPower = 0.8,
 #'     effect=0.4, yC=0.35, outcome_type = 'd', ICC = 0.05, k = 20)
 #' summary(examplePower2)
 #' }
