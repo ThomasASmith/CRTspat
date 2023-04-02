@@ -1,71 +1,0 @@
----
-title: "Use Case 5: Analysis of trials (including methods for analysing contamination)"
-output:
-  rmarkdown::html_vignette:
-  toc: true
-vignette: >
-  %\VignetteIndexEntry{Use Case 5: Analysis of trials (including methods for analysing contamination)}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-<!--To build the vignette
-# since the vignette takes a long time to run, it is not run with every build
-# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
-# to Knit this vignette without this time consuming step being part of the default build
-knitr::knit("vignettes/Usecase5.Rmd.orig", output = "vignettes/Usecase5.Rmd")
-rmarkdown.html_vignette.check_title = FALSE
-devtools::install(build_vignettes = TRUE)
--->
-
-The [`CRTanalysis`](../reference/CRTanalysis.html) The function `CRTanalysis` is a wrapper for several different statistical analysis packages that can be used to analyse either simulated or real trial datasets. The different options are specified using the `method` argument of the function.
-
-+ `method = "T" summarises the outcome at the level of the cluster and uses t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size. This uses the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) function in the `stats` package.
-+	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [geepack](https://www.jstatsoft.org/article/view/v015i02) package.
-+ `method = "MCMC". [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html)
-+ `method = "INLA"`uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. Generation of this mesh using [`new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
-
-`CRTspat` is designed to facilitate simulation studies of different analytical methods for spatial CRTs by automating the data processing and selecting some appropriate analysis options. It does not replace conventional use of these packages. The `CRTanalysis` object that is returned includes the usual object output by the statistical analysis package, which forms `CRTanalysis$model_object` object. This can be accessed by the usual methods (e.g `predict()`, `summary()`, `plot()`). Real field trials very often entail complications that are not catered for any of the analysis options in `CRTanalysis` and `CRTspat` does not aspire to carry out the full analytical workflow for a trial.
-
-| Method | What it is | What it offers       |Limitations        |
-|----------------------------|---------------|-------------|-------------|
-| 'T'| [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) | P-values and confidence intervals for efficacy based on comparison of cluster means | No analysis of contamination or degree of clustering |
-| 'GEE' | [geepack](https://www.jstatsoft.org/article/view/v015i02) | Interval estimates for efficacy and Intra-cluster correlations | No analysis of contamination or degree of clustering |
-| 'INLA' | [INLA](https://www.r-inla.org/) | Geostatistical analysis and spatially structured outputs | Computationally intensive |
-| 'MCMC' | [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html) | Interval estimates for contamination parameters | Identifiability issues and slow convergence are possible |
-
-S: Sample proportions; ML: Maximum likelihood; GEE: Generalised estimating equations; MCMC: Bayesian Markov chain Monte Carlo.
-
-In each case the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$.
-
-$\hat{E}_{s} = 1- \frac{\hat{p}_{I}}{\hat{p}_{C}}$.
-$\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$.
-$\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$.
-
-
-
-
-To create a 100m INLA mesh for `<MyTrial>`, use:
-
-`mesh <- new_mesh(trial = <MyTrial> , pixel = 0.1)`
-
-
-```r
-example <- readdata('exampleCRT.txt')
-analysis <- CRTanalysis(trial=example,
-  method = 'INLA', link='logit', cfunc='P',
-  spatialEffects= TRUE, requireMesh = TRUE, inla_mesh = readdata('examplemesh100.txt'))
-```
-
-```
-## Estimating scale parameter for contamination range 
-## DIC:  1360.989  Contamination scale parameter:  -2.36068   DIC:  1362.368  Contamination scale parameter:  2.36068   DIC:  1361.742  Contamination scale parameter:  -5.27864   DIC:  1361.088  Contamination scale parameter:  -2.028483   DIC:  1361.823  Contamination scale parameter:  -3.063606   DIC:  1361.243  Contamination scale parameter:  -2.629174   DIC:  1361.979  Contamination scale parameter:  -2.266241   DIC:  1362.041  Contamination scale parameter:  -2.463235   DIC:  1361.902  Contamination scale parameter:  -2.399853   DIC:  1361.912  Contamination scale parameter:  -2.324608   DIC:  1360.989  Contamination scale parameter:  -2.36068   
-```
-
-```r
-plotCRT(analysis, map=FALSE)
-plotCRT(analysis, map=TRUE, fill = 'prediction')
-```
-
-
-
-

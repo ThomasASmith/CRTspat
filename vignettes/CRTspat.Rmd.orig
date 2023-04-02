@@ -50,9 +50,9 @@ Examples are provided of the workflow for different use cases, as follows:
 
 [6. Thematic mapping of the geography of a CRT](Usecase6.html)
 
-+ Implications of excluding buffer zones from the measurement of outcomes
+[7. Power and sample size calculations allowing for contamination](Usecase7.html)
 
-+ Power and sample size calculations allowing for contamination
++ Implications of excluding buffer zones from the measurement of outcomes
 
 [9: Preparation of datasets for `CRTspat`](Usecase9.html)
 

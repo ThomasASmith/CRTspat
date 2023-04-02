@@ -523,8 +523,8 @@ is_CRTsp <- function(x) {
 #'
 #' \code{summary.CRTsp} provides a description of a \code{"CRTsp"} object
 #' @param object an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
-#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
-#'   any other variables required for subsequent analysis.
+#'   assignments (factor \code{cluster}), arm assignments (factor \code{arm}) and buffer zones (logical \code{buffer}),
+#'   together with any other variables required for subsequent analysis.
 #' @param maskbuffer radius of area around a location to include in calculation of areas
 #' @param ... other arguments used by summary
 #' @method summary CRTsp
