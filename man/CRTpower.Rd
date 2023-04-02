@@ -65,10 +65,10 @@ Power and sample size calculations are for a two-arm trial using the formulae of
 normal approximation for the inter-cluster variation. For counts
 or event rate data a quasi–Poisson model is assumed. The functions do not consider any loss
 in power due to contamination, loss to follow-up etc.
-If geolocations are not input power and sample size calculations are based on the scalar input parameters.
+If geolocations are not input power and sample size calculations are based on the scalar input parameters.\cr\cr
 If a trial dataframe or \code{'CRTsp'} object containing a pre-existing randomization is input then the
 numbers and sizes of clusters are in the input data are used to estimate the power. If buffer zones have been specified
-then separate calculations are made for the core area and for the full site\cr
+then separate calculations are made for the core area and for the full site\cr\cr
 The output is an object of class \code{'CRTsp'} containing any input trial data.frame and values for:
 \itemize{
 \item The required numbers of clusters to achieve the specified power.\cr
@@ -77,10 +77,13 @@ The output is an object of class \code{'CRTsp'} containing any input trial data.
 }
 }
 \examples{
-# Example without input geolocations
-examplePower = CRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
+{# Example without input geolocations
+examplePower1 = CRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
     outcome_type = 'd', desiredPower = 0.8, yC=0.35, k = 20, sd_h=5)
+summary(examplePower1)
 # Example with input geolocations and randomisation
 examplePower = CRTpower(trial = readdata('example_site.csv'), desiredPower = 0.8,
     effect=0.4, yC=0.35, outcome_type = 'd', ICC = 0.05, k = 20)
+summary(examplePower2)
+}
 }

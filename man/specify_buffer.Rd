@@ -4,13 +4,13 @@
 \alias{specify_buffer}
 \title{Specification of buffer zone in a cluster randomized trial}
 \usage{
-specify_buffer(trial, buffer.width = 0)
+specify_buffer(trial, buffer_width = 0)
 }
 \arguments{
 \item{trial}{an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).}
 
-\item{buffer.width}{minimum distance between locations in
+\item{buffer_width}{minimum distance between locations in
 opposing arms for them to qualify to be included in the core area (km)}
 }
 \value{
@@ -36,5 +36,5 @@ those in the opposite arm.
 }
 \examples{
 #Specify a buffer of 200m
-exampletrial <- specify_buffer(trial = readdata('exampleCRT.txt'), buffer.width = 0.2)
+exampletrial <- specify_buffer(trial = readdata('exampleCRT.txt'), buffer_width = 0.2)
 }

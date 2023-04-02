@@ -50,8 +50,8 @@ A list of class \code{"CRTsp"} containing the following components:
 into objects of class \code{"CRTsp"} or creates a new \code{"CRTsp"} object by simulating a set of Cartesian co-ordinates for use as the locations in a simulated trial site
 }
 \details{
-If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"} object is validated. A description
-of the geography is computed and power calculations are carried out.\cr
+If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"} object is validated,
+a description of the geography is computed and power calculations are carried out.\cr\cr
 If \code{geoscale, locations, kappa} and \code{mu} are specified then a new trial dataframe is constructed
 corresponding to a novel simulated human settlement pattern. This is generated using the
 Thomas algorithm (\code{rThomas}) in \href{http://spatstat.org/}{\code{spatstat}}
@@ -59,7 +59,8 @@ allowing the user to defined the density of locations and degree of spatial clus
 The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
 }
 \examples{
-# Generate a simulated area with 10,000 locations
+{# Generate a simulated area with 10,000 locations
 example_area = CRTsp(geoscale = 1, locations=10000, kappa=3, mu=40)
-
+summary(example_area)
+}
 }

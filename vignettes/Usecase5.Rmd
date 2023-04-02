@@ -24,9 +24,7 @@ The [`CRTanalysis`](../reference/CRTanalysis.html) The function `CRTanalysis` is
 + `method = "MCMC". [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html)
 + `method = "INLA"`uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. Generation of this mesh using [`new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
 
-`CRTanalysis` is design to facilitate simulations of different analytical methods for spatial CRTs by automating the data processing and selecting appropriate analysis options. It does not replace conventional use of these packages.  The `CRTanalysis` object that is returned includes the usual object output by the statistical analysis package, which can be accessed by the usual methods (e.g `predict()`, `summary()`, `plot()`). Real field trials very often entail complications that are not catered for any of the analysis options in
-by the likely to
-
+`CRTspat` is designed to facilitate simulation studies of different analytical methods for spatial CRTs by automating the data processing and selecting some appropriate analysis options. It does not replace conventional use of these packages. The `CRTanalysis` object that is returned includes the usual object output by the statistical analysis package, which forms `CRTanalysis$model_object` object. This can be accessed by the usual methods (e.g `predict()`, `summary()`, `plot()`). Real field trials very often entail complications that are not catered for any of the analysis options in `CRTanalysis` and `CRTspat` does not aspire to carry out the full analytical workflow for a trial.
 
 | Method | What it is | What it offers       |Limitations        |
 |----------------------------|---------------|-------------|-------------|
@@ -52,14 +50,15 @@ To create a 100m INLA mesh for `<MyTrial>`, use:
 
 
 ```r
-analysis <- CRTanalysis(trial=readdata('exampleCRT.csv'),
+example <- readdata('exampleCRT.txt')
+analysis <- CRTanalysis(trial=example,
   method = 'INLA', link='logit', cfunc='P',
   spatialEffects= TRUE, requireMesh = TRUE, inla_mesh = readdata('examplemesh100.txt'))
 ```
 
 ```
 ## Estimating scale parameter for contamination range 
-## DIC:  1361  Contamination scale parameter:  -2.361   DIC:  1362  Contamination scale parameter:  2.361   DIC:  1362  Contamination scale parameter:  -5.279   DIC:  1362  Contamination scale parameter:  -2.282   DIC:  1362  Contamination scale parameter:  -3.789   DIC:  1362  Contamination scale parameter:  -2.906   DIC:  1362  Contamination scale parameter:  -2.569   DIC:  1362  Contamination scale parameter:  -2.44   DIC:  1362  Contamination scale parameter:  -2.394   DIC:  1362  Contamination scale parameter:  -2.327   DIC:  1361  Contamination scale parameter:  -2.361   
+## DIC:  1360.989  Contamination scale parameter:  -2.36068   DIC:  1362.368  Contamination scale parameter:  2.36068   DIC:  1361.742  Contamination scale parameter:  -5.27864   DIC:  1361.088  Contamination scale parameter:  -2.028483   DIC:  1361.823  Contamination scale parameter:  -3.063606   DIC:  1361.243  Contamination scale parameter:  -2.629174   DIC:  1361.979  Contamination scale parameter:  -2.266241   DIC:  1362.041  Contamination scale parameter:  -2.463235   DIC:  1361.902  Contamination scale parameter:  -2.399853   DIC:  1361.912  Contamination scale parameter:  -2.324608   DIC:  1360.989  Contamination scale parameter:  -2.36068   
 ```
 
 ```r

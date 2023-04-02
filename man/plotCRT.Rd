@@ -11,8 +11,9 @@ plotCRT(
   showLocations = FALSE,
   showClusterBoundaries = TRUE,
   showClusterLabels = FALSE,
-  showContamination = FALSE,
+  showBuffer = FALSE,
   cpalette = NULL,
+  buffer_width = NULL,
   maskbuffer = 0.2,
   labelsize = 4,
   legend.position = NULL
@@ -23,7 +24,7 @@ plotCRT(
 
 \item{map}{logical: indicator of whether a map is required}
 
-\item{fill}{fill layer of map
+\item{fill}{fill layer of map with options:
 \tabular{ll}{
 \code{'cluster'} \tab cluster assignment \cr
 \code{'arms'}   \tab arm assignment \cr
@@ -38,12 +39,14 @@ plotCRT(
 
 \item{showClusterLabels}{logical: determining whether the cluster numbers are shown}
 
-\item{showContamination}{logical: determining whether the estimated contamination range should be mapped}
+\item{showBuffer}{logical: whether a buffer zone should be overlayed}
 
-\item{cpalette}{colour palette (to use different colours for clusters must be at
-least as long as the number of clusters, defaults to \code{rainbow())}}
+\item{cpalette}{colour palette (to use different colours for clusters this must be at
+least as long as the number of clusters.}
 
-\item{maskbuffer}{radius of buffer drawn around inhabited areas (km)}
+\item{buffer_width}{width of buffer zone to be overlayed (km)}
+
+\item{maskbuffer}{radius of buffer around inhabited areas (km)}
 
 \item{labelsize}{size of cluster number labels}
 
@@ -54,29 +57,40 @@ graphics object produced by the \code{ggplot2} package
 }
 \description{
 \code{plotCRT} returns graphical displays of the geography of a CRT
-\code{plotCRT} creates graphics displaying the geographical showing the results of statistical analysis of a CRT
+or of the results of statistical analyses of a CRT
 }
 \details{
-If \code{map = TRUE} a plot corresponding to the value of \code{fill} is generated.
+If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object, containing a randomisation
+to arms, a stacked bar chart of the the outcome grouped by distance from the boundary is produced.\cr
+If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
+estimated contamination function is generated.
+The fitted contamination function is plotted as a continuous blue line against the distance
+from the nearest discordant location. Using the same axes, data summaries are plotted for
+ten categories of distance from the boundary. Both the
+average of the outcome and confidence intervals are plotted.
+\itemize{
+\item For analyses with logit link function the outcome is plotted as a proportion. \cr
+\item For analyses with log link function the outcome is plotted on a scale of the Williams' mean
+(mean of exp(log(x + 1))) - 1) }\cr\cr
+If \code{map = TRUE} a thematic map corresponding to the value of \code{fill} is generated.
 \itemize{
 \item \code{fill = 'clusters'} or leads to thematic map showing the locations of the clusters
 \item \code{fill = 'arms'} leads to a thematic map showing the geography of the randomization
 \item \code{fill = 'distance'} leads to a raster plot of the distance to the nearest discordant location.
 \item \code{fill = 'prediction'} leads to a raster plot of predictions from an \code{'INLA'} model.
 }
-If \code{showContamination = TRUE} the map is overlaid with a grey transparent layer showing showing which
-areas are within the contamination zone estimated by an \code{'INLA'} model.\cr
-If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object, containing a randomisation
-to arms, a stacked bar chart of the the outcome grouped by distance from the boundary is produced.\cr
-If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
-estimated contamination function is generated.
-The fitted contamination function is plotted as a continuous blue line against the distance
-from the nearest discordant location.Using the same axes, data summaries are plotted for
-ten categories of distance from the boundary. Both the
-average of the outcome and confidence intervals are plotted. \cr
-For analyses with logit link function the outcome is plotted as a proportion. \cr
-For analyses with log link function the outcome is plotted on a scale of the Williams' mean
-(mean of exp(log(x + 1))) - 1) \cr
+If \code{showBuffer = TRUE} the map is overlaid with a grey transparent layer showing which
+areas are within a defined distance of the boundary between the arms. Possibilities are:
+\itemize{
+\item If the trial has not been randomised or if \code{showBuffer = FALSE} no buffer is displayed
+\item If \code{buffer_width} takes a positive value then buffers of this width are
+displayed irrespective of any pre-specified or contamination limits.
+\item If the input is a \code{'CRTanalysis'} and contamination limits have been estimated by
+an \code{'LME4'} or \code{'INLA'} model then these limits are used to define the displayed buffer.
+\item If \code{buffer_width} is not specified and no contamination limits are available, then any
+pre-specified buffer (e.g. one generated by \code{specify_buffer()}) is displayed.
+}
+A message is output indicating which of these possibilities applies.
 }
 \examples{
 {example <- readdata('exampleCRT.txt')

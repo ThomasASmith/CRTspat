@@ -40,10 +40,10 @@ example <- aggregateCRT(exampleCRT,
 set.seed(5)
 k_vec <- round(runif(20, min = 6, max = 60))
 
-CRTscenario <- function(k, CRT, buffer.width) {
+CRTscenario <- function(k, CRT, buffer_width) {
   ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
     randomizeCRT() %>%
-    specify_buffer(buffer.width = buffer.width)
+    specify_buffer(buffer_width = buffer_width)
   invisible(capture.output(
     GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = TRUE,
                                baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
@@ -59,7 +59,7 @@ CRTscenario <- function(k, CRT, buffer.width) {
 }
 
 results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
-    buffer.width = 0.5)) %>%
+    buffer_width = 0.5)) %>%
     data.frame()
 ```
 Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (k). There is also variation in the estimated Intracluster Correlation (see Use Case tbd.) for any value of k.
@@ -100,12 +100,12 @@ set.seed(7)
 library(dplyr)
 example6 <- specify_clusters(example, k = 6, algo = "kmeans") %>%
     randomizeCRT() %>%
-    specify_buffer(buffer.width = 0.5)
+    specify_buffer(buffer_width = 0.5)
 plotCRT(example6, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
     labelsize = 2, maskbuffer = 0.2)
 example40 <- specify_clusters(example, k = 40, algo = "kmeans") %>%
     randomizeCRT() %>%
-    specify_buffer(buffer.width = 0.5)
+    specify_buffer(buffer_width = 0.5)
 plotCRT(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
     labelsize = 2, maskbuffer = 0.2)
 ```

@@ -49,7 +49,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #'
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).
-#' @param buffer.width minimum distance between locations in
+#' @param buffer_width minimum distance between locations in
 #'   opposing arms for them to qualify to be included in the core area (km)
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{llll}{
@@ -68,16 +68,16 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #' @export
 #' @examples
 #' #Specify a buffer of 200m
-#' exampletrial <- specify_buffer(trial = readdata('exampleCRT.txt'), buffer.width = 0.2)
-specify_buffer <- function(trial, buffer.width = 0) {
+#' exampletrial <- specify_buffer(trial = readdata('exampleCRT.txt'), buffer_width = 0.2)
+specify_buffer <- function(trial, buffer_width = 0) {
   CRT <- CRTsp(trial)
   trial <- CRT$trial
   if (is.null(trial$arm)) return('*** Randomization is required before buffer specification ***')
   # nearestDiscord: nearest coordinate in the discordant arm, for the
   # control coordinates return the minimal distance with a minus sign
   if (is.null(trial$nearestDiscord)) trial$nearestDiscord <- get_nearestDiscord(trial)
-  if (buffer.width > 0) {
-    trial$buffer <- (abs(trial$nearestDiscord) < buffer.width)
+  if (buffer_width > 0) {
+    trial$buffer <- (abs(trial$nearestDiscord) < buffer_width)
   }
   CRT$trial <- trial
   return(CRTsp(CRT))
@@ -223,8 +223,8 @@ plt <- function(object) {
 #'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @details
-#' If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"} object is validated. A description
-#' of the geography is computed and power calculations are carried out.\cr
+#' If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"} object is validated,
+#' a description of the geography is computed and power calculations are carried out.\cr\cr
 #' If \code{geoscale, locations, kappa} and \code{mu} are specified then a new trial dataframe is constructed
 #' corresponding to a novel simulated human settlement pattern. This is generated using the
 #' Thomas algorithm (\code{rThomas}) in [\code{spatstat}](http://spatstat.org/)
@@ -232,9 +232,10 @@ plt <- function(object) {
 #' The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
 #' @export
 #' @examples
-#' # Generate a simulated area with 10,000 locations
+#' {# Generate a simulated area with 10,000 locations
 #' example_area = CRTsp(geoscale = 1, locations=10000, kappa=3, mu=40)
-#'
+#' summary(example_area)
+#' }
 CRTsp <- function(x = NULL, design = NULL,
                     geoscale = NULL, locations = NULL, kappa = NULL, mu = NULL) {
   centroid <- list(lat = NULL, long = NULL)
@@ -651,10 +652,10 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     output[15, 1] <- object$design$effect
     rownames(output)[16] <- "Intra-cluster correlation:        "
     output[16, 1] <- object$design$ICC
-    if (!is.null(object$design$buffer.width)) {
+    if (!is.null(object$design$buffer_width)) {
       rownames(output)[3] <- "Buffer width :               "
-      if (object$design$buffer.width > 0) {
-        output[3, 1] <- paste0(object$design$buffer.width,
+      if (object$design$buffer_width > 0) {
+        output[3, 1] <- paste0(object$design$buffer_width,
                                " km.")
       } else {
         output[3, 1] <- "No buffer"

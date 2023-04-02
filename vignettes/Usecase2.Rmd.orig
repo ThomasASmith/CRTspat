@@ -18,13 +18,11 @@ devtools::install(build_vignettes = TRUE)
 -->
 Effects of settlement patterns, choices of cluster size and buffer widths, and the extent of contamination between arms on the outcomes of CRTs do not lend themselves to mathematical analysis. Simulations of trials are used to explore the effects of these variables on trial power and on the robustness of statistical methodologies.
 
-Trials can be simulated using the `simulateCRT` function, which augments a `trial` data frame (created externally) or object of class `CRTsp` (created by package functions) with simulated outcome data.  The input object must be given location information and both cluster and arm assignments (see [Use Case 1](Usecase1.html)) (or the package can
-generate these if the objective is purely simulation.
+Trials can be simulated using the `simulateCRT` function, which augments a `trial` data frame (created externally) or object of class `CRTsp` (created by package functions) with simulated outcome data.  The input object must be given location information and both cluster and arm assignments (see [Use Case 1](Usecase1.html)) (or the package can generate these if the objective is purely simulation.
 
 Information about the underlying spatial pattern of disease is used in the form of the intra-cluster correlation of the outcome, which is input to the simulation as variable `ICC_inp`, and of the `propensity`. The former takes a single value for the chosen design. The latter takes a positive real value for each location. In the case of malaria, `propensity` can be thought of as measuring exposure to infectious mosquitoes.
 
-`ICC_inp` and `propensity` may either be estimated from other datasets or supplied by the user. The behaviour of the
-function depends on which variables are supplied, and the value of `generateBaseline`,  as follows:
+`ICC_inp` and `propensity` may either be estimated from other datasets or supplied by the user. The behaviour of the function depends on which variables are supplied, and the value of `generateBaseline`,  as follows:
 
 | Data supplied by the user | Function behaviour |
 |:-------------------|:--------------------------|

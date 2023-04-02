@@ -1,10 +1,10 @@
 ---
-title: "Use Case 1: Algorithmic specification of clusters and of buffer zones"
+title: "Use Case 1: Algorithmic specification of clusters"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 1: Algorithmic specification of clusters and of buffer zones}
+  %\VignetteIndexEntry{Use Case 1: Algorithmic specification of clusters}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -59,6 +59,9 @@ summary(exampleCRT)
 ##       x -3.20    -1.31    -0.24     0.00     1.35     5.16   
 ##       y -5.08    -2.84    -0.17     0.00     2.49     6.16   
 ## Total area (within  0.2 km of a location) :  27.6 sq.km
+## 
+## Geolocation of centroid (radians):
+##           latitude:  longitude:  
 ## 
 ## Locations and Clusters
 ## ----------------------                                          -            
@@ -171,6 +174,10 @@ baselineanalysis <- CRTanalysis(trial=example_clustered,
 ## Analysis of baseline only, using INLA
 ```
 
+```
+## as(<dgCMatrix>, "dgTMatrix") is deprecated since Matrix 1.5-0; do as(., "TsparseMatrix") instead
+```
+
 ```r
 plotCRT(baselineanalysis, map = TRUE, fill = 'prediction')
 ```
@@ -206,7 +213,7 @@ summary(example_randomized)
 ## Available clusters (across both arms)                           24            
 ##   Per cluster mean number of points                             49.2            
 ##   Per cluster s.d. number of points                             3.9            
-## S.D. of distance to nearest discordant location (km):           0.73          
+## S.D. of distance to nearest discordant location (km):           0.79          
 ## Cluster randomization:                      Matched pairs randomized            
 ## No power calculations to report          -            
 ## 

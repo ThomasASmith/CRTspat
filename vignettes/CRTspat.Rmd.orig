@@ -31,6 +31,9 @@ The package can facilitate design of efficient trials by providing algorithms fo
 
 The package builds on the work of [Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
 
+The package is intended to function with outcomes that are proportions, count data, or continuous variables.
+The current version (0.1.0.9000) is for **testing** and has been developed mainly on data that are proportions. It is likely to need some further to ensure the correct outputs with other kinds of outcome.
+
 ##  Anticipated use cases
 
 Examples are provided of the workflow for different use cases, as follows:
@@ -45,15 +48,28 @@ Examples are provided of the workflow for different use cases, as follows:
 
 [5. Analysis of trials (including methods for analysing contamination)](Usecase5.html)
 
+[6. Thematic mapping of the geography of a CRT](Usecase6.html)
+
 + Implications of excluding buffer zones from the measurement of outcomes
 
 + Power and sample size calculations allowing for contamination
 
-[7: Preparation of datasets for `CRTspat`](Usecase7.html)
+[9: Preparation of datasets for `CRTspat`](Usecase9.html)
 
-[8: Anonymising input locations (if required for sharing reference datasets)](../reference/anonymize_site.html)
+[10: Anonymising input locations (if required for sharing reference datasets)](../reference/anonymize_site.html)
 
 ## Package functions
 
 The package functions are listed in the [manual](../reference/index.html)
 
+## Downloading and installing
+
+`CRTspat` is on [github](https://github.com/ThomasASmith/CRTspat/) and can be installed using:
+
+`
+install.packages("devtools")
+library(devtools)
+install_github("thomasasmith/CRTspat")
+`
+
+You may need to install other packages on which `CRTspat` depends. In particular, some of the functionality depends on [R-INLA](https://www.r-inla.org/) and [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html) and you may want to install, however it may be possible to get much of `CRTspat` to run without these packages.

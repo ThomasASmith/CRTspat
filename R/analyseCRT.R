@@ -1136,8 +1136,9 @@ estimateContaminationINLA <- function(
         )
     }
     # The DIC is penalised to allow for estimation of beta
-    loss <- result.e$dic$family.dic + 2
-    cat("\rDIC: ", loss, " Contamination scale parameter: ", beta, "  \r")
+    loss <- result.e$dic$family.dic
+    # Display the DIC here if necessary for debugging
+    # cat("\rDIC: ", loss, " Contamination scale parameter: ", beta, "  \r")
     return(loss)
 }
 
@@ -1166,7 +1167,8 @@ estimateContaminationLME4 <- function(
      , warning = function(w) {999999})
     loss <- ifelse (is.null(model_object),999999, unlist(summary(model_object)$AICtab["AIC"]))
     # The AIC is used as a loss function
-    cat("\rAIC: ", loss, " Contamination scale parameter: ", beta, "  \r")
+    # Display the AIC here if necessary for debugging
+    # cat("\rAIC: ", loss, " Contamination scale parameter: ", beta, "  \r")
     return(loss)
 }
 

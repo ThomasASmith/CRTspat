@@ -3,10 +3,10 @@
 #' Graphical displays of the geography of a CRT
 #'
 #' \code{plotCRT} returns graphical displays of the geography of a CRT
-#' \code{plotCRT} creates graphics displaying the geographical showing the results of statistical analysis of a CRT
+#' or of the results of statistical analyses of a CRT
 #' @param object object of class \code{'CRTanalysis'} produced by \code{CRTanalysis()}
 #' @param map logical: indicator of whether a map is required
-#' @param fill fill layer of map
+#' @param fill fill layer of map with options:
 #' \tabular{ll}{
 #' \code{'cluster'} \tab cluster assignment \cr
 #' \code{'arms'}   \tab arm assignment \cr
@@ -17,10 +17,11 @@
 #' @param showLocations logical: determining whether locations are shown
 #' @param showClusterLabels logical: determining whether the cluster numbers are shown
 #' @param showClusterBoundaries logical: determining whether cluster boundaries are shown
-#' @param showContamination logical: determining whether the estimated contamination range should be mapped
-#' @param cpalette colour palette (to use different colours for clusters must be at
-#' least as long as the number of clusters, defaults to \code{rainbow())}
-#' @param maskbuffer radius of buffer drawn around inhabited areas (km)
+#' @param showBuffer logical: whether a buffer zone should be overlayed
+#' @param cpalette colour palette (to use different colours for clusters this must be at
+#' least as long as the number of clusters.
+#' @param buffer_width width of buffer zone to be overlayed (km)
+#' @param maskbuffer radius of buffer around inhabited areas (km)
 #' @param labelsize size of cluster number labels
 #' @param legend.position (using \code{ggplot2::themes} syntax)
 #' @return graphics object produced by the \code{ggplot2} package
@@ -29,26 +30,37 @@
 #' @importFrom ggplot2 geom_polygon
 #' @importFrom ggplot2 aes
 #' @details
-#' If \code{map = TRUE} a plot corresponding to the value of \code{fill} is generated.
-#'  \itemize{
-#' \item \code{fill = 'clusters'} or leads to thematic map showing the locations of the clusters
-#' \item \code{fill = 'arms'} leads to a thematic map showing the geography of the randomization
-#' \item \code{fill = 'distance'} leads to a raster plot of the distance to the nearest discordant location.
-#' \item \code{fill = 'prediction'} leads to a raster plot of predictions from an \code{'INLA'} model.
-#' }
-#' If \code{showContamination = TRUE} the map is overlaid with a grey transparent layer showing showing which
-#' areas are within the contamination zone estimated by an \code{'INLA'} model.\cr
 #' If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object, containing a randomisation
 #' to arms, a stacked bar chart of the the outcome grouped by distance from the boundary is produced.\cr
 #' If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
 #' estimated contamination function is generated.
 #' The fitted contamination function is plotted as a continuous blue line against the distance
-#' from the nearest discordant location.Using the same axes, data summaries are plotted for
+#' from the nearest discordant location. Using the same axes, data summaries are plotted for
 #' ten categories of distance from the boundary. Both the
-#' average of the outcome and confidence intervals are plotted. \cr
-#' For analyses with logit link function the outcome is plotted as a proportion. \cr
-#' For analyses with log link function the outcome is plotted on a scale of the Williams' mean
-#' (mean of exp(log(x + 1))) - 1) \cr
+#' average of the outcome and confidence intervals are plotted.
+#'  \itemize{
+#' \item For analyses with logit link function the outcome is plotted as a proportion. \cr
+#' \item For analyses with log link function the outcome is plotted on a scale of the Williams' mean
+#' (mean of exp(log(x + 1))) - 1) }\cr\cr
+#' If \code{map = TRUE} a thematic map corresponding to the value of \code{fill} is generated.
+#' \itemize{
+#' \item \code{fill = 'clusters'} or leads to thematic map showing the locations of the clusters
+#' \item \code{fill = 'arms'} leads to a thematic map showing the geography of the randomization
+#' \item \code{fill = 'distance'} leads to a raster plot of the distance to the nearest discordant location.
+#' \item \code{fill = 'prediction'} leads to a raster plot of predictions from an \code{'INLA'} model.
+#' }
+#' If \code{showBuffer = TRUE} the map is overlaid with a grey transparent layer showing which
+#' areas are within a defined distance of the boundary between the arms. Possibilities are:
+#' \itemize{
+#' \item If the trial has not been randomised or if \code{showBuffer = FALSE} no buffer is displayed
+#' \item If \code{buffer_width} takes a positive value then buffers of this width are
+#' displayed irrespective of any pre-specified or contamination limits.
+#' \item If the input is a \code{'CRTanalysis'} and contamination limits have been estimated by
+#' an \code{'LME4'} or \code{'INLA'} model then these limits are used to define the displayed buffer.
+#' \item If \code{buffer_width} is not specified and no contamination limits are available, then any
+#' pre-specified buffer (e.g. one generated by \code{specify_buffer()}) is displayed.
+#' }
+#' A message is output indicating which of these possibilities applies.
 #' @export
 #' @importFrom ggplot2 aes alpha
 #' @examples
@@ -73,9 +85,11 @@
 #' }
 #' @export
 plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
-    showClusterBoundaries = TRUE, showClusterLabels = FALSE, showContamination = FALSE,
-    cpalette = NULL, maskbuffer = 0.2, labelsize = 4, legend.position = NULL) {
-    g <- NULL
+    showClusterBoundaries = TRUE, showClusterLabels = FALSE, showBuffer = FALSE,
+    cpalette = NULL, buffer_width = NULL, maskbuffer = 0.2, labelsize = 4,
+    legend.position = NULL) {
+
+    contamination_limits <- g <- NULL
     if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
     trial <- object$trial
     if (is.null(trial)) {
@@ -130,12 +144,12 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
         if (isa(object, what = 'CRTanalysis')) {
             # raster map
             analysis <- object
-            contamination <- analysis$contamination
+            contamination_limits <- analysis$contamination$contamination_limits
             showDistance <- identical(fill, "distance")
             showPrediction <- identical(fill, "prediction")
             if (showPrediction)
                 showdistance <- FALSE
-            if(showDistance | showPrediction | showContamination) {
+            if(showDistance | showPrediction) {
                 # raster images derived from inla analysis
                 x <- y <- prediction <- nearestDiscord <- NULL
 
@@ -147,129 +161,116 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
                     raster <- analysis$inla_mesh$prediction
                     if (showPrediction) {
                         g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                                                                       fill = prediction), alpha = 0.5, width = pixel, height = pixel)
+                             fill = prediction), alpha = 0.5, width = pixel, height = pixel)
                         g <- g + ggplot2::scale_fill_gradient(name = "Prediction",
                                                               low = "blue", high = "orange")
 
                     }
                     if (showDistance) {
                         g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                                                                       fill = nearestDiscord), alpha = 0.5, width = pixel, height = pixel)
+                             fill = nearestDiscord), alpha = 0.5, width = pixel, height = pixel)
                         g <- g + ggplot2::scale_fill_gradient(name = "Distance",
                                                               low = "blue", high = "orange")
 
                     }
-                    if (showContamination) {
-                        # augment the prediction grid with a classifier of
-                        # whether the point is within the contamination
-                        # interval
-                        range <- contamination$contamination_limits
-                        raster$contaminated <- ifelse(dplyr::between(raster$nearestDiscord,
-                                                         range[1], range[2]), TRUE, FALSE)
-                        g <- g + ggplot2::geom_tile(data = raster[raster$contaminated, ],
-                            aes(x = x, y = y), fill = "black", alpha = 0.2)
-                    }
                 }
             }
         }
-        g <- vectorPlot(trial = trial, fill = fill, showLocations = showLocations,
-            showClusterBoundaries = showClusterBoundaries, cpalette = cpalette,
-            showClusterLabels = showClusterLabels, maskbuffer = maskbuffer,
-            labelsize = labelsize, legend.position = legend.position, g = g)
+        # vector plot starts here
+        arm <- cluster <- x <- y <- NULL
+        xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
+        ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
+
+        colourClusters <- identical(fill, "clusters")
+        showArms <- identical(fill, "arms")
+
+        # The plotting routines require unique locations
+        CRT <- aggregateCRT(trial)
+
+        # The plotting routines use (x,y) coordinates
+        if (is.null(CRT$trial$x)) {
+            CRT <- latlong_as_xy(CRT)
+        }
+        trial <- CRT$trial
+
+        # Adjust the required plots to exclude those for which there is no
+        # data or combinations that are too cluttered or overprinted
+
+        if (is.null(trial$cluster)) {
+            trial$cluster <- rep(1, nrow(trial))
+            showClusterBoundaries <- FALSE
+            showClusterLabels <- FALSE
+            colourClusters <- FALSE
+        }
+        if (is.null(trial$arm)) {
+            trial$arm <- 0
+            showArms <- FALSE
+        }
+        if (!showClusterBoundaries) {
+            showClusterLabels <- FALSE
+        }
+
+        totalClusters <- length(unique(trial$cluster))
+
+        if (is.null(cpalette))
+            cpalette <- sample(rainbow(totalClusters))
+        if (totalClusters == 1)
+            cpalette <- c("white")
+
+        if (showBuffer) trial <- modifyBuffer(trial = trial, buffer_width = buffer_width,
+                                              contamination_limits = contamination_limits)
+        if (is.null(trial$buffer)) showBuffer <- FALSE
+
+        sf_objects <- sf_objects(trial = trial, maskbuffer = maskbuffer)
+
+        if (is.null(g))
+            g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
+
+        if (colourClusters) {
+            g <- g + ggplot2::geom_sf(data =  sf_objects$clusters, aes(fill = cluster), fill = cpalette,
+                alpha = 0.8)
+        }
+        if (showArms) {
+            g <- g + ggplot2::geom_sf(data =  sf_objects$arms, aes(fill = arm))
+            # use standard colour-blind compatible palette
+            g <- g + ggplot2::scale_fill_manual(name = "Arms", values = c("#b2df8a",
+                "#1f78b4"), labels = c("Control", "Intervention"))
+        }
+        if (showBuffer) {
+            # whether the point is within the buffer
+            g <- g + ggplot2::geom_sf(data =  sf_objects$buffer, aes(alpha = buffer),
+                               color = NA, fill = "black", show.legend = FALSE)
+            g <- g + ggplot2::scale_alpha_manual(name = "Buffer", values = c(0, 0.2))
+        }
+        if (showClusterBoundaries) {
+            g <- g + ggplot2::geom_sf(data =  sf_objects$clusters, color = "black", fill = NA)
+        }
+        g <- g + ggplot2::geom_sf(data = sf_objects$mask, fill = "grey")
+        # Labels
+        if (showClusterLabels) {
+            showLocations <- FALSE
+            # Positions of centroids of clusters for locating the labels
+            cc <- data.frame(trial %>%
+                                 dplyr::group_by(cluster) %>%
+                                 dplyr::summarize(x = mean(x), y = mean(y), .groups = "drop"))
+            g <- g + ggplot2::geom_text(data = cc, aes(x = x, y = y, label = cluster),
+                                        hjust = 0.5, vjust = 0.5, size = labelsize)
+        }
+        if (showLocations) {
+            g <- g + ggplot2::geom_point(data = trial, aes(x = x, y = y), size = 0.5)
+        }
+        g <- g + ggplot2::theme(legend.position = legend.position)
+        g <- g + ggplot2::theme(panel.border = ggplot2::element_blank())
+        g <- g + ggplot2::theme(axis.title = ggplot2::element_blank())
+        g <- g + ggplot2::coord_sf(expand = FALSE, xlim = xlim, ylim = ylim)
     }
-return(g)
-}
-
-
-vectorPlot <- function(trial, fill, showLocations, showClusterBoundaries,
-    showClusterLabels, cpalette = NULL, maskbuffer, labelsize, legend.position,
-    g = NULL) {
-    arm <- cluster <- x <- y <- NULL
-    xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
-    ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
-
-    colourClusters <- identical(fill, "clusters")
-    showArms <- identical(fill, "arms")
-
-    # The plotting routines require unique locations
-    CRT <- aggregateCRT(trial)
-
-    # The plotting routines use (x,y) coordinates
-    if (is.null(CRT$trial$x)) {
-        CRT <- latlong_as_xy(CRT)
-    }
-
-    # remove any buffer zones
-    if (!is.null(trial$buffer)) {
-        trial <- trial[!trial$buffer, ]
-    }
-
-    # Adjust the required plots to exclude those for which there is no
-    # data or combinations that are too cluttered or overprinted
-
-    if (is.null(trial$cluster)) {
-        trial$cluster <- rep(1, nrow(trial))
-        showClusterBoundaries <- FALSE
-        showClusterLabels <- FALSE
-        colourClusters <- FALSE
-    }
-    if (is.null(trial$arm)) {
-        trial$arm <- 0
-        showArms <- FALSE
-    }
-    if (!showClusterBoundaries) {
-        showClusterLabels <- FALSE
-    }
-
-    totalClusters <- length(unique(trial$cluster))
-
-    if (is.null(cpalette))
-        cpalette <- sample(rainbow(totalClusters))
-    if (totalClusters == 1)
-        cpalette <- c("white")
-
-    sf_objects <- sf_objects(trial = trial, maskbuffer = maskbuffer)
-
-    if (is.null(g))
-        g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
-
-    if (colourClusters) {
-        g <- g + ggplot2::geom_sf(data =  sf_objects$clusters, aes(fill = cluster), fill = cpalette,
-            alpha = 0.8)
-    }
-    if (showArms) {
-        g <- g + ggplot2::geom_sf(data =  sf_objects$arms, aes(fill = arm))
-        # use standard colour-blind compatible palette
-        g <- g + ggplot2::scale_fill_manual(name = "Arms", values = c("#b2df8a",
-            "#1f78b4"), labels = c("Control", "Intervention"))
-    }
-    if (showClusterBoundaries) {
-        g <- g + ggplot2::geom_sf(data =  sf_objects$clusters, color = "black", fill = NA)
-    }
-    g <- g + ggplot2::geom_sf(data = sf_objects$mask, fill = "grey")
-    # Labels
-    if (showClusterLabels) {
-        showLocations <- FALSE
-        # Positions of centroids of clusters for locating the labels
-        cc <- data.frame(trial %>%
-                             dplyr::group_by(cluster) %>%
-                             dplyr::summarize(x = mean(x), y = mean(y), .groups = "drop"))
-        g <- g + ggplot2::geom_text(data = cc, aes(x = x, y = y, label = cluster),
-                                    hjust = 0.5, vjust = 0.5, size = labelsize)
-    }
-    if (showLocations) {
-        g <- g + ggplot2::geom_point(data = trial, aes(x = x, y = y), size = 0.5)
-    }
-    g <- g + ggplot2::theme(legend.position = legend.position)
-    g <- g + ggplot2::theme(panel.border = ggplot2::element_blank())
-    g <- g + ggplot2::theme(axis.title = ggplot2::element_blank())
-    g <- g + ggplot2::coord_sf(expand = FALSE, xlim = xlim, ylim = ylim)
     return(g)
 }
 
 # Create simple feature objects either for plotting or export
-sf_objects <- function(trial, maskbuffer, crs = "Euclidean", centroid = NULL) {
-    clusters <- arms <- cluster <- arm <- x <- y <- NULL
+sf_objects <- function(trial, maskbuffer, crs = "Euclidean",
+                       centroid = NULL) {
+    clusters <- arms <- buffer <- cluster <- arm <- x <- y <- NULL
     if (!identical(crs, "Euclidean") & !is.null(centroid)) {
     # convert coordinates to radians and apply crs of "WGS84"
     # scalef is is the number of degrees per kilometer
@@ -288,18 +289,18 @@ sf_objects <- function(trial, maskbuffer, crs = "Euclidean", centroid = NULL) {
             sf::st_set_crs(crs)
     } else {
         scalef <- 1
-        coords <- c("y", "x")
+#        coords <- c("y", "x")
+        coords <- c("x", "y")
         xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
         ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
         # create pts
         pts <- tidyr::tibble(y = trial$y, x = trial$x) %>%
-            sf::st_as_sf(coords = coords) %>%
-            sf::st_set_crs("Euclidean")
+            sf::st_as_sf(coords = coords)
     }
     tr <- sf::st_as_sf(trial, coords = coords) %>%
             sf::st_set_crs(crs)
     # voronoi of pts- if the coordinates are lat long this would generate a
-    # warning, but the issue is trivial if
+    # warning, but the issue is trivial if the area is small or near the equator
     suppressWarnings(
         vor <- sf::st_voronoi(sf::st_combine(tr)) %>%
         sf::st_collection_extract("POLYGON") %>%
@@ -318,6 +319,19 @@ sf_objects <- function(trial, maskbuffer, crs = "Euclidean", centroid = NULL) {
             group_by(arm) %>%
             dplyr::summarize()
     }
+    # buffer zone
+    if (!is.null(trial$buffer)) {
+        buffer_tr <- tr[tr$buffer,,drop=FALSE]
+        buffer <- vor %>%
+            sf::st_join(tr, sf::st_intersects) %>%
+            dplyr::group_by(buffer) %>%
+            dplyr::summarize()
+
+ #       sf::st_collection_extract("POLYGON") %>%
+ #           sf::st_combine() %>%
+ #           sf::st_as_sf() %>%
+ #           sf::st_set_crs(crs)
+    }
 
     # mask for excluded areas the mask needs to extend outside the plot
     # area
@@ -334,6 +348,7 @@ sf_objects <- function(trial, maskbuffer, crs = "Euclidean", centroid = NULL) {
     mask <- sf::st_difference(bbox, buf2)
     sf_objects <- list(clusters = clusters,
                       arms = arms,
+                      buffer = buffer,
                       mask = mask)
 return(sf_objects)
 }
@@ -345,27 +360,72 @@ return(sf_objects)
 #' @param dsn dataset name for output objects
 #' @param feature feature to be exported, options are:
 #' \tabular{ll}{
-#' \code{'cluster'} \tab cluster assignments \cr
-#' \code{'arms'}   \tab arm assignments \cr
-#' \code{'mask'} \tab mask for areas that are distant from habitations \cr
+#' \code{'cluster'}\tab cluster assignments \cr
+#' \code{'arms'}\tab arm assignments \cr
+#' \code{'buffer'}\tab buffer zone or contamination zone\cr
+#' \code{'mask'}\tab mask for areas that are distant from habitations \cr
 #' }
+#' @param buffer_width width of buffer between discordant locations (km)
 #' @param maskbuffer radius of buffer drawn around inhabited areas (km)
 #' @param ... other arguments passed to \code{'sf::write_sf'}
 #' @return \code{obj}, invisibly
 #' @details
-#' \code{'sf::write_sf'} is used to format the output. \cr\cr
+#' \code{'sf::write_sf'} is used to format the output. The function returns TRUE on success,
+#' FALSE on failure, invisibly. \cr\cr
 #' If the input object contains a \code{'centroid'} then this is used to compute lat long
-#' coordinates, which are assigned the "WGS84" coordinate reference system. Otherwise the objects have
-#' equirectangular co-ordinates with centroid (0,0).\cr\cr
-#' The function returns TRUE on success, FALSE on failure, invisibly \cr
+#' coordinates, which are assigned the "WGS84" coordinate reference system.
+#' Otherwise the objects have equirectangular co-ordinates with centroid (0,0).\cr\cr
+#' If \code{feature = 'buffer'} then buffer width determination is as described under
+#' \code{plotCRT()}.
+#' \cr\cr
+#' The output vector objects are constructed by forming a Voronoi tessellation of polygons around
+#' each of the locations and combining these polygons. The polygons on the outside of the study area
+#' extend outwards to an external rectangle. The \code{'mask'} is used to mask out the areas of
+#' these polygons that are at a distance > \code{maskbuffer} from the nearest location.
 #' @examples
 #' \dontrun{CRTwrite(readdata('exampleCRT.txt'), dsn = 'arms', feature = 'arms',
 #'          driver = 'ESRI Shapefile', maskbuffer = 0.2)}
 #' @export
-CRTwrite <- function(object, dsn, feature = 'clusters', maskbuffer = 0.2, ...){
-    if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
+CRTwrite <- function(object, dsn, feature = 'clusters', buffer_width, maskbuffer = 0.2, ...){
+    if (isa(object, what = 'CRTanalysis')) {
+        centroid <- object$geom_full$centroid
+        contamination_limits = contamination_limits
+    } else {
+       object <- CRTsp(object)
+       centroid <- list()
+       contamination_limits = contamination_limits
+    }
     trial <- object$trial
-    centroid <- object$geom_full$centroid
-    sf_objects <- sf_objects(trial = trial, maskbuffer = maskbuffer, crs = "WGS84", centroid = centroid)
+    if (identical(feature("buffer"))) {
+        trial <- modifyBuffer(trial = trial, buffer_width = buffer_width,
+                  contamination_limits = contamination_limits)
+        if (is.null(trial$buffer)) stop("No buffer available for export")
+    }
+    sf_objects <- sf_objects(trial = trial, maskbuffer = maskbuffer,
+                             crs = "WGS84", centroid = centroid)
     sf::st_write(sf_objects[[feature]], dsn = dsn, ...)
 }
+
+modifyBuffer <- function(trial, buffer_width, contamination_limits){
+    if (!is.null(trial$nearestDiscord)){
+        if (!is.null(buffer_width)){
+            trial$buffer <-  ifelse(dplyr::between(trial$nearestDiscord,
+                               -buffer_width, buffer_width), TRUE, FALSE)
+cat("Buffer includes locations within ", buffer_width*1000, "m of the opposing arm")
+        } else if(!is.null(contamination_limits)) {
+            trial$buffer <-  ifelse(dplyr::between(trial$nearestDiscord,
+            contamination_limits[1], contamination_limits[2]), TRUE, FALSE)
+            cat("Buffer corresponds to estimated contamination zone")
+        } else {
+            if (!is.null(trial$buffer)) {
+                cat("Buffer corresponds pre-specified buffer zone")
+            } else {
+                cat("No buffer available")
+            }
+        }
+    } else {
+        cat("No buffer shown: distances to discordant locations are unavailable")
+    }
+return(trial)
+}
+
