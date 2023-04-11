@@ -16,7 +16,7 @@ get_test9 = function(){
                            generateBaseline = FALSE,
                            baselineNumerator = "RDT_test_result",
                            baselineDenominator = "base_denom",
-                           ICC_inp = NULL, theta_inp = 0.8)
+                           ICC_inp = 0.05, theta_inp = 0.8)
   # Reading in the inla.mesh functions when run outside the check but not as part of a check
   library(Matrix)
   inla_mesh <- readdata("examplemesh100.txt")
@@ -27,5 +27,5 @@ get_test9 = function(){
   value <- round(analysis$pt_ests$DIC)
   return(value)}
 test_that("Analysis using INLA option gives expected DIc", {
-  expect_equal(get_test9(), 1354)
+  expect_equal(get_test9(), 1294)
 })

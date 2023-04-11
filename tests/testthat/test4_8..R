@@ -7,10 +7,10 @@ test_that("Toy GEE analysis creates correct output", {
       test_Estimates <- CRTanalysis(trial = trial,
                                    method = 'GEE',excludeBuffer = FALSE,
                                    alpha = 0.2)
-      value <- test_Estimates$contamination$data$positives[4]
+      value <- round(test_Estimates$pt_ests$effect_size*1000)
       return(value)
    }
-   expect_equal(get_test4(), 53)
+   expect_equal(get_test4(), 388)
 })
 
 set.seed(1234)

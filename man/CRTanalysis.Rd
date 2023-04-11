@@ -41,6 +41,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \item{cfunc}{transformation defining the contamination function. \cr
 options are:
 \tabular{llll}{
+\code{"Z"} \tab\tab arm effects not considered\tab reference model\cr
 \code{"X"} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
 \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr

@@ -23,3 +23,10 @@ Variables that in the trial dataframe that are not included in \code{auxiliaries
 algorithm \code{"CRTsp"} object, with the value corresponding to that of the first record for the location
 in the input data frame
 }
+\examples{
+{
+trial <- readdata('example_site.csv')
+trial$base_denom <- 1
+aggregated <- aggregateCRT(trial, auxiliaries = c("RDT_test_result","base_denom"))
+}
+}

@@ -26,10 +26,10 @@ The [`CRTanalysis`](../reference/CRTanalysis.html) function has an option to use
 ```r
 # use the same dataset as for Use Case 1.
 library(CRTspat)
-example_locations <- readdata("example_baseline.csv")
+example_locations <- readdata('example_site.csv')
 example_locations$base_denom <- 1
 library(dplyr)
-example <- latlong_as_xy(example_locations) %>%
+example <- CRTsp(example_locations) %>%
     aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example)
 ```
@@ -40,12 +40,9 @@ summary(example)
 ## Summary of coordinates
 ## ----------------------
 ##         Min.   : 1st Qu.: Median : Mean   : 3rd Qu.: Max.   :
-##       x -6.29    -2.58    -0.19    -0.06     2.80     5.43   
-##       y -3.72    -1.41    -0.52    -0.08     1.33     5.76   
-## Total area (within  0.2 km of a location) :  31.2 sq.km
-## 
-## Geolocation of centroid (radians):
-##           latitude:  -0.406 longitude:  34.2 
+##       x -3.20    -1.40    -0.30    -0.07     1.26     5.16   
+##       y -5.08    -2.84     0.19     0.05     2.49     6.16   
+## Total area (within  0.2 km of a location) :  27.6 sq.km
 ## 
 ## Locations and Clusters
 ## ----------------------                                          -            
@@ -63,7 +60,7 @@ summary(example)
 # randomly sample an array of values of k (use a small sample size for testing
 # the plots were produced with n=5000)
 set.seed(5)
-k_vec <- round(runif(20, min = 6, max = 150))
+k_vec <- round(runif(50, min = 6, max = 150))
 
 # a user function randomizes and analyses each simulated trial
 CRTscenario3 <- function(k, CRT) {
@@ -102,15 +99,11 @@ ggplot(data = results, aes(x = mean_h, y = ICC)) + geom_smooth() +
 ```
 
 ```
-## Warning: Removed 13 rows containing non-finite values (`stat_smooth()`).
+## Warning: Removed 39 rows containing non-finite values (`stat_smooth()`).
 ```
 
 ```
-## Warning in stats::qt(level/2 + 0.5, pred$df): NaNs produced
-```
-
-```
-## Warning in max(ids, na.rm = TRUE): no non-missing arguments to max; returning -Inf
+## Warning: Removed 34 rows containing missing values (`geom_smooth()`).
 ```
 <p>
     <img src="example3b.r-1.png" > <br>

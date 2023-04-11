@@ -15,10 +15,10 @@ simulateCRT(
   baselineDenominator = "base_denom",
   denominator = NULL,
   ICC_inp = NULL,
+  kernels = 200,
   sd = NULL,
   theta_inp = NULL,
-  tol = 1e-04,
-  vr = 0.5
+  tol = 0.005
 )
 }
 \arguments{
@@ -30,28 +30,28 @@ assigned a \code{propensity} (see details).}
 
 \item{outcome0}{numeric. The anticipated value of the outcome in the absence of intervention}
 
-\item{generateBaseline}{logical. If \code{TRUE} then baseline data will be simulated}
+\item{generateBaseline}{logical. If \code{TRUE} then baseline data and the \code{propensity} will be simulated}
 
 \item{matchedPair}{logical. If \code{TRUE} then the function tries to carry out randomization
 using pair-matching on the baseline data (see details)}
 
 \item{scale}{measurement scale of the outcome. Options are: 'proportion' (the default); 'count'; 'continuous'.}
 
-\item{baselineNumerator}{optional name of numerator variable for baseline data}
+\item{baselineNumerator}{optional name of numerator variable for pre-existing baseline data}
 
-\item{baselineDenominator}{optional name of denominator variable for baseline data}
+\item{baselineDenominator}{optional name of denominator variable for pre-existing baseline data}
 
 \item{denominator}{optional name of denominator variable for the outcome}
 
 \item{ICC_inp}{numeric. Target intra cluster correlation, provided as input when baseline data are to be simulated}
+
+\item{kernels}{number of kernels used to generate a de novo \code{propensity}}
 
 \item{sd}{numeric. standard deviation of the normal kernel measuring spatial smoothing leading to contamination}
 
 \item{theta_inp}{numeric. input contamination range}
 
 \item{tol}{numeric. tolerance of output ICC}
-
-\item{vr}{numeric. ratio of location variance to cluster variance (for continuous outcomes)}
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
@@ -65,7 +65,7 @@ cluster assignments, and randomization \tab\cr
 \tab\code{cluster} \tab factor: \tab assignments to cluster of each location  \cr
 \tab\code{arm} \tab factor: \tab assignments to \code{control} or \code{intervention} for each location \cr
 \tab\code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
-\tab\code{propensity} \tab numeric vector: \tab propensity of location \cr
+\tab\code{propensity} \tab numeric vector: \tab propensity for each location \cr
 \tab\code{base_denom} \tab numeric vector: \tab denominator for baseline \cr
 \tab\code{base_num} \tab numeric vector: \tab numerator for baseline \cr
 \tab\code{denom} \tab numeric vector: \tab denominator for the outcome \cr
@@ -100,7 +100,7 @@ The sampling distribution of \code{num[i]} depends on the value of \code{scale} 
 \tabular{llll}{
 \code{scale}=’continuous’ \tab Values of \code{num} are sampled from a
 Normal distributions with means \code{E(num[i])}
-and variance determined by \code{vr} and the fitting to \code{ICC_inp}.\cr
+and variance determined by the fitting to \code{ICC_inp}.\cr
 \code{scale}=’count’ \tab Simulated events are allocated to locations via multivariate hypergeometric distributions
 parameterised with \code{E(num[i])}.\cr
 \code{scale}=’proportion’\tab Simulated events are allocated to locations via multinomial distributions

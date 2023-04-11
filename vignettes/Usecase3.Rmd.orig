@@ -22,29 +22,27 @@ ICC calculations, or use a value from a source of questionable relevance.
 
 The [`CRTanalysis`](../reference/CRTanalysis.html) function has an option to use Generalised Estimating Equations, which provide an estimate of the ICC. This can be applied to baseline data, and hence to different cluster configurations. This makes it possible to estimate the ICC which is appropriate for any given cluster definition, in the chosen geography, assuming baseline data are available.
 
-```{r example3a.r, fig.keep = 'none', echo = TRUE}
+```{r example3a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
 # use the same dataset as for Use Case 1.
 library(CRTspat)
-example_locations <- readdata("example_baseline.csv")
+example_locations <- readdata('example_site.csv')
 example_locations$base_denom <- 1
 library(dplyr)
-example <- latlong_as_xy(example_locations) %>%
+example <- CRTsp(example_locations) %>%
     aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example)
 
 # randomly sample an array of values of k (use a small sample size for testing
 # the plots were produced with n=5000)
 set.seed(5)
-k_vec <- round(runif(20, min = 6, max = 150))
+k_vec <- round(runif(50, min = 6, max = 150))
 
 # a user function randomizes and analyses each simulated trial
 CRTscenario3 <- function(k, CRT) {
     ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
         randomizeCRT()
-    invisible(capture.output(
       GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = FALSE,
           baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
-    ))
     locations <- GEEanalysis$description$locations
     ICC <- GEEanalysis$pt_ests$ICC
     value <- c(k = k, ICC = ICC, mean_h = locations/k)
@@ -56,11 +54,11 @@ results <- t(sapply(k_vec, FUN = CRTscenario3, simplify = "array", CRT = example
     data.frame()
 ```
 
-There is a clear downward trend in the ICC estimates, as cluster size increases (Figure 3.1). The ICC for a trial
-in this, or similar, geographies can be read off the curve. Note that the ICC is expected to vary
+There is a clear downward trend in the ICC estimates, as cluster size increases (Figure 3.1). The ICC
+expected for a trial in this, or similar, geographies can be read off the curve. Note that the ICC is expected to vary
 not just with cluster size, but also to vary between different outcomes.
 
-```{r example3b.r, fig.keep = 'none', echo = TRUE}
+```{r example3b.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
 library(ggplot2)
 theme_set(theme_bw(base_size = 14))
 ggplot(data = results, aes(x = mean_h, y = ICC)) + geom_smooth() +

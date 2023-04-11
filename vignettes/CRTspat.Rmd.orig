@@ -32,7 +32,7 @@ The package can facilitate design of efficient trials by providing algorithms fo
 The package builds on the work of [Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
 
 The package is intended to function with outcomes that are proportions, count data, or continuous variables.
-The current version (0.1.0.9000) is for **testing** and has been developed mainly on data that are proportions. It is likely to need some further to ensure the correct outputs with other kinds of outcome.
+The current version (0.1.0.9000) is for **testing** and has been developed mainly on data that are proportions. It will be revised to ensure that it gives the correct outputs with other kinds of outcome.
 
 ##  Anticipated use cases
 
