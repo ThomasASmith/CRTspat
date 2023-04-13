@@ -107,7 +107,7 @@ plotCRT(example, map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
           labelsize=2, maskbuffer=0.2)
 #show arms
 plotCRT(example, map = TRUE,
-        fill = 'arms', maskbuffer=0.2, legend.position=c(0.2,0.8))
+        fill = 'arms', maskbuffer=0.2, legend.position=c(0.8,0.8))
 #contamination plot
 analysis <- CRTanalysis(example)
 plotCRT(analysis, map = FALSE)

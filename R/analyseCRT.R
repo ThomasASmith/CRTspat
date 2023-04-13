@@ -214,11 +214,11 @@ CRTanalysis <- function(
            "INLA" = INLAanalysis(analysis, requireMesh = requireMesh, inla_mesh = inla_mesh),
            "MCMC" = MCMCanalysis(analysis)
     )
-    fittedCurve <- get_curve(x = analysis$pt_ests, analysis = analysis)
-    contamination <- get_contaminationStats(fittedCurve=fittedCurve, trial=analysis$trial)
-
-    analysis <- tidyContamination(contamination, analysis, fittedCurve)
-
+    if (!baselineOnly){
+        fittedCurve <- get_curve(x = analysis$pt_ests, analysis = analysis)
+        contamination <- get_contaminationStats(fittedCurve=fittedCurve, trial=analysis$trial)
+        analysis <- tidyContamination(contamination, analysis, fittedCurve)
+    }
     class(analysis) <- "CRTanalysis"
     return(analysis)
 }
@@ -458,6 +458,8 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     if (!identical(cfunc, "Z")){
         sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = q50, Sigma = cov))
         analysis <- extractEstimates(analysis = analysis, sample = sample)
+    } else {
+        analysis$pt_ests$controlY <- invlink(link, model_object$summary.fixed[["0.5quant"]])
     }
 return(analysis)}
 
@@ -815,7 +817,7 @@ estimateContaminationINLA <- function(
     # The DIC is penalised to allow for estimation of beta
     loss <- result.e$dic$family.dic
     # Display the DIC here if necessary for debugging
-    cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_beta), "  \r")
+    # cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_beta), "  \r")
     return(loss)
 }
 
@@ -824,18 +826,18 @@ estimateContaminationLME4 <- function(
     log_beta = log_beta, trial = trial, FUN = FUN, formula = formula, link = link){
     x <- trial$nearestDiscord * exp(log_beta)
     trial$pvar <- eval(parse(text = FUN))
-    tryCatch(
+    try(
     model_object <- switch(link,
                 "identity" = lme4::lmer(formula = formula, data = trial, REML = FALSE),
                 "log" = lme4::glmer(formula = formula, data = trial,
                                    family = poisson),
                 "logit" = lme4::glmer(formula = formula, data = trial,
                                    family = binomial))
-     , warning = function(w) {999999})
+    )
     loss <- ifelse (is.null(model_object),999999, unlist(summary(model_object)$AICtab["AIC"]))
     # The AIC is used as a loss function
     # Display the AIC here if necessary for debugging
-    cat("\rAIC: ", loss, " Contamination scale parameter: ", exp(log_beta), "  \n")
+    # cat("\rAIC: ", loss, " Contamination scale parameter: ", exp(log_beta), "  \n")
     return(loss)
 }
 
@@ -955,13 +957,6 @@ summary.CRTanalysis <- function(object, ...) {
             face validity check fails **\n")
             }
         }
-        if (!is.null(object$pt_ests$ICC))
-        {
-            cat(
-                "Intracluster correlation (ICC) : ", object$pt_ests$ICC,
-                CLtext, unlist(object$int_ests$ICC),")\n"
-            )
-        }
         if (object$options$cfunc %in% c("L", "P", "S")) {
             if (!is.null(object$pt_ests$contamination_interval)){
                 cat(
@@ -978,6 +973,13 @@ summary.CRTanalysis <- function(object, ...) {
                     " %)\n")
             }
         }
+    }
+    if (!is.null(object$pt_ests$ICC))
+    {
+        cat(
+            "Intracluster correlation (ICC) : ", object$pt_ests$ICC,
+            CLtext, unlist(object$int_ests$ICC),")\n"
+        )
     }
     options(digits = defaultdigits)
     # goodness of fit
@@ -1137,6 +1139,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
             },
             error = function(e){
                message("*** Contamination scale parameter cannot be estimated ***")
+               log_beta <- 5
             })
         }
         beta <- exp(log_beta)
@@ -1278,7 +1281,7 @@ return(analysis)
 
 StraightLine <- function(par, trial)
 {
-    par[2] <- par[3] <- NA
+    par[2] <- par[3] <- -9
     lp <- par[1]
     return(lp)
 }
@@ -1287,7 +1290,7 @@ StraightLine <- function(par, trial)
 
 StepFunction <- function(par, trial)
 {
-    par[3] <- NA
+    par[3] <- -9
     lp <- ifelse(trial$nearestDiscord < 0, par[1], par[1] + par[2])
     return(lp)
 }
@@ -1311,6 +1314,12 @@ PiecewiseLinearFunction <- function(par, trial)
     }
     return(lp)
 }
+
+piecewise <- function(x) {
+    value <- ifelse(x < -0.5, 0, (0.5 + x))
+    value <- ifelse(x > 0.5, 1, value)
+return(value)}
+
 
 
 # sigmoid (logit) function
@@ -1349,12 +1358,6 @@ get_FUN <- function(cfunc,variant){
     return(FUN)
 }
 
-piecewise <- function(x) {
-    value <- ifelse(x < -1, 0, (1 + x)/2)
-    value <- ifelse(x > 1, 1, value)
-    return(value)}
-
-
 get_contamination <- function(x, analysis){
         # define the limits of the curve both for control and intervention arms
     fittedCurve <- get_curve(x = x, analysis = analysis)
@@ -1366,14 +1369,23 @@ get_curve <- function(x, analysis) {
     trial <- analysis$trial
     link <- analysis$options$link
     cfunc <- analysis$options$cfunc
-    if (is.null(x[["interventionY"]])) x[["interventionY"]] <- x[["controlY"]]
-    limits <- c(x[["controlY"]], x[["interventionY"]])
+    limits <- c(x[["controlY"]], x[["controlY"]])
+    if(!is.null(x[["interventionY"]])) limits[2] <- x[["interventionY"]]
+    if(is.na(limits[2])) limits[2] <- x[["controlY"]]
     personal_protection <- x[["personal_protection"]]
     contamination_par <- x[["contamination_par"]]
+
+    # Trap cases with extreme effect: TODO: a different criterion may be needed for continuous data
+    pars <- link_tr(link,limits)
+    if (abs(pars[1] - pars[2]) > 10000) {
+        limits <- invlink(link,c(20,-20))
+    }
+
     limits0 <- limits1 <- limits
     range_d <- max(trial$nearestDiscord) -
         min(trial$nearestDiscord)
     d <- min(trial$nearestDiscord) + range_d * (seq(1:1001) - 1)/1000
+
     Cp <- 1
     if (is.na(personal_protection)) {
         Cp <- 0
@@ -1383,18 +1395,32 @@ get_curve <- function(x, analysis) {
         limits1 <- c(Cp * limits[1] + (1 - Cp) * limits[2], limits[2])
     }
 
-    par0 <- c(link_tr(link, limits0[1]),
-              link_tr(link, limits0[2]) - link_tr(link, limits0[1]),
-              contamination_par)
-    par1 <- c(
-        link_tr(link, limits1[1]),
-        link_tr(link, limits1[2]) - link_tr(link, limits1[1]),
-        contamination_par
-    )
-    FUN1 <- get_FUN(cfunc, variant = 1)
-    curve <- ifelse(d < 0,
-                    invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par0)),
-                    invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par1)))
+    if (identical(limits[1], limits[2])) {
+        curve <- rep(limits[1],1001)
+    } else {
+        par0 <- c(link_tr(link, limits0[1]),
+                  link_tr(link, limits0[2]) - link_tr(link, limits0[1]),
+                  contamination_par)
+        par1 <- c(
+            link_tr(link, limits1[1]),
+            link_tr(link, limits1[2]) - link_tr(link, limits1[1]),
+            contamination_par
+        )
+        # trap extreme cases with undefined, flat or very steep ones
+        if (is.null(contamination_par)) {
+            cfunc <- "X"
+        } else if (is.na(contamination_par) |
+            contamination_par < 0.01 |
+            contamination_par > 100  |
+            (abs(pars[1] - pars[2]) > 10000)) {
+            cfunc <- "X"
+        }
+        FUN1 <- get_FUN(cfunc, variant = 1)
+
+        curve <- ifelse(d < 0,
+                        invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par0)),
+                        invlink(link, FUN1(trial = data.frame(nearestDiscord = d), par = par1)))
+    }
     fittedCurve <- list(d = d, contaminationFunction = curve, limits0 = limits0, limits1 = limits1)
     return(fittedCurve)
 }
@@ -1409,6 +1435,9 @@ get_contaminationStats <- function(fittedCurve, trial) {
     curve <- fittedCurve$contaminationFunction
     d <- fittedCurve$d
     thetaL <- thetaU <- NA
+    if (is.na(limits0[1]) | is.na(curve[1000])) {
+        rabbit <- 6
+    }
     if (abs(limits0[1] - curve[1000]) >
         0.025 * abs(limits0[1] - limits0[2]))
     {

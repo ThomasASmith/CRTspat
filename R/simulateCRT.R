@@ -321,7 +321,7 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, 
     summary.fit <- summary(fit)
     # Intracluster correlation
     ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
-    cat("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")
+    # cat("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")
     loss <- (ICC - ICC_inp)^2
     return(loss)
 }

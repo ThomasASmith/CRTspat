@@ -156,17 +156,17 @@ get_geom <- function(trial = NULL, design = NULL) {
         link <- switch(design$outcome_type, y = "identity", n = "log", e = "log",
             p = "logit", d = "logit")
         if (identical(link, "identity")) {
-            yI <- yC - effect
+            yI <- yC - design$effect
             d <- yC - yI
             sigma2 <- design$sigma2
             # with normal models, sigma2 is an input variable
         } else if (identical(link, "log")) {
-            yI <- yC * (1 - effect)  # probability in intervened group
+            yI <- yC * (1 - design$effect)  # probability in intervened group
             d <- yC - yI  # difference between groups
             # Poisson variance is equal to mean.
             sigma2 <- yC * design$phi
         } else if (identical(link, "logit")) {
-            yI <- yC * (1 - effect)  # probability in intervened group
+            yI <- yC * (1 - design$effect)  # probability in intervened group
             d <- yC - yI  # difference between groups
             # This is the variance for a Bernoulli. The cluster sizes are
             # inflated for the binomial case (below)
@@ -211,7 +211,7 @@ get_geom <- function(trial = NULL, design = NULL) {
 
         # power with k clusters per arm and unequal cluster sizes
         geom$power <- with(geom, stats::pnorm(
-            sqrt(k * mean_eff/(2 * DE)) * d/sqrt(sigma2) - Zsig))
+            sqrt(k * mean_eff/(2 * geom$DE)) * d/sqrt(sigma2) - Zsig))
 
     }
     return(geom)

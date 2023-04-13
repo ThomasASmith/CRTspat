@@ -46,13 +46,13 @@ example_randomized <- CRTsp(example_locations) %>%
   randomizeCRT(matchedPair = FALSE)
 summary(example_randomized)
 plotCRT(example_randomized, map = TRUE)
-example2a <- simulateCRT(example_randomized,
-         effect = 0.8,
-         outcome0 = 0.5,
-         generateBaseline = FALSE,
-         baselineNumerator = "RDT_test_result",
-         baselineDenominator = "base_denom",
-         ICC_inp = 0.05, theta_inp = 0.8)
+  example2a <- simulateCRT(example_randomized,
+           effect = 0.8,
+           outcome0 = 0.5,
+           generateBaseline = FALSE,
+           baselineNumerator = "RDT_test_result",
+           baselineDenominator = "base_denom",
+           ICC_inp = 0.05, theta_inp = 0.8)
 summary(example2a)
 library(Matrix)
 examplemesh100 <- readdata("examplemesh100.txt")
@@ -84,7 +84,6 @@ new_site <- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40)
 # propensity surface generated as an arbitrary linear function of x the co-ordinate
 new_site$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
 library(dplyr)
-invisible(capture.output(
 example2b<- CRTsp(new_site) %>%
    specify_clusters(h = 40, algorithm = 'NN') %>%
    randomizeCRT(matchedPair = FALSE) %>%
@@ -94,7 +93,6 @@ example2b<- CRTsp(new_site) %>%
                           generateBaseline = TRUE,
                           ICC_inp = 0.05,
                           theta_inp = 0.5)
-))
 summary(example2b)
 results2b <- CRTanalysis(example2b, method = 'GEE')
 summary(results2b)
@@ -109,7 +107,6 @@ plotCRT(example2b, map = TRUE, fill = 'clusters', showClusterLabels = TRUE, mask
 ```{r example2c.r, fig.keep = 'none', echo = TRUE}
 set.seed(1234)
 # use co-ordinates, cluster and arm assignments, and baseline data from `example_simulated`
-invisible(capture.output(
 example2c<- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40) %>%
    specify_clusters(h = 40, algorithm = 'NN') %>%
    randomizeCRT(matchedPair = FALSE) %>%
@@ -121,7 +118,6 @@ example2c<- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40) %>%
        baselineDenominator = 'base_denom',
        ICC_inp = 0.08,
        theta_inp = 0.2)
-))
 results2c <- CRTanalysis(example2c, method = 'GEE')
 summary(results2c)
 ```
