@@ -1505,3 +1505,48 @@ tidyContamination <- function(contamination, analysis, fittedCurve){
     contamination$data <- group_data(analysis)
     analysis$contamination <- contamination
     return(analysis)}
+
+#' Extract model fitted values
+#'
+#' \code{fitted.CRTanalysis} method for extracting model fitted values
+#' @param object CRTanalysis object
+#' @param ... other arguments
+#' @export
+fitted.CRTanalysis <- function(object, ...){
+    value = fitted(object = object$model_object, ...)
+    return(value)
+}
+
+#' Extract model coefficients
+#'
+#' \code{coef.CRTanalysis} method for extracting model fitted values
+#' @param object CRTanalysis object
+#' @param ... other arguments
+#' @export
+coef.CRTanalysis <- function(object, ...){
+    value = coef(object = object$model_object, ...)
+    return(value)
+}
+
+#' Extract model residuals
+#'
+#' \code{residuals.CRTanalysis} method for extracting model residuals
+#' @param object CRTanalysis object
+#' @param ... other arguments
+#' @export
+residuals.CRTanalysis <- function(object, ...){
+    value = residuals(object = object$model_object, ...)
+    return(value)
+}
+
+#' Model predictions
+#'
+#' \code{predict.CRTanalysis} method for extracting model residuals
+#' @param object CRTanalysis object
+#' @param ... other arguments
+#' @export
+predict.CRTanalysis <- function(object, ...){
+    value = predict(object = object$model_object, ...)
+    return(value)
+}
+
