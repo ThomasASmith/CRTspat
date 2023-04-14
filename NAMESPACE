@@ -2,6 +2,7 @@
 
 S3method(coef,CRTanalysis)
 S3method(fitted,CRTanalysis)
+S3method(predict,CRTanalysis)
 S3method(residuals,CRTanalysis)
 S3method(summary,CRTanalysis)
 S3method(summary,CRTsp)

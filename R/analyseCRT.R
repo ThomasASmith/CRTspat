@@ -1541,7 +1541,7 @@ residuals.CRTanalysis <- function(object, ...){
 
 #' Model predictions
 #'
-#' \code{predict.CRTanalysis} method for extracting model residuals
+#' \code{predict.CRTanalysis} method for extracting model predictions
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
