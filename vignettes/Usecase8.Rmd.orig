@@ -66,6 +66,7 @@ analyseReducedCRT <- function(x, CRT) {
   cat(radius,proportion)
   nlocations <- nrow(trial)
   if (radius > 0) {
+    radius <- radius + runif(1, -0.05, 0.05)
     trial$num[abs(trial$nearestDiscord) < radius] <- NA
   }
   if (proportion > 0) {
@@ -121,28 +122,29 @@ for(theta in theta_vec){
   results <- rbind(results,sub_results)
 }
 
-results$fried <- ifelse(results$radius > 0, 'fried','scrambled')
+results$fried <- ifelse(results$radius > 0, 'fried',
+                      ifelse(results$proportion > 0, 'scrambled', 'neither'))
 results$bias <- results$effect_size - 0.5
 
 library(ggplot2)
 theme_set(theme_bw(base_size = 12))
 fig8_1a <- ggplot(data = results, aes(x = observations, y = significant, color = factor(fried))) +
-  geom_smooth(size = 2, se = FALSE, show.legend = FALSE) +
+  geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Number of locations in analysis') +
     ylab('Power')
 fig8_1b <- ggplot(data = results, aes(x = theta_inp, y = significant, color = factor(fried))) +
-  geom_smooth(size = 2, se = FALSE, show.legend = FALSE) +
+  geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Simulated contamination range (km)') +
     ylab('Power')
 fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor(fried))) +
-  geom_smooth(size = 2, se = FALSE, show.legend = FALSE) +
+  geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Number of locations in analysis') +
   ylab('Bias')
 fig8_1d <- ggplot(data = results, aes(x = theta_inp, y = bias, color = factor(fried))) +
-  geom_smooth(size = 2, se = FALSE, show.legend = FALSE) +
+  geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Simulated contamination range (km)') +
   ylab('Bias')
@@ -156,18 +158,16 @@ Figure 8.1. is are based on analysing 1000 simulated datasets (12,000 scenarios 
 The power is calculated as the proportion of significance tests with likelihood ratio p < 0.05.
 
 The fried-egg design suffers little loss of power with exclusion of observations until the sample size is less than about 750 (the suggestion that there is a maximum at a sample size of about 900 locations is presumably an effect of the smoothing of the results).
-while the 'scrambled' egg trials lose power with each reduction in the number of observations (Figure 8.1a). Substantive loss of power is associated with contamination range of 1 km or more
-in this dataset. With
+while the 'scrambled' egg trials lose power with each reduction in the number of observations (Figure 8.1a). Substantive loss of power occurs only with contamination range of 1 km or more
+in this dataset. The fried egg designs largely avoid this loss of power (Figure 8.1b) but are less powerful on average when the contamination range is less that 0.5 km.
 
-There is less absolute bias with the fried-egg designs but the effect is small except when the number of locations is very small (Figure 8.1c), or the simulated contamination range very large
-(Figure 8.1d).
+In these simulations, the lme4 estimates of the efficacy are biased slightly downwards (i.e. have negative sign). The absolute bias was least when some of the locations were excluded (Figure 8.1c). There is less absolute bias with the fried-egg designs but the effect is small except when the simulated contamination range is very large (Figure 8.1d). The difference in bias between 'fried' and 'scrambled' egg designs is modest in relation to the scale of the overall bias.
 
 <p>
     <img src="example8c.r-1.png" > <br>
     <em>Fig 8.1 Power and bias by number of locations in analysis
     $\color{purple}{\textbf{----}}$ : Randomly sampled locations removed;
-    $\color{green}{\textbf{----}}$ : Fried-egg- locations in boundary zone removed;
-    $\color{blue}{\textbf{----}}$ : Analyses with no locations removed.
+    $\color{green}{\textbf{----}}$ : Fried-egg- locations in boundary zone removed.
     </em>
 </p>
 

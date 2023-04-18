@@ -27,7 +27,7 @@ buffer zones by using large clusters.
 The `CRTspat` package provides functions for analysing this trade-off for any site for which baseline data are available.
 The example shown here uses the baseline prevalence data introduced in [Use Case 1](Usecase1.html). The trial is assumed to plan to be based on the same outcome of prevalence, and to be powered for an efficacy of 30%. A set of different algorithmic cluster allocations are carried out with different numbers of clusters. Each allocation is randomized and buffer zones are specified with the a pre-specified width (in this example, 0.5 km). The ICC is computed from the baseline data, excluding the buffer zones, and corresponding power calculations are carried out. The power is calculated and plotted as a function of cluster size.
 
-```{r example4a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 # use the same dataset as for Use Case 1.
 library(CRTspat)
 example_locations <- readdata('example_site.csv')
@@ -61,7 +61,7 @@ results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
 ```
 Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (k). There is also variation in the estimated Intracluster Correlation (see [Use Case 3](Usecase3.html)) for any value of k.
 
-```{r example4b.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4b.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 total_locations <- example$geom_full$locations
 results$proportion_included <- results$k_core * results$mean_h * 2/total_locations
 results$corelocations_required <- results$clustersRequired * results$mean_h
@@ -86,7 +86,7 @@ entire clusters to be swallowed by the buffer zones. This can be
 illustrated by the contrast in the core areas randomised with k = 6
 and k = 40 (Figures 4.2 and 4.3).
 
-```{r example4c.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4c.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 set.seed(7)
 library(dplyr)
 example6 <- specify_clusters(example, k = 6, algo = "kmeans") %>%
@@ -113,7 +113,7 @@ Beyond this point, increasing the number of clusters allocated in the fixed area
 making them smaller) does not add to the total number of clusters. In this example the maximum is achieved when the
 input k is about 35 and the output k is 18.5.
 
-```{r example4d.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4d.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 ggplot(data = results, aes(x = k_core, y = mean_h)) + geom_smooth() + xlab("Clusters in core (per arm)") +
     ylab("Mean cluster size")
 ```
@@ -126,7 +126,7 @@ The size of clusters decreases with the number allocated (Figure 4.4), but does
 not fall much below 10 locations on average in the example because
 smaller clusters are likely to be absorbed into the buffer zones.
 
-```{r example4e.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4e.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 ggplot(data = results, aes(x = k_core, y = power)) + geom_smooth() + xlab("Clusters in core (per arm)") +
     ylab("Power")
 ```
@@ -142,7 +142,7 @@ size.  Because the buffering leads to a maximum in the cluster
 density (number of clusters per unit area), so does the power
 achievable with a fixed area (Figure 4.6).
 
-```{r example4f.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4f.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 ggplot2::ggplot(data = results, aes(x = k_full, y = power)) + geom_smooth() +
     xlab("Clusters allocated (per arm)") + ylab("Power")
 ```
@@ -171,7 +171,7 @@ This is also at the allocation density where saturation is achieved
 in the number of core clusters (Figure 4.1), and where the proportion of
 the locations included in the core area reaches its minimum (Figure 4.8).
 
-```{r example4h.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4h.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 ggplot2::ggplot(data = results, aes(x = k_core, y = proportion_included)) +
     geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Proportion of locations in core") +
     geom_segment(aes(x = 18, xend = 18, y = 0, yend = 0.25), arrow = arrow(length = unit(1,
@@ -188,7 +188,7 @@ by inclusion in the buffer zones, so that there would be . This would be far fro
 adequate power. To achieve 80% power about 8,000 locations would be needed, in a larger trial area, of which about 2,400
 would be in the core (sampled) parts of the clusters.
 
-```{r example4i.r,fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example4i.r,fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 ggplot2::ggplot(data = results, aes(x = k_core, y = totallocations_required)) +
     geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Total locations required") +
     geom_segment(aes(x = 18, xend = 18, y = 0, yend = 8000), arrow = arrow(length = unit(1,

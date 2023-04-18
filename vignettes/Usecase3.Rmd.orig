@@ -22,7 +22,7 @@ ICC calculations, or use a value from a source of questionable relevance.
 
 The [`CRTanalysis`](../reference/CRTanalysis.html) function has an option to use Generalised Estimating Equations, which provide an estimate of the ICC. This can be applied to baseline data, and hence to different cluster configurations. This makes it possible to estimate the ICC which is appropriate for any given cluster definition, in the chosen geography, assuming baseline data are available.
 
-```{r example3a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example3a.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
 # use the same dataset as for Use Case 1.
 library(CRTspat)
 example_locations <- readdata('example_site.csv')

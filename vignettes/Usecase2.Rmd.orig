@@ -34,7 +34,7 @@ Contamination or spillover between trial arms is modelled as a additional smooth
 effect is modelled by applying an [inverse probit (error function) transformation](Usecase5.html) to the `propensity`:   $P\left( d \right) = \frac{1}{2}\left( 1\  + \ erf\left( \frac{\text{d/σ}}{\sqrt{2}} \right) \right)$, where σ is the value of `sd` and $d$ is the distance to the boundary between the arms.
 
 #### Example with baseline data provided as proportions
-```{r example2a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=FALSE, echo = TRUE}
+```{r example2a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 library(CRTspat)
 set.seed(1234)
 example_locations <- readdata('example_site.csv')
