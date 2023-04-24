@@ -40,7 +40,7 @@ datasets. Other variables, including baseline data or trial outcomes may also be
 
 Simulated co-ordinate sets can also be generated *de novo* (function [`CRTsp()`](../reference/CRTsp.html)) for use in methods development and testing.
 
-To make it possible to share data files without compromising confidentiality the [`anonymize.site()`](../reference/anonymize_site.html) function is provided. This removes absolute geolocations and applies a transformation to the coordinates to conserve distances between them but modifying the orientation.
+To make it possible to share data files without compromising confidentiality the [`anonymize_site()`](../reference/anonymize_site.html) function is provided. This removes absolute geolocations and applies a transformation to the coordinates to conserve distances between them but modifying the orientation.
 
 The [`latlong_as_xy`](../reference/latlong_as_xy.html) function is available to convert co-ordinates provided as decimal degrees into Cartesian co-ordinates with units of km with centroid (0,0). If the input co-ordinates are provided using a different projection then they must be converted externally to the package.
 
