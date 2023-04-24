@@ -3,9 +3,13 @@
 
 ## usethis namespace: start
 #' @importFrom stats aggregate
+#' @importFrom stats coef
+#' @importFrom stats fitted
 #' @importFrom stats gaussian
 #' @importFrom stats poisson
+#' @importFrom stats predict
 #' @importFrom stats quasipoisson
+#' @importFrom stats residuals
 #' @importFrom stats vcov
 ## usethis namespace: end
 NULL
