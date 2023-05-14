@@ -1,0 +1,233 @@
+#' Compute distance or surround values for a cluster randomized trial
+#'
+#' \code{compute_distance} computes distance or surround values for a cluster randomized trial (CRT)
+#' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).
+#' @param measure the quantity(s) to be computed. Options are:
+#'  \tabular{ll}{
+#' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
+#' \code{"disc"} \tab disc \cr
+#' \code{"hdep"} \tab Tukey's half space depth\cr
+#' \code{"sdep"} \tab simplicial depth\cr
+#' \code{"all"} \tab all of distance to nearest discordant location, disc, half space depth, and simplicial depth\cr
+#' }
+#' @param radius radius used for calculating the disc in km (default 1.0)
+#' @returns The input \code{"CRTsp"} object with additional column(s) added to the \code{trial} data frame
+#' with name(s) corresponding to the input value of \code{measure}.
+#' @details
+#' For each selected measure, the function first checks whether the variable is already present, and carries out
+#' the calculations only if the corresponding field is absent from the \code{trial} data frame.\cr\cr
+#' If \code{measure = "nearestDiscord"} is selected the computed values are Euclidean distances
+#' assigned a positive sign for the intervention arm of the trial, and a negative sign for the control arm.\cr\cr
+#' If \code{measure = "disc"} is specified, the disc statistic is computed for each location as the number of locations
+#' within the specified radius that are in the intervention arm
+#' [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)
+#' the input value of \code{radius} is stored in the \code{design} list
+#' of the output \code{"CRTsp"} object. Recalculation is carried out if the input value of
+#' \code{radius} differs from the one in the input \code{design} list.\cr\cr
+#' If either \code{measure = "hdep"} or \code{measure = "sdep"} is specified then both the simplicial depth and
+#' Tukey's half space depth are calculated using the algorithm of
+#' [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073). For a location in the intervention arm, the
+#' depth is computed with respect to all other locations in the intervention arm. For a location in the control arm
+#' the depth is computed relative to all intervention locations
+#' [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316).\cr
+#' @export
+#' @examples
+#' #Calculate the disc with a radius of 1 km
+#' exampletrial <- compute_distance(trial = readdata('exampleCRT.txt'), measure = 'disc', radius = 1.0)
+compute_distance <- function(trial, measure = "all", radius = 1.0) {
+  CRT <- CRTsp(trial)
+  trial <- CRT$trial
+  if (is.null(trial$arm)) return('*** Randomization is required for computation of distances or surrounds ***')
+  if ((measure %in% c("all", "hdep", "sdep")) & is.null(trial$hdep)){
+    depthlist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial)
+    depth_df <- as.data.frame(do.call(rbind, lapply(depthlist, as.data.frame)))
+    trial <- cbind(trial,depth_df)
+    trial$numh <- NULL
+  }
+  if ((measure %in% c("all", "disc", "nearestDiscord")) &
+      (is.null(trial$disc) | is.null(trial$nearestDiscord))) {
+    dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
+    if (is.null(trial$nearestDiscord) & !identical(measure, "disc")){
+      discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
+      discord_dist_trial <- ifelse(discord, dist_trial, Inf)
+      trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
+                        MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
+    }
+    if (!identical(measure, "nearestDiscord")){
+      if (is.null(CRT$design$radius)) {
+        trial$disc <- NULL
+      } else if(CRT$design$radius != radius) {
+        trial$disc <- NULL
+      }
+      if (is.null(trial$disc)){
+        intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= radius))
+        trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
+        CRT$design$radius <- radius
+      }
+    }
+  }
+  CRT$trial <- trial
+  return(CRTsp(CRT))
+}
+
+
+
+depths <- function(X, trial) {
+  # this is an R translation of the fortran code in
+  # Rousseeuw & Ruts https://www.jstor.org/stable/2986073
+  # algorithm as 307.1 Appl.Statist. (1996), vol.45, no.4
+  # calculation of the simplicial depth and
+  # the half space depth
+  # u and v are the coordinates of the arbitrary point
+  u <- as.numeric(X[["x"]])
+  v <- as.numeric(X[["y"]])
+
+  # for the CRT application, depth is computed with respect to the set of intervention individuals
+  # excluding the point itself (if it is in the intervention arm)
+  trial <- trial[trial$arm == 'intervention' & (trial$x != u | trial$y != v),]
+
+  n <- nrow(trial)
+  x <- trial$x
+  y <- trial$y
+  nums <- 0
+  numh <- 0
+  sdep <- 0  # simplicial depth
+  hdep <- 0  # half-space depth
+  eps <- 1e-06
+  nt <- 0
+  # construct the vector alpha
+  alpha <- fval <- rep(NA, nrow(trial))
+  for (i in 1:n) {
+    d <- sqrt((x[i] - u) * (x[i] - u) + (y[i] - v) * (y[i] - v))
+    if (d <= eps) {
+      nt <- nt + 1
+    } else {
+      xu <- (x[i] - u)/d
+      yu <- (y[i] - v)/d
+      if (abs(xu) > abs(yu)) {
+        if (x[i] >= u) {
+          alpha[i - nt] <- asin(yu)
+          if (alpha[i - nt] < 0.0) {
+            alpha[i - nt] <- 2 * pi + alpha[i - nt]
+          }
+        } else {
+          alpha[i - nt] <- pi - asin(yu)
+        }
+      } else {
+        if (y[i] >= v) {
+          alpha[i - nt] <- acos(xu)
+        } else {
+          alpha[i - nt] <- 2 * pi - acos(xu)
+        }
+      }
+      if (alpha[i - nt] >= (2 * pi - eps)) alpha[i - nt] <- 0.0
+    }
+  }
+  nn <- n - nt
+  if (nn > 1) {
+    # nn is the number of elements of alpha that have been assigned a value
+    # the missing elements should be removed
+    #call sort (alpha, nn)
+    alpha <- alpha[!is.na(alpha)]
+    alpha <- alpha[order(alpha)]
+    # check whether theta=(u,v) lies outside the data cloud
+    angle <- alpha[1] - alpha[nn] + 2 * pi
+    for (i in 2:nn) {
+      angle <- max(angle, (alpha[i] - alpha[i - 1]))
+    }
+    if (angle <= (pi + eps)) {
+      # make smallest alpha equal to zero, and compute nu = number of alpha < pi
+      angle <- alpha[1]
+      nu <- 0
+      for (i in 1:nn) {
+        alpha[i] <- alpha[i] - angle
+        if (alpha[i] < (pi - eps)) nu <- nu + 1
+      }
+      if (nu < nn) {
+        # merge sort the alpha with their antipodal angles beta, and at the same time
+        # update i,fval[i], and nbad
+        ja <- 1
+        jb <- 1
+        alphk <- alpha[1]
+        betak <- alpha[nu + 1] - pi
+        nn2 <- nn * 2
+        nbad <- 0
+        i <- nu
+        nf <- nn
+        for (j in 1:nn2) {
+          if ((alphk + eps) < betak) {
+            nf <- nf + 1
+            if (ja < nn) {
+              ja <- ja + 1
+              alphk <- alpha[ja]
+            } else {
+              alphk <- 2 * pi + 1
+            }
+          } else {
+            i <- i + 1
+            if (identical(i,(nn + 1))) {
+              i <- 1
+              nf <- nf - nn
+            }
+            fval[i] <- nf
+            nbad <- nbad + k((nf - i), 2)
+            if (jb < nn) {
+              jb <- jb + 1
+              if ((jb + nu) <= nn) {
+                betak <- alpha[jb + nu] - pi
+              } else {
+                betak <- alpha[jb + nu - nn] + pi
+              }
+            } else {
+              betak <- 2 * pi + 1.0
+            }
+          }
+        }
+        nums <- k(nn, 3) - nbad
+        # computation of numh for half space depth
+        gi <- 0
+        ja <- 1
+        angle <- alpha[1]
+        numh <- min(fval[1], (nn - fval[1]))
+        for (i in 2:nn) {
+          if (alpha[i] <= (angle + eps)) {
+            ja <- ja + 1
+          } else {
+            gi <- gi + ja
+            ja <- 1
+            angle <- alpha[i]
+          }
+          ki <- fval[i] - gi
+          numh <- min(numh, min(ki, (nn - ki)))
+        }
+        # adjust for the number nt of datapoints equal to theta
+      }
+    }
+  }
+  nums <- nums + k(nt, 1) * k(nn, 2) + k(nt, 2) * k(nn, 1) + k(nt, 3)
+  if (n >= 3) sdep <- nums/k(n, 3)
+  numh <- numh + nt
+  hdep <- numh/n
+  depths <- list(numh = numh, hdep = hdep, sdep = sdep)
+}
+
+
+k <- function(m, j) {
+  # algorithm as 307.2 appl.statist. (1996),vol.45, no.4
+  # returns the value zero if m <j; otherwise
+  # computes the number of combinations of j out of m
+
+  if (m < j) {
+    k <- 0
+  } else {
+    if (j == 1)
+      k <- m
+    if (j == 2)
+      k <- (m * (m - 1))/2
+    if (j == 3)
+      k <- (m * (m - 1) * (m - 2))/6
+  }
+  return(k)
+}
+

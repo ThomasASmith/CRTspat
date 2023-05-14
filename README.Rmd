@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # CRTspat
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/ThomasASmith/CRTspat/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ThomasASmith/CRTspat/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 `CRTspat` is an R-package to provide easily accessible R functions for design and analysis of cluster randomized trials (CRTs), where geographically structured contamination is anticipated and where geolocations are available. It includes functions for analysing baseline data, for defining clusters by algorithm, for power and sample size calculation, and for analysis of trial outcomes.  

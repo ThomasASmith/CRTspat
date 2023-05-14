@@ -268,6 +268,9 @@ CRTsp <- function(x = NULL, design = NULL,
   if (is.null(CRT$trial$nearestDiscord) & length(CRT$trial$arm) > 0) {
     CRT$trial$nearestDiscord <- get_nearestDiscord(CRT$trial)
   }
+  if (is.null(CRT$trial$nearestDiscord) & length(CRT$trial$arm) > 0) {
+    CRT$trial$nearestDiscord <- get_nearestDiscord(CRT$trial)
+  }
   CRT$geom_full <- get_geom(trial = CRT$trial, design = CRT$design)
   CRT$geom_full$centroid <- centroid
   if (is.null(CRT$trial$buffer)) {
