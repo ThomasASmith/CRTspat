@@ -12,6 +12,13 @@
 #' \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
 #' \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
 #' }
+#' @param measure measure of distance or surround with options: \cr
+#' \tabular{ll}{
+#' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
+#' \code{"disc"} \tab disc \cr
+#' \code{"hdep"} \tab Tukey's half space depth\cr
+#' \code{"sdep"} \tab simplicial depth\cr
+#' }
 #' @param cfunc transformation defining the contamination function. \cr
 #' options are:
 #' \tabular{llll}{
@@ -20,6 +27,7 @@
 #' \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 #' \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
 #' \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
+#' \code{"I"} \tab\tab identity\tab \cr
 #' }
 #' @param link link function. options are:
 #'  \tabular{ll}{
@@ -80,7 +88,7 @@
 #' summary(exampleLME4)
 #' }
 CRTanalysis <- function(
-    trial, method = "GEE", cfunc = "L", link = "logit", numerator = "num",
+    trial, method = "GEE", measure = "nearestDiscord", cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
     personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE,
@@ -105,16 +113,18 @@ CRTanalysis <- function(
         return(NULL)
     }
 
+
     # MAIN FUNCTION CODE STARTS HERE
 
     cluster <- NULL
 
-    if (identical(class(trial),"CRTsp")) trial <- trial$trial
+    CRT <- CRTsp(trial)
+    # if the distance or surround is not provided, augment the trial data frame with distance or surround
+    CRT <- compute_distance(CRT, measure = measure)
 
-    if ("buffer" %in% colnames(trial) & excludeBuffer)
-        {
-        trial <- trial[!trial$buffer, ]
-    }
+    trial <- CRT$trial
+
+    if ("buffer" %in% colnames(trial) & excludeBuffer) trial <- trial[!trial$buffer, ]
 
     # trial needs to be ordered for some analyses
     if(!is.null(trial$cluster)) trial <- trial[order(trial$cluster), ]
@@ -154,10 +164,6 @@ CRTanalysis <- function(
         trial$y1 <- trial[[numerator]]
         trial$y0 <- trial[[denominator]] - trial[[numerator]]
         trial$y_off <- trial[[denominator]]
-
-        # if nearestDiscord is not provided augment the trial data frame with distance to nearest discordant
-        # coordinate
-        if (is.null(trial$nearestDiscord)) trial$nearestDiscord <- get_nearestDiscord(trial)
     }
 
     # create model formula for display even though this is not used for MCMC models

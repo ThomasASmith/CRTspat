@@ -68,7 +68,7 @@ compute_distance <- function(trial, measure = "all", radius = 1.0) {
     }
   }
   CRT$trial <- trial
-  return(CRTsp(CRT))
+  return(CRT)
 }
 
 

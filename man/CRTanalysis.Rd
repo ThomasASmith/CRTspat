@@ -7,6 +7,7 @@
 CRTanalysis(
   trial,
   method = "GEE",
+  measure = "nearestDiscord",
   cfunc = "L",
   link = "logit",
   numerator = "num",
@@ -38,6 +39,14 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
 }}
 
+\item{measure}{measure of distance or surround with options: \cr
+\tabular{ll}{
+\code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
+\code{"disc"} \tab disc \cr
+\code{"hdep"} \tab Tukey's half space depth\cr
+\code{"sdep"} \tab simplicial depth\cr
+}}
+
 \item{cfunc}{transformation defining the contamination function. \cr
 options are:
 \tabular{llll}{
@@ -46,6 +55,7 @@ options are:
 \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
+\code{"I"} \tab\tab identity\tab \cr
 }}
 
 \item{link}{link function. options are:

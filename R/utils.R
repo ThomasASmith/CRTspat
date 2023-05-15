@@ -80,7 +80,7 @@ specify_buffer <- function(trial, buffer_width = 0) {
   if (is.null(trial$arm)) return('*** Randomization is required before buffer specification ***')
   # nearestDiscord: nearest coordinate in the discordant arm, for the
   # control coordinates return the minimal distance with a minus sign
-  if (is.null(trial$nearestDiscord)) trial$nearestDiscord <- get_nearestDiscord(trial)
+  if (is.null(trial$nearestDiscord)) trial <- compute_distance(trial, measure = "nearestDiscord")
   if (buffer_width > 0) {
     trial$buffer <- (abs(trial$nearestDiscord) < buffer_width)
   }
@@ -163,9 +163,8 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
     if (matchedPair) trial$pair <- factor(pair[trial$cluster[]])
     trial$arm <- factor(arm[trial$cluster[]], levels = c(0, 1), labels = c("control",
         "intervention"))
-    trial$nearestDiscord <- get_nearestDiscord(trial)
-
     CRT$trial <- trial
+    CRT <- compute_distance(CRT, measure = "nearestDiscord")
     return(CRTsp(CRT))
 }
 
@@ -265,12 +264,6 @@ CRTsp <- function(x = NULL, design = NULL,
       outcome_type = NULL, sigma2 = NULL, phi = NULL, N = NULL,
       ICC = NULL, k = NULL,sd_h = NULL)
   if(is.null(CRT$trial)) CRT$trial <- data.frame(x=numeric(0),y=numeric(0))
-  if (is.null(CRT$trial$nearestDiscord) & length(CRT$trial$arm) > 0) {
-    CRT$trial$nearestDiscord <- get_nearestDiscord(CRT$trial)
-  }
-  if (is.null(CRT$trial$nearestDiscord) & length(CRT$trial$arm) > 0) {
-    CRT$trial$nearestDiscord <- get_nearestDiscord(CRT$trial)
-  }
   CRT$geom_full <- get_geom(trial = CRT$trial, design = CRT$design)
   CRT$geom_full$centroid <- centroid
   if (is.null(CRT$trial$buffer)) {
@@ -712,18 +705,6 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
   utils::write.table(output, quote = FALSE, col.names = FALSE, sep = "          ")
   options(digits = defaultdigits)
   invisible(object)
-}
-
-
-
-# compute vector of distances to nearest discordant location
-get_nearestDiscord <- function(trial){
-  dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
-  discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
-  discord_dist_trial <- ifelse(discord, dist_trial, Inf)
-  nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
-                              MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
-  return(nearestDiscord)
 }
 
 TSP_ClusterDefinition <- function(coordinates, h, nclusters, reuseTSP) {
