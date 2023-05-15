@@ -43,7 +43,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \item{measure}{measure of distance or surround with options: \cr
 \tabular{ll}{
 \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
-\code{"disc"} \tab disc \cr
+\code{"disc"} \tab disc\cr
 \code{"hdep"} \tab Tukey's half space depth\cr
 \code{"sdep"} \tab simplicial depth\cr
 }}

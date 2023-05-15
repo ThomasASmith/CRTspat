@@ -15,7 +15,7 @@
 #' @param measure measure of distance or surround with options: \cr
 #' \tabular{ll}{
 #' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
-#' \code{"disc"} \tab disc \cr
+#' \code{"disc"} \tab disc\cr
 #' \code{"hdep"} \tab Tukey's half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' }
@@ -103,7 +103,7 @@ CRTanalysis <- function(
         return(NULL)
     }
 
-    if (!cfunc %in% c("S", "L", "P", "X", "Z"))
+    if (!cfunc %in% c("S", "L", "P", "X", "Z", "R"))
         {
         stop("*** Invalid contamination function ***")
         return(NULL)
@@ -122,10 +122,10 @@ CRTanalysis <- function(
 
     CRT <- CRTsp(trial)
     # if the distance or surround is not provided, augment the trial data frame with distance or surround
-    CRT <- compute_distance(CRT, measure = measure)
+    if(!baselineOnly) CRT <- compute_distance(CRT, measure = measure)
 
     trial <- CRT$trial
-    trial$measure <- trial[[measure]]
+    if(!baselineOnly) trial$measure <- trial[[measure]]
 
     if ("buffer" %in% colnames(trial) & excludeBuffer) trial <- trial[!trial$buffer, ]
 
@@ -175,7 +175,8 @@ CRTanalysis <- function(
         X = "arm",
         L = "pvar",
         P = "pvar",
-        S = "pvar"
+        S = "pvar",
+        R = "pvar"
     )
 
     if (personalProtection & cfunc != 'X') fterms <- c(fterms, "arm")
@@ -372,7 +373,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     lc <- NULL
     log_beta <- NA
     FUN <- get_FUN(cfunc=cfunc, variant = 0)
-    if (cfunc %in% c("L", "P", "S")) {
+    if (cfunc %in% c("L", "P", "S", "R")) {
         if (identical(Sys.getenv("TESTTHAT"), "true")) {
             log_beta <- 2.0
         } else {
@@ -453,7 +454,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
 
     analysis$pt_ests$contamination_par <- exp(log_beta)
     # The DIC is penalised if a contamination parameter was estimated
-    analysis$pt_ests$DIC <- ifelse(cfunc %in% c("L", "P", "S"),
+    analysis$pt_ests$DIC <- ifelse(cfunc %in% c("L", "P", "S", "R"),
                    model_object$dic$dic + 2, model_object$dic$dic)
     # Augment the inla results list with application specific quantities
     index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
@@ -995,7 +996,7 @@ summary.CRTanalysis <- function(object, ...) {
             face validity check fails **\n")
             }
         }
-        if (object$options$cfunc %in% c("L", "P", "S")) {
+        if (object$options$cfunc %in% c("L", "P", "S", "R")) {
             if (!is.null(object$pt_ests$contamination_interval)){
                 cat(
                     "Contamination range(km): ", object$pt_ests$contamination_interval,
@@ -1025,7 +1026,7 @@ summary.CRTanalysis <- function(object, ...) {
     if (!is.null(object$pt_ests$DIC)) cat("DIC     : ", object$pt_ests$DIC)
     if (!is.null(object$pt_ests$AIC)) cat("AIC     : ", object$pt_ests$AIC)
     if (object$options$method %in% c("LME4","INLA") &
-            object$options$cfunc %in% c("L", "P", "S")) {
+            object$options$cfunc %in% c("L", "P", "S", "R")) {
         cat(" including penalty for the contamination scale parameter\n")
     } else {
         cat(" \n")
@@ -1183,6 +1184,9 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
         beta <- exp(log_beta)
         x <- trial$measure * beta
         trial$pvar <- eval(parse(text = FUN))
+    } else if(identical(cfunc,"R")) {
+        x <- trial$measure
+        trial$pvar <- eval(parse(text = FUN))
     }
     model_object <- switch(link,
            "identity" = lme4::lmer(formula = formula, data = trial, REML = FALSE),
@@ -1237,6 +1241,10 @@ MCMCanalysis <- function(analysis){
 
     datajags <- list(N = nrow(trial))
     if (!identical(cfunc, "Z")) datajags$d <- trial$measure
+    if (identical(cfunc, "R")) {
+        datajags$mind <- min(datajags$d)
+        datajags$maxd <- max(datajags$d)
+    }
     if (identical(link, 'identity')) {
         datajags$y <- trial$y1/trial$y_off
     } else {
@@ -1258,7 +1266,8 @@ MCMCanalysis <- function(analysis){
                     P = "pr[i] <- pnorm(d[i]*beta,0, 1) \n",
                     L = "pr[i] <- 1/(1 + exp(-beta*d[i])) \n",
                     X = "pr[i] <- ifelse(d[i] > 0, 1 ,0) \n",
-                    Z = NULL)
+                    Z = NULL,
+                    R = "pr[i] <- (d[i] - mind)/(maxd - mind)")
 
     text3 <- switch(link,
                     "identity" = "y[i] ~ dnorm(lp[i],tau1) \n",
@@ -1300,7 +1309,8 @@ MCMCanalysis <- function(analysis){
                     P = c("int", "pvar", "beta"),
                     L = c("int", "pvar", "beta"),
                     X = c("int", "pvar"),
-                    Z = c("int"))
+                    Z = c("int"),
+                    R = c("int", "pvar"))
 
     model_object <- jagsUI::autojags(data = datajags, inits = NULL,
                        parameters.to.save = parameters.to.save,

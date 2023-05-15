@@ -25,5 +25,3 @@ detach("package:CRTspat", unload = TRUE)
 # to build package website
 usethis::use_pkgdown()
 pkgdown::build_site()
-
-

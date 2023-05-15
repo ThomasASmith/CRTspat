@@ -10,7 +10,10 @@
 #' \tabular{ll}{
 #' \code{'cluster'} \tab cluster assignment \cr
 #' \code{'arms'}   \tab arm assignment \cr
-#' \code{'distance'} \tab distance to the nearest discordant location\cr
+#' \code{'nearestDiscord'} \tab distance to the nearest discordant location\cr
+#' \code{"disc"} \tab disc measure of surround\cr
+#' \code{"hdep"} \tab Tukey's half space depth\cr
+#' \code{"sdep"} \tab simplicial depth\cr
 #' \code{'prediction'}\tab model prediction of the outcome \cr
 #' \code{'none'}\tab No fill \cr
 #' }
@@ -30,12 +33,12 @@
 #' @importFrom ggplot2 geom_polygon
 #' @importFrom ggplot2 aes
 #' @details
-#' If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object, containing a randomisation
-#' to arms, a stacked bar chart of the the outcome grouped by distance from the boundary is produced.\cr
+#' If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object,
+#' containing a randomisation to arms, a stacked bar chart of the the outcome
+#' grouped by distance from the boundary (or of surround) is produced.\cr
 #' If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
-#' estimated contamination function is generated.
-#' The fitted contamination function is plotted as a continuous blue line against the distance
-#' from the nearest discordant location. Using the same axes, data summaries are plotted for
+#' estimated contamination function is generated. The fitted contamination function is plotted as a continuous blue line against the measure of distance
+#' from the nearest discordant location or of surround. Using the same axes, data summaries are plotted for
 #' ten categories of distance from the boundary. Both the
 #' average of the outcome and confidence intervals are plotted.
 #'  \itemize{
@@ -145,7 +148,7 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
             # raster map
             analysis <- object
             contamination_limits <- analysis$contamination$contamination_limits
-            showDistance <- identical(fill, "distance")
+            showDistance <- (fill %in% c("nearestDiscord", "disc", "hdep", "sdep"))
             showPrediction <- identical(fill, "prediction")
             if (showPrediction)
                 showdistance <- FALSE
@@ -167,8 +170,11 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
 
                     }
                     if (showDistance) {
+                        if (!identical(fill, analysis$options$measure)) {
+                           stop("*** Requested measure not available for this analysis ***")
+                        }
                         g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                             fill = nearestDiscord), alpha = 0.5, width = pixel, height = pixel)
+                             fill = fill), alpha = 0.5, width = pixel, height = pixel)
                         g <- g + ggplot2::scale_fill_gradient(name = "Distance",
                                                               low = "blue", high = "orange")
 
