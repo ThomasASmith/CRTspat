@@ -8,6 +8,7 @@ CRTanalysis(
   trial,
   method = "GEE",
   measure = "nearestDiscord",
+  radius = 1,
   cfunc = "L",
   link = "logit",
   numerator = "num",
@@ -47,6 +48,8 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"sdep"} \tab simplicial depth\cr
 }}
 
+\item{radius}{numeric: radius of disc in km (if \code{measure = "disc"})}
+
 \item{cfunc}{transformation defining the contamination function. \cr
 options are:
 \tabular{llll}{
@@ -55,7 +58,7 @@ options are:
 \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
-\code{"I"} \tab\tab identity\tab \cr
+\code{"R"} \tab\tab rescaled linear\tab \cr
 }}
 
 \item{link}{link function. options are:

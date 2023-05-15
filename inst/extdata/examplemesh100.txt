@@ -1,4 +1,4 @@
-mesh<-
+inla_mesh<-
 list(prediction=structure(list(x=c(4.4498103690760304,4.5498103690760301,
 4.6498103690760297,4.7498103690760312,4.8498103690760308,4.0498103690760301,
 4.1498103690760306,4.2498103690760303,4.3498103690760308,4.4498103690760304,
@@ -71705,4 +71705,5 @@ int=structure(list(loc=NULL,idx=structure(integer(0),dim=c(0L,
 2L)),grp=structure(integer(0),dim=0:1),is.bnd=FALSE,
 crs=NULL),class="inla.mesh.segment")),idx=list(
 loc=NULL,lattice=NULL,segm=1:900),crs=NULL),class="inla.mesh")),class=c("inla.spde2",
-"inla.spde","inla.model.class")),pixel=0.10000000000000001)
+"inla.spde","inla.model.class")),pixel=0.10000000000000001,
+measure="nearestDiscord",radius=1)

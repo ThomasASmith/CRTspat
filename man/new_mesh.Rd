@@ -10,7 +10,9 @@ new_mesh(
   max.edge = 0.25,
   inla.alpha = 2,
   maskbuffer = 0.5,
-  pixel = 0.5
+  pixel = 0.5,
+  measure = "nearestDiscord",
+  radius = 1
 )
 }
 \arguments{
@@ -26,6 +28,16 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \item{maskbuffer}{numeric: width of buffer around points (km)}
 
 \item{pixel}{numeric: size of pixel (km)}
+
+\item{measure}{measure of distance or surround with options: \cr
+\tabular{ll}{
+\code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
+\code{"disc"} \tab disc \cr
+\code{"hdep"} \tab Tukey's half space depth\cr
+\code{"sdep"} \tab simplicial depth\cr
+}}
+
+\item{radius}{numeric: radius used for computing disk (if \code{measure = "disc"} (km))}
 }
 \value{
 list
@@ -58,7 +70,7 @@ example <- readdata('exampleCRT.txt')
 exampleMesh=new_mesh(example, pixel = 0.5)
 }
 \dontrun{
-# 50m mesh for test dataset
+# 50m mesh for analyses of test dataset using \code{measure = "nearestDiscord"}.
 library(Matrix)
 example <- readdata('exampleCRT.txt')
 exampleMesh=new_mesh(example, pixel = 0.05)
