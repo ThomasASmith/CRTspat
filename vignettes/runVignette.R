@@ -22,6 +22,7 @@ knitr::knit("vignettes/Usecase9.Rmd.orig", output = "vignettes/Usecase9.Rmd")
 
 rmarkdown.html_vignette.check_title = FALSE
 devtools::install(build_vignettes = TRUE)
+
 detach("package:CRTspat", unload = TRUE)
 # to build package website
 usethis::use_pkgdown()

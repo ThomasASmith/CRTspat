@@ -65,7 +65,7 @@ used to select the best fitting model. The deviance information criterion (DIC) 
 
 `CRTanalysis()` provides options for analysing contamination between arms, or spillover effects either:
 
-+ by assuming the effects to be a function of euclidean distance to the opposing arm of the trial. The functional forms of for this relationship is specified by the value of  `cfunc` (Table 5.2). In addition, models that do not consider contamination can be
+*by assuming the effects to be a function of Euclidean distance* to the opposing arm of the trial. The functional forms for this relationship is specified by the value of  `cfunc` (Table 5.2). In addition, models that do not consider contamination can be
 fitted using options `Z` and `X`. These are included both to allow conventional analyses, and also to enable
 model selection using the Akaike information criterion (AIC) or Bayesian information criterion (BIC) and likelihood ratio tests.
 
@@ -87,11 +87,11 @@ Table 5.2. Available contamination functions
     \end{matrix}\ $ | `LME4` `INLA` `MCMC` |
 | `R`| rescaled linear | $P\left( d \right) =\frac{d\ -\ min(d)}{max(d)\ -\ min(d)}$ | `LME4` `INLA` `MCMC` |
 
-`cfunc` options `P`, `L` and `S` (and also `measure` options `disc` lead to non-linear models in which the contamination
-scale parameter `beta` must be estimated
+`cfunc` options `P`, `L` and `S` (and also `measure` options `disc`) lead to non-linear models in which the contamination
+scale parameter `beta` must be estimated. This is done by selecting `beta` using a one-dimensional optimisation of the goodness of fit of the model in `stats::optimize()`.
 
 The different values for `cfunc` lead to the fitted curves shown in Figure 5.1. The light blue shaded part of the
-plot corresponds to the contamination interval, in those cases where this is estimated.
+plot corresponds to the contamination interval in those cases where this is estimated.
 
 ```{r example5b.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
 analysisLME4_Z <- CRTanalysis(example, method = "LME4", cfunc = "Z")
@@ -120,24 +120,23 @@ plot_grid(p0, p1, p2, p3, p4, p5, labels = c('Z', 'X', 'P', 'L', 'S', 'R'), labe
   <em>Fig 5.1 Fitted curves for the example dataset with different options for `cfunc`</em>
 </p>
 
-The piecewise linear contamination function, `cfunc = "S"`, is only linear on the scale of the linear predictor. When used in a logistic model, as here, the transformation via the inverse of the link function leads to a slightly curved plot (Figure 5.4S). The rescaled linear function, `cfunc = "R"`, is provided as a comparator and for use with `measure` values other than `measure = "nearestDiscord"` see below (it should not be used to estimate the contamination range).
+The piecewise linear contamination function, `cfunc = "S"`, is only linear on the scale of the linear predictor. When used in a logistic model, as here, the transformation via the inverse of the link function leads to a slightly curved plot (Figure 5.1S). The rescaled linear function, `cfunc = "R"`, is provided as a comparator and for use with `measure` values other than `measure = "nearestDiscord"` see below (it should not be used to estimate the contamination range).
 
 The full set of different `cfunc` options are available for each of model options `"LME4"`, `"INLA"`, and `"MCMC"`.
 The performance of all these different models has not yet been thoroughly investigated. The analyses of [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable contamination.
 
-+ by assuming the effect size to be a function of the number of intervened locations in the surroundings of the location
+Contamination can also be analysed *by assuming the effect size to be a function of the number of intervened locations in the surroundings of the location*
 [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316). Several different functions
 are available (Table 5.3). These are specified by the `measure` parameter.
 
 Table 5.3. Available surround functions
 
 | `measure` | Description | Details |
-|----------------|------------------|--------------------------------------------------|
+|----------------|------------------|--------------------------------------------------------------|
 |`nearestDiscord`| Distance to nearest discordant location | The default. This is used for analyses by distance (see above) |
 |`hdep`| Tukey's half-depth | Algorithm of [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073)   |
 |`sdep`| Simplicial depth| Algorithm of [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073)    |
-|`disc`| disc | The number of intervened locations within the specified radius (excluding the location itself) as
-described by [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316) |
+|`disc`| disc | The number of intervened locations within the specified radius (excluding the location itself) as described by [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316) |
 
 The [`compute_distance()`](../reference/compute_distance.html) function is provided to compute these quantities, so that they can be
 described, compared, and analysed independently of `CRTanalysis()`. Users can also devise other measures of surround or distance,
@@ -160,24 +159,24 @@ plot_grid(ps1, ps2, ps3, labels = c('hdep', 'sdep', 'disc'), label_size = 10, nc
 If `measure` is assigned a value of either `hdep`, `sdep`, or `disc`, then `cfunc = "R"` is used and the overall effect size is
 computed by comparing the fitted values of the model for a surround value of zero with that of the maximum of the surround in the data. If `measure = "disc"` the radius is estimated in the same way as `beta` (see above Table 5.2).
 
-```{r example5c.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
-examples_hdep <- CRTanalysis(examples, method = "LME4", link = 'log', measure = "hdep", cfunc = "R")
+```{r example5d.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
+examples_hdep <- CRTanalysis(examples, method = "LME4", measure = "hdep")
 summary(examples_hdep)
 ps4 <- plotCRT(examples_hdep,legend.position = c(0.8, 0.8))
-examples_sdep <- CRTanalysis(examples, method = "LME4", link = 'log', measure = "sdep", cfunc = "R")
+examples_sdep <- CRTanalysis(examples, method = "LME4", measure = "sdep")
 summary(examples_sdep)
 ps5 <- plotCRT(examples_sdep)
-examples_disc <- CRTanalysis(examples, method = "LME4", link = 'log', measure = "disc", cfunc = "R")
+examples_disc <- CRTanalysis(examples, method = "LME4", measure = "disc")
 summary(examples_disc)
 ps6 <- plotCRT(examples_disc)
-plot_grid(ps1, ps2, ps3, labels = c('hdep', 'sdep', 'disc'), label_size = 10, ncol = 2)
+plot_grid(ps4, ps5, ps6, labels = c('hdep', 'sdep', 'disc'), label_size = 10, ncol = 2)
 ```
 <p>
   <img src="example5d.r-1.png"> <br>
   <em>Fig 5.3 Fitted curves for the example dataset with different surrounds </em>
 </p>
 
-## Geostatistical models
+## Geostatistical models and mapping results
 
 To carry out a geostatistical analysis with `method = "INLA"` a prediction mesh is needed. By default a very low
 resolution mesh is created (creating a high resolution mesh is computationally expensive). To create a 100m INLA mesh

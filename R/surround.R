@@ -21,8 +21,8 @@
 #' assigned a positive sign for the intervention arm of the trial, and a negative sign for the control arm.\cr\cr
 #' If \code{measure = "disc"} is specified, the disc statistic is computed for each location as the number of locations
 #' within the specified radius that are in the intervention arm
-#' [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)
-#' the input value of \code{radius} is stored in the \code{design} list
+#' ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)). The input
+#' value of \code{radius} is stored in the \code{design} list
 #' of the output \code{"CRTsp"} object. Recalculation is carried out if the input value of
 #' \code{radius} differs from the one in the input \code{design} list.\cr\cr
 #' If either \code{measure = "hdep"} or \code{measure = "sdep"} is specified then both the simplicial depth and
@@ -30,7 +30,7 @@
 #' [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073). For a location in the intervention arm, the
 #' depth is computed with respect to all other locations in the intervention arm. For a location in the control arm
 #' the depth is computed relative to all intervention locations
-#' [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316).\cr
+#' ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)).\cr
 #' @export
 #' @examples
 #' #Calculate the disc with a radius of 1 km
