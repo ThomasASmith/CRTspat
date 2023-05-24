@@ -1,10 +1,10 @@
 ---
-title: "Use Case 7: Power and sample size calculations allowing for contamination"
+title: "Use Case 07: Power and sample size calculations allowing for contamination"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 7: Power and sample size calculations allowing for contamination}
+  %\VignetteIndexEntry{Use Case 07: Power and sample size calculations allowing for contamination}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

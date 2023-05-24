@@ -97,19 +97,28 @@ summary(analysis)
 ## =====================CLUSTER RANDOMISED TRIAL ANALYSIS =================
 ## Analysis method:  LME4 
 ## Link function:  logit 
+## Measure of distance or surround:  Nearest discordant location 
 ## Model formula:  pvar + (1 | cluster) 
 ## Error function model for contamination
 ## Estimates:      Control:  0.418  (95% CL:  0.33 0.51 )
 ##            Intervention:  0.186  (95% CL:  0.137 0.25 )
 ##                Efficacy:  0.553  (95% CL:  0.327 0.703 )
-## Contamination range(km):  1.73  (95% CL:  )
-## % locations contaminated: 68.2  (95% CL:    %)
+## Contamination range(km):  1.73  (95% CL:  1.7 1.74 )
+## % locations contaminated: 68.2  (95% CL:  67.7 68.8  %)
 ## deviance:  1374.215 
 ## AIC     :  1382.215 including penalty for the contamination scale parameter
 ```
 
 ```r
 plotCRT(analysis, map = FALSE)
+```
+
+```
+## Scale for shape is already present.
+## Adding another scale for shape, which will replace the existing scale.
+```
+
+```r
 plotCRT(analysis, map = TRUE, fill = 'arms', showBuffer=TRUE, showClusterBoundaries = FALSE)
 ```
 

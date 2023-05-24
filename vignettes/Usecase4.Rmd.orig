@@ -1,10 +1,10 @@
 ---
-title: "Use Case 4: Estimation of optimal cluster size for a trial with pre-determined buffer width"
+title: "Use Case 04: Estimation of optimal cluster size for a trial with pre-determined buffer width"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 4: Estimation of optimal cluster size for a trial with pre-determined buffer width}
+  %\VignetteIndexEntry{Use Case 04: Estimation of optimal cluster size for a trial with pre-determined buffer width}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

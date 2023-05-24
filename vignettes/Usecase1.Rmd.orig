@@ -1,10 +1,10 @@
 ---
-title: "Use Case 1: Algorithmic specification of clusters"
+title: "Use Case 01: Algorithmic specification of clusters"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 1: Algorithmic specification of clusters}
+  %\VignetteIndexEntry{Use Case 01: Algorithmic specification of clusters}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

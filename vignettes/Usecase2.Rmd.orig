@@ -1,10 +1,10 @@
 ---
-title: "Use Case 2: Simulation of trials with geographical contamination"
+title: "Use Case 02: Simulation of trials with geographical contamination"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 2: Simulation of trials with geographical contamination}
+  %\VignetteIndexEntry{Use Case 02: Simulation of trials with geographical contamination}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

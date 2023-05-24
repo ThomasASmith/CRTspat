@@ -172,13 +172,14 @@ summary(analysisLME4_P)
 ## =====================CLUSTER RANDOMISED TRIAL ANALYSIS =================
 ## Analysis method:  LME4 
 ## Link function:  logit 
+## Measure of distance or surround:  Nearest discordant location 
 ## Model formula:  pvar + (1 | cluster) 
 ## Error function model for contamination
 ## Estimates:      Control:  0.418  (95% CL:  0.331 0.508 )
 ##            Intervention:  0.186  (95% CL:  0.136 0.25 )
 ##                Efficacy:  0.552  (95% CL:  0.326 0.702 )
-## Contamination range(km):  1.73  (95% CL:  )
-## % locations contaminated: 68.2  (95% CL:    %)
+## Contamination range(km):  1.73  (95% CL:  1.7 1.74 )
+## % locations contaminated: 68.2  (95% CL:  67.7 68.8  %)
 ## deviance:  1374.215 
 ## AIC     :  1382.215 including penalty for the contamination scale parameter
 ```
@@ -192,13 +193,14 @@ summary(analysisLME4_L)
 ## =====================CLUSTER RANDOMISED TRIAL ANALYSIS =================
 ## Analysis method:  LME4 
 ## Link function:  logit 
+## Measure of distance or surround:  Nearest discordant location 
 ## Model formula:  pvar + (1 | cluster) 
 ## Sigmoid (logistic) function for contamination
 ## Estimates:      Control:  0.417  (95% CL:  0.331 0.509 )
 ##            Intervention:  0.186  (95% CL:  0.136 0.249 )
 ##                Efficacy:  0.551  (95% CL:  0.328 0.699 )
-## Contamination range(km):  1.78  (95% CL:  )
-## % locations contaminated: 70  (95% CL:    %)
+## Contamination range(km):  1.78  (95% CL:  1.76 1.8 )
+## % locations contaminated: 70  (95% CL:  69.5 70.8  %)
 ## deviance:  1374.201 
 ## AIC     :  1382.201 including penalty for the contamination scale parameter
 ```
@@ -212,13 +214,14 @@ summary(analysisLME4_S)
 ## =====================CLUSTER RANDOMISED TRIAL ANALYSIS =================
 ## Analysis method:  LME4 
 ## Link function:  logit 
+## Measure of distance or surround:  Nearest discordant location 
 ## Model formula:  pvar + (1 | cluster) 
 ## Piecewise linear function for contamination
 ## Estimates:      Control:  0.391  (95% CL:  0.312 0.472 )
 ##            Intervention:  0.197  (95% CL:  0.147 0.259 )
 ##                Efficacy:  0.493  (95% CL:  0.281 0.648 )
-## Contamination range(km):  1.65  (95% CL:  )
-## % locations contaminated: 64.6  (95% CL:    %)
+## Contamination range(km):  1.65  (95% CL:  1.64 1.65 )
+## % locations contaminated: 64.6  (95% CL:  64.6 64.8  %)
 ## deviance:  1374.44 
 ## AIC     :  1382.44 including penalty for the contamination scale parameter
 ```

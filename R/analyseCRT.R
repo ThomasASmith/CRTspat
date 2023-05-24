@@ -19,7 +19,7 @@
 #' \code{"hdep"} \tab Tukey's half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' }
-#' @param radius numeric: radius of disc in km (if \code{measure = "disc"})
+#' @param beta numeric: pre-specified value of contamination parameter or disc radius
 #' @param cfunc transformation defining the contamination function. \cr
 #' options are:
 #' \tabular{llll}{
@@ -31,7 +31,7 @@
 #' \code{"R"} \tab\tab rescaled linear\tab \cr
 #' }
 #' @param link link function. options are:
-#'  \tabular{ll}{
+#' \tabular{ll}{
 #' \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
 #' \code{"log"}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).
 #' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr
@@ -66,12 +66,15 @@
 #' and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test)
 #' function of package \code{stats}.
 #' The wrapper does not provide an interface to the full functionality of these packages.
-#' It is specific for typical analyses of cluster randomized trials with geographical clustering.\cr \cr
+#' It is specific for typical analyses of cluster randomized trials with geographical clustering. Details
+#' are provided in the [vignette](https://thomasasmith.github.io/articles/Usecase5.html) \cr \cr
 #'
 #' The key results of the analyses can be extracted using a \code{summary()} of the output list.
 #' The \code{model_object} in the output list is the usual output from the statistical analysis routine,
 #' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
-#' for purposes of evaluation of model fit etc..
+#' for purposes of evaluation of model fit etc..\cr \cr
+#'
+#' \code{beta} specifies the contamination parameter. If \code{measure = "disc"} then this is the disc radius in km.
 #' @importFrom grDevices rainbow
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
 #' @importFrom utils head read.csv
@@ -89,7 +92,7 @@
 #' summary(exampleLME4)
 #' }
 CRTanalysis <- function(
-    trial, method = "GEE", measure = "nearestDiscord", radius = 1.0,
+    trial, method = "GEE", measure = "nearestDiscord", beta = NULL,
     cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
@@ -109,13 +112,16 @@ CRTanalysis <- function(
         return(NULL)
     }
 
-    if (!link %in% c("logit", "log", "identity"))
+    if (!cfunc %in% c("S", "L", "P", "X", "Z", "R"))
     {
-        stop("*** Invalid link ***")
+        stop("*** Invalid contamination function ***")
         return(NULL)
     }
 
-
+    if (measure %in% c("hdep", "sdep", "disc") & !identical(cfunc, "R")) {
+        cfunc <- "R"
+        cat("*** using linear contamination function ***")
+    }
     # MAIN FUNCTION CODE STARTS HERE
 
     cluster <- NULL
@@ -125,7 +131,14 @@ CRTanalysis <- function(
     if(!baselineOnly) CRT <- compute_distance(CRT, measure = measure)
 
     trial <- CRT$trial
-    if(!baselineOnly) trial$measure <- trial[[measure]]
+    if (!measure %in% c("nearestDiscord", "hdep", "sdep", "disc") & is.null(trial[[measure]])) {
+        if (!cfunc %in% c("X", "Z") & !baselineOnly){
+            stop("*** Invalid measure of distance or surround ***")
+            return(NULL)
+        }
+    } else {
+        trial$measure <- trial[[measure]]
+    }
 
     if ("buffer" %in% colnames(trial) & excludeBuffer) trial <- trial[!trial$buffer, ]
 
@@ -200,6 +213,13 @@ CRTanalysis <- function(
         paste0(alpha/0.02, "%"),
         paste0(100 - alpha/0.02, "%")
     )
+    if (identical(measure, "disc")) {
+        radius <- beta
+    } else {
+        radius <- NULL
+    }
+
+
 
     # store options here- noting that the model formula depends on allowable values of other options
     options <- list(method = method, link = link,
@@ -207,7 +227,9 @@ CRTanalysis <- function(
                     alpha = alpha, baselineOnly = baselineOnly,
                     fterms = fterms, ftext = ftext,
                     CLnames = CLnames, clusterEffects = clusterEffects,
-                    radius = radius)
+                    beta = beta,
+                    radius = radius,
+                    penalty = 0)
     # create scaffolds for lists
     pt_ests <- list(contamination_par = NA, personal_protection = NA, contamination_interval = NA)
     int_ests <- list(controlY = NA, interventionY = NA, effect_size = NA)
@@ -229,6 +251,7 @@ CRTanalysis <- function(
     if (!baselineOnly){
         fittedCurve <- get_curve(x = analysis$pt_ests, analysis = analysis)
         contamination <- get_contaminationStats(fittedCurve=fittedCurve, trial=analysis$trial)
+        # compute indirect effects here
         analysis <- tidyContamination(contamination, analysis, fittedCurve)
     }
     class(analysis) <- "CRTanalysis"
@@ -373,7 +396,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     lc <- NULL
     log_beta <- NA
     FUN <- get_FUN(cfunc=cfunc, variant = 0)
-    if (cfunc %in% c("L", "P", "S", "R")) {
+    if (cfunc %in% c("L", "P", "S" )) {
         if (identical(Sys.getenv("TESTTHAT"), "true")) {
             log_beta <- 2.0
         } else {
@@ -383,6 +406,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
                 trial = trial, FUN = FUN, inla_mesh = inla_mesh, formula = formula,
                 tol = 0.1, link = link)$minimum
         }
+        analysis$options$penalty <- 2
         beta <- exp(log_beta)
         x <- trial$measure * beta
         trial$pvar <- eval(parse(text = FUN))
@@ -453,9 +477,10 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     }
 
     analysis$pt_ests$contamination_par <- exp(log_beta)
+
     # The DIC is penalised if a contamination parameter was estimated
-    analysis$pt_ests$DIC <- ifelse(cfunc %in% c("L", "P", "S", "R"),
-                   model_object$dic$dic + 2, model_object$dic$dic)
+    analysis$pt_ests$DIC <- model_object$dic$dic + analysis$options$penalty
+
     # Augment the inla results list with application specific quantities
     index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
     inla_mesh$prediction$prediction <-
@@ -483,24 +508,36 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
 return(analysis)}
 
 
-group_data <- function(analysis){
+group_data <- function(analysis, measure = NULL, grouping = "quintiles"){
     # define the limits of the curve both for control and intervention arms
         trial <- analysis$trial
         link <- analysis$options$link
         alpha <- analysis$options$alpha
+        if (is.null(measure)) measure <- analysis$options$measure
         y_off <- y1 <- average <- upper <- lower <- NULL
-        cats <- measure <- NULL
-
+        cats <- NULL
+        breaks0 <- breaks1 <- rep(NA, times = 6)
         # categorisation of trial data for plotting
-        range_d <- max(trial$measure) - min(trial$measure)
-        trial$cats <- cut(
-            trial$measure, breaks =
-                c(-Inf, min(trial$measure) + seq(1:9) * range_d/10, Inf),labels = FALSE)
-
+        if (identical(grouping, "quintiles")) {
+            groupvar <- ifelse(trial$arm == "intervention", 1000 + trial$measure, trial$measure)
+            breaks0 <-unique(c(-Inf, quantile(groupvar[trial$arm == "control"],
+                                    probs = seq(0.2, 1, by = 0.20))))
+            breaks1 <-unique(c(999, quantile(groupvar[trial$arm == "intervention"],
+                                   probs = seq(0.2, 1, by = 0.20))))
+            trial$cat <- cut(
+                groupvar, breaks=c(breaks0, breaks1),labels = FALSE)
+            arm <- c(rep("control", times = length(breaks0)-1), rep("intervention", times = length(breaks1)-1))
+        } else {
+            range_d <- max(trial[[measure]]) - min(trial[[measure]])
+            trial$cat <- cut(
+                trial[[measure]], breaks =
+                    c(-Inf, min(trial[[measure]]) + seq(1:9) * range_d/10, Inf),labels = FALSE)
+            arm <- NA
+        }
         # calculate for log link
         data <- data.frame(
             trial %>%
-                group_by(cats) %>%
+                group_by(cat) %>%
                 dplyr::summarize(
                     positives = sum(y1),
                     total = sum(y_off),
@@ -519,7 +556,7 @@ group_data <- function(analysis){
         if (link == 'identity') {
             # overall means and t-based confidence intervals by category
             data <- trial %>%
-                group_by(cats) %>%
+                group_by(cat) %>%
                 dplyr::summarize(
                     positives = sum(y1),
                     total = sum(y_off),
@@ -529,6 +566,7 @@ group_data <- function(analysis){
                     upper = Tinterval(y1/y_off, alpha = alpha, option = 'U')
                 )
         }
+        data$arm <- arm
 return(data)
 }
 
@@ -853,7 +891,7 @@ estimateContaminationINLA <- function(
         )
     }
     # The DIC is penalised to allow for estimation of beta
-    loss <- result.e$dic$family.dic
+    loss <- result.e$dic$family.dic + 2
     # Display the DIC here if necessary for debugging
     # cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_beta), "  \r")
     return(loss)
@@ -861,8 +899,13 @@ estimateContaminationINLA <- function(
 
 # Use profiling to estimate beta
 estimateContaminationLME4 <- function(
-    log_beta = log_beta, trial = trial, FUN = FUN, formula = formula, link = link){
-    x <- trial$measure * exp(log_beta)
+    log_beta = log_beta, trial = trial, FUN = FUN, formula = formula, link = link, measure = measure){
+    if (identical(measure,'disc')) {
+        updated <- compute_distance(trial, measure = 'disc', radius = exp(log_beta))
+        x <- trial$measure <- updated$trial$disc
+    } else {
+        x <- trial$measure * exp(log_beta)
+    }
     trial$pvar <- eval(parse(text = FUN))
     try(
     model_object <- switch(link,
@@ -875,7 +918,7 @@ estimateContaminationLME4 <- function(
     loss <- ifelse (is.null(model_object),999999, unlist(summary(model_object)$AICtab["AIC"]))
     # The AIC is used as a loss function
     # Display the AIC here if necessary for debugging
-    # cat("\rAIC: ", loss, " Contamination scale parameter: ", exp(log_beta), "  \n")
+    # cat("\rAIC: ", loss + 2, " Contamination scale parameter: ", exp(log_beta), "  \n")
     return(loss)
 }
 
@@ -950,8 +993,14 @@ summary.CRTanalysis <- function(object, ...) {
     options(digits = 3)
     cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
     cat(
-        "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n"
-    )
+        "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n")
+    if (object$options$cfunc %in% c("L", "P", "S", "R")) {
+        cat("Measure of distance or surround: ", switch(object$options$measure,
+                        "nearestDiscord" = "Nearest discordant location \n",
+                        "disc" = paste0("disc of radius ", round(object$options$radius, digits = 3), " km \n"),
+                        "hdep" = "Tukey's half-depth \n",
+                        "sdep" = "Simplicial depth\n"))
+    }
     if (!is.null(object$options$ftext))
         cat("Model formula: ", object$options$ftext, "\n")
     cat(switch(object$options$cfunc,
@@ -996,7 +1045,8 @@ summary.CRTanalysis <- function(object, ...) {
             face validity check fails **\n")
             }
         }
-        if (object$options$cfunc %in% c("L", "P", "S", "R")) {
+        if (object$options$cfunc %in% c("L", "P", "S", "R") &
+            identical(object$options$measure, "nearestDiscord")) {
             if (!is.null(object$pt_ests$contamination_interval)){
                 cat(
                     "Contamination range(km): ", object$pt_ests$contamination_interval,
@@ -1025,8 +1075,7 @@ summary.CRTanalysis <- function(object, ...) {
     if (!is.null(object$pt_ests$deviance)) cat("deviance: ", object$pt_ests$deviance, "\n")
     if (!is.null(object$pt_ests$DIC)) cat("DIC     : ", object$pt_ests$DIC)
     if (!is.null(object$pt_ests$AIC)) cat("AIC     : ", object$pt_ests$AIC)
-    if (object$options$method %in% c("LME4","INLA") &
-            object$options$cfunc %in% c("L", "P", "S", "R")) {
+    if (object$options$penalty > 0) {
         cat(" including penalty for the contamination scale parameter\n")
     } else {
         cat(" \n")
@@ -1135,8 +1184,13 @@ extractEstimates <- function(analysis, sample) {
     if ("interventionY" %in% names(sample)) {
         sample$effect_size <- 1 - sample$interventionY/sample$controlY
     }
-    if ("beta" %in% names(sample)) {
-        sample$contamination_par <- sample$beta
+    if (analysis$options$cfunc %in% c("L", "P", "S", "R")) {
+        if (identical(analysis$options$cfunc, "R")) sample$contamination_par <- 1
+        if ("beta" %in% names(sample)) {
+            sample$contamination_par <- sample$beta
+        } else {
+            sample$contamination_par <- analysis$pt_ests$contamination_par
+        }
         contamination_list <- apply(sample, MARGIN = 1, FUN = get_contamination, analysis = analysis)
         contamination_df <- as.data.frame(do.call(rbind, lapply(contamination_list, as.data.frame)))
         sample <- cbind(sample, contamination_df)
@@ -1156,6 +1210,8 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     cfunc <- analysis$options$cfunc
     FUN <- get_FUN(cfunc, variant = 0)
     alpha <- analysis$options$alpha
+    beta <- analysis$options$beta
+    measure <- analysis$options$measure
     fterms <- analysis$options$fterms
     # TODO replace the use of ftext with fterms
     ftext <- analysis$options$ftext
@@ -1166,23 +1222,33 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
                     "log" = c("y1 ~ 1", fterms, "offset(log(y_off))"),
                     "logit" = c("cbind(y1,y0) ~ 1", fterms))
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
-    if (cfunc %in% c("L", "P", "S")) {
-        if (identical(Sys.getenv("TESTTHAT"), "true")) {
-            log_beta <- 2.0
-        } else {
-            tryCatch({
-            #cat("Estimating scale parameter for contamination range\n")
-            log_beta <- stats::optimize(
-                f = estimateContaminationLME4, interval = c(-5, 5), maximum = FALSE,
-                tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link)$minimum
-            },
-            error = function(e){
-               message("*** Contamination scale parameter cannot be estimated ***")
-               log_beta <- 5
-            })
+    if (cfunc %in% c("L", "P", "S") | identical(measure,"disc")) {
+        if (is.null(beta)) {
+            if (identical(Sys.getenv("TESTTHAT"), "true")) {
+                log_beta <- 2.0
+            } else {
+                tryCatch({
+                #cat("Estimating scale parameter for contamination range\n")
+                log_beta <- stats::optimize(
+                    f = estimateContaminationLME4, interval = c(-5, 5), maximum = FALSE,
+                    tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, measure = measure)$minimum
+                },
+                error = function(e){
+                   message("*** Contamination scale parameter cannot be estimated ***")
+                   log_beta <- 5
+                })
+            }
+            analysis$options$penalty <- 2
+            beta <- exp(log_beta)
         }
-        beta <- exp(log_beta)
-        x <- trial$measure * beta
+        if (identical(measure,"disc")) {
+            analysis$options$radius <- beta
+            trial <- compute_distance(trial, measure = 'disc', radius = beta)$trial
+            x <- trial$measure <- trial$disc
+            analysis$trial <- trial
+        } else {
+            x <- trial$measure * beta
+        }
         trial$pvar <- eval(parse(text = FUN))
     } else if(identical(cfunc,"R")) {
         x <- trial$measure
@@ -1203,8 +1269,8 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
 
     cov <- q50 <- NULL
     if (grepl("pvar", ftext, fixed = TRUE)) {
-        analysis$pt_ests$AIC <- analysis$pt_ests$AIC + 2
-        analysis$pt_ests$df <- analysis$pt_ests$df - 1
+        analysis$pt_ests$AIC <- analysis$pt_ests$AIC + analysis$options$penalty
+        analysis$pt_ests$df <- analysis$pt_ests$df - (analysis$options$penalty > 0)
         coefficients <- summary(model_object)$coefficients
         WaldP <- ifelse(ncol(coefficients) == 4, coefficients['pvar',4], NA)
     }
@@ -1460,7 +1526,7 @@ get_curve <- function(x, analysis) {
     }
 
     if (identical(limits[1], limits[2])) {
-        curve <- rep(limits[1],1001)
+        control_curve <- intervention_curve <- rep(limits[1],1001)
     } else {
         par0 <- c(link_tr(link, limits0[1]),
                   link_tr(link, limits0[2]) - link_tr(link, limits0[1]),
@@ -1470,22 +1536,23 @@ get_curve <- function(x, analysis) {
             link_tr(link, limits1[2]) - link_tr(link, limits1[1]),
             contamination_par
         )
-        # trap extreme cases with undefined, flat or very steep ones
-        if (is.null(contamination_par)) {
-            cfunc <- "X"
-        } else if (is.na(contamination_par) |
-            contamination_par < 0.01 |
-            contamination_par > 100  |
-            (abs(pars[1] - pars[2]) > 10000)) {
-            cfunc <- "X"
+        # trap extreme cases with undefined, flat or very steep curves
+        if (!identical(cfunc, "R")) {
+            if (is.null(contamination_par)) {
+                cfunc <- "X"
+            } else if (is.na(contamination_par) |
+                contamination_par < 0.01 |
+                contamination_par > 100  |
+                (abs(pars[1] - pars[2]) > 10000)) {
+                cfunc <- "X"
+            }
         }
         FUN1 <- get_FUN(cfunc, variant = 1)
-
-        curve <- ifelse(d < 0,
-                        invlink(link, FUN1(trial = data.frame(measure = d), par = par0)),
-                        invlink(link, FUN1(trial = data.frame(measure = d), par = par1)))
+        intervention_curve <- invlink(link, FUN1(trial = data.frame(measure = d), par = par1))
+        control_curve <- invlink(link, FUN1(trial = data.frame(measure = d), par = par0))
     }
-    fittedCurve <- list(d = d, contaminationFunction = curve, limits0 = limits0, limits1 = limits1)
+    fittedCurve <- list(d = d, control_curve = control_curve, intervention_curve = intervention_curve,
+                        limits0 = limits0, limits1 = limits1)
     return(fittedCurve)
 }
 
@@ -1496,8 +1563,8 @@ get_contaminationStats <- function(fittedCurve, trial) {
     # obtained even with negative effect_size
     limits0 <- fittedCurve$limits0
     limits1 <- fittedCurve$limits1
-    curve <- fittedCurve$contaminationFunction
     d <- fittedCurve$d
+    curve <- ifelse(d > 0, fittedCurve$intervention_curve, fittedCurve$control_curve)
     thetaL <- thetaU <- NA
     if (is.na(limits0[1]) | is.na(curve[1000])) {
         rabbit <- 6
@@ -1550,25 +1617,27 @@ return(contamination)}
 
 
 tidyContamination <- function(contamination, analysis, fittedCurve){
-    contamination$contamination_limits <-
-        with(contamination, c(contamination_limit0,contamination_limit1))
-    if (analysis$options$cfunc %in% c("Z","X")) {
-        contamination$contamination_interval <- NULL
-        contamination$contaminate_pop_pr <- NULL
-        contamination$contamination_limits <- c(-1.0E-4,1.0E-4)
-    } else {
-        if (is.na(analysis$pt_ests$contamination_par))
-            analysis$pt_ests$contamination_par <- contamination$contamination_par
-        if (is.na(analysis$pt_ests$contamination_interval))
-            analysis$pt_ests$contamination_interval <-
-                contamination$contamination_interval
+    if (identical(analysis$options$measure,"nearestDiscord")) {
+        contamination$contamination_limits <-
+            with(contamination, c(contamination_limit0,contamination_limit1))
+        if (analysis$options$cfunc %in% c("Z","X")) {
+            contamination$contamination_interval <- NULL
+            contamination$contaminate_pop_pr <- NULL
+            contamination$contamination_limits <- c(-1.0E-4,1.0E-4)
+        } else {
+            if (is.na(analysis$pt_ests$contamination_par))
+                analysis$pt_ests$contamination_par <- contamination$contamination_par
+            if (is.na(analysis$pt_ests$contamination_interval))
+                analysis$pt_ests$contamination_interval <-
+                    contamination$contamination_interval
+        }
+        contamination$contamination_limit0 <- contamination$contamination_limit1 <- NULL
     }
-    contamination$contamination_limit0 <- contamination$contamination_limit1 <- NULL
     contamination$FittedCurve <- data.frame(d = fittedCurve$d,
-                        contaminationFunction = fittedCurve$contaminationFunction)
-    contamination$data <- group_data(analysis)
+                                        intervention_curve = fittedCurve$intervention_curve,
+                                        control_curve = fittedCurve$control_curve)
     analysis$contamination <- contamination
-    return(analysis)}
+return(analysis)}
 
 #' Extract model fitted values
 #'

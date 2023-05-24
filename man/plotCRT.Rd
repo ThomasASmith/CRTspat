@@ -7,6 +7,7 @@
 plotCRT(
   object,
   map = FALSE,
+  measure = "nearestDiscord",
   fill = "arms",
   showLocations = FALSE,
   showClusterBoundaries = TRUE,
@@ -23,6 +24,14 @@ plotCRT(
 \item{object}{object of class \code{'CRTanalysis'} produced by \code{CRTanalysis()}}
 
 \item{map}{logical: indicator of whether a map is required}
+
+\item{measure}{measure of distance or surround with options: \cr
+\tabular{ll}{
+\code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
+\code{"disc"} \tab disc\cr
+\code{"hdep"} \tab Tukey's half space depth\cr
+\code{"sdep"} \tab simplicial depth\cr
+}}
 
 \item{fill}{fill layer of map with options:
 \tabular{ll}{
@@ -64,8 +73,9 @@ or of the results of statistical analyses of a CRT
 }
 \details{
 If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object,
-containing a randomisation to arms, a stacked bar chart of the the outcome
-grouped by distance from the boundary (or of surround) is produced.\cr
+containing a randomisation to arms, a stacked bar chart of the outcome
+grouped by the specified \code{measure} is produced. If the specified \code{measure}
+has not yet been calculated an error is returned\cr
 If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
 estimated contamination function is generated. The fitted contamination function is plotted as a continuous blue line against the measure of distance
 from the nearest discordant location or of surround. Using the same axes, data summaries are plotted for

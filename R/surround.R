@@ -45,27 +45,22 @@ compute_distance <- function(trial, measure = "all", radius = 1.0) {
     trial <- cbind(trial,depth_df)
     trial$numh <- NULL
   }
+  if (!identical(CRT$design$radius,radius) & identical(measure,"disc")) trial$disc <- NULL
+
   if ((measure %in% c("all", "disc", "nearestDiscord")) &
       (is.null(trial$disc) | is.null(trial$nearestDiscord))) {
-    dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
-    if (is.null(trial$nearestDiscord) & !identical(measure, "disc")){
-      discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
-      discord_dist_trial <- ifelse(discord, dist_trial, Inf)
-      trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
-                        MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
-    }
-    if (!identical(measure, "nearestDiscord")){
-      if (is.null(CRT$design$radius)) {
-        trial$disc <- NULL
-      } else if(CRT$design$radius != radius) {
-        trial$disc <- NULL
+      dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
+      if (is.null(trial$nearestDiscord) & !identical(measure, "disc")){
+          discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
+          discord_dist_trial <- ifelse(discord, dist_trial, Inf)
+          trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
+                          MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
       }
-      if (is.null(trial$disc)){
-        intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= radius))
-        trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
-        CRT$design$radius <- radius
+      if (is.null(trial$disc) & !identical(measure, "nearestDiscord")){
+          intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= radius))
+          trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
+          CRT$design$radius <- radius
       }
-    }
   }
   CRT$trial <- trial
   return(CRT)

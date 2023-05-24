@@ -1,10 +1,10 @@
 ---
-title: "Use Case 8: Eggs - to fry or scramble?"
+title: "Use Case 08: Eggs - to fry or scramble?"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 8: Eggs - to fry or scramble?}
+  %\VignetteIndexEntry{Use Case 08: Eggs - to fry or scramble?}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

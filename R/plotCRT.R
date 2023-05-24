@@ -6,6 +6,13 @@
 #' or of the results of statistical analyses of a CRT
 #' @param object object of class \code{'CRTanalysis'} produced by \code{CRTanalysis()}
 #' @param map logical: indicator of whether a map is required
+#' @param measure measure of distance or surround with options: \cr
+#' \tabular{ll}{
+#' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
+#' \code{"disc"} \tab disc\cr
+#' \code{"hdep"} \tab Tukey's half space depth\cr
+#' \code{"sdep"} \tab simplicial depth\cr
+#' }
 #' @param fill fill layer of map with options:
 #' \tabular{ll}{
 #' \code{'cluster'} \tab cluster assignment \cr
@@ -34,8 +41,9 @@
 #' @importFrom ggplot2 aes
 #' @details
 #' If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object,
-#' containing a randomisation to arms, a stacked bar chart of the the outcome
-#' grouped by distance from the boundary (or of surround) is produced.\cr
+#' containing a randomisation to arms, a stacked bar chart of the outcome
+#' grouped by the specified \code{measure} is produced. If the specified \code{measure}
+#' has not yet been calculated an error is returned\cr
 #' If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
 #' estimated contamination function is generated. The fitted contamination function is plotted as a continuous blue line against the measure of distance
 #' from the nearest discordant location or of surround. Using the same axes, data summaries are plotted for
@@ -87,12 +95,13 @@
 #' plotCRT(analysis, map = FALSE)
 #' }
 #' @export
-plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
+plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arms", showLocations = FALSE,
     showClusterBoundaries = TRUE, showClusterLabels = FALSE, showBuffer = FALSE,
     cpalette = NULL, buffer_width = NULL, maskbuffer = 0.2, labelsize = 4,
     legend.position = NULL) {
 
-    contamination_limits <- buffer <- g <- NULL
+    control_curve <- intervention_curve <- buffer <- g <- NULL
+    if (is.null(legend.position)) legend.position <- "none"
     if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
     trial <- object$trial
     if (is.null(trial)) {
@@ -100,48 +109,71 @@ plotCRT <- function(object, map = FALSE, fill = "arms", showLocations = FALSE,
     }
     if (!map) {
         if (isa(object, what = 'CRTanalysis')) {
+            measure <- object$options$measure
+            radius <- object$options$radius
+        } else {
+            radius <- object$design$radius
+        }
+        xaxistext <-  switch(measure,
+                             "nearestDiscord" = "Distance to nearest discordant location (km)",
+                             "disc" = paste0("disc (radius ", round(radius, digits = 3), " km)"),
+                             "hdep" = "Tukey's half-depth",
+                             "sdep" = "Simplicial depth")
+        if (isa(object, what = 'CRTanalysis')) {
             # if the object is the output from analysisCRT
             analysis <- object
-            if (is.null(analysis$contamination$contamination_limits))
-                stop("*** No analysis of contamination available ***")
+            if (is.null(analysis$contamination$FittedCurve))
+                stop("*** No fitted curve available ***")
             d <- average <- upper <- lower <- contaminationFunction <- NULL
             interval <- analysis$contamination$contamination_limits
-            g <- ggplot2::ggplot(data = analysis$contamination$data, ggplot2::aes(x = d,
-                                                                           y = average))
-            g <- g + ggplot2::theme_bw()
-            g <- g + ggplot2::geom_point(size = 2)
-            g <- g + ggplot2::geom_errorbar(mapping = ggplot2::aes(x = d, ymin = upper,
-                                        ymax = lower), linewidth = 0.5, width = 0.1)
-            g <- g + ggplot2::geom_line(data = analysis$contamination$FittedCurve,
-                                        ggplot2::aes(x = d, y = contaminationFunction), linewidth = 2,
-                                        colour = "#0072A7")
-            g <- g + ggplot2::geom_vline(xintercept = interval, linewidth = 1)
-            g <- g + ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed")
-            g <- g + ggplot2::geom_rect(ggplot2::aes(xmin = interval[1], xmax = interval[2],
-                                         ymin = -Inf, ymax = Inf), fill = alpha("#2C77BF", 0.02))
-            g <- g + ggplot2::xlab("Distance from boundary (km)")
+            range <- max(analysis$trial$measure) - min(analysis$trial$measure)
+            data <- group_data(analysis = analysis, grouping = "quintiles")
+            FittedCurve <- analysis$contamination$FittedCurve
+            g <- ggplot2::ggplot() + ggplot2::theme_bw()
+            g <- g + ggplot2::geom_line(data = FittedCurve, ggplot2::aes(x = d, y = control_curve),
+                                        linewidth = 2, colour = "#b2df8a")
+            g <- g + ggplot2::geom_line(data = FittedCurve, ggplot2::aes(x = d, y = intervention_curve),
+                                        linewidth = 2, colour = "#0072A7")
+            g <- g + ggplot2::geom_point(data = data, ggplot2::aes(x = d, y = average,
+                                        shape=factor(arm)), size = 2)
+            g <- g + ggplot2::scale_shape_manual(name = "Arms", values = c(0, 16),
+                                                 labels = c("Control", "Intervention"))
+            g <- g + ggplot2::theme(legend.position = legend.position)
+            g <- g + ggplot2::geom_errorbar(data = data, mapping = ggplot2::aes(x = d, ymin = upper,
+                                        ymax = lower), linewidth = 0.5, width = range/50)
+            if (identical(analysis$options$measure, "nearestDiscord")) {
+                g <- g + ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed")
+                if (analysis$options$cfunc %in% c("L","P","S")) {
+                    g <- g + ggplot2::geom_vline(xintercept = interval, linewidth = 1)
+                    g <- g + ggplot2::geom_rect(data = NULL, ggplot2::aes(xmin = interval[1], xmax = interval[2],
+                                                 ymin = -Inf, ymax = Inf), fill = alpha("#2C77BF", 0.2))
+                }
+            }
+            g <- g + ggplot2::xlab(xaxistext)
             g <- g + ggplot2::ylab("Outcome")
         } else {
-            # Plot of frequency by distance to boundary
-            if (is.null(cpalette))
-                cpalette <- c("#D55E00", "#0072A7")
+            if (is.null(object$trial[[measure]])) {
+                stop(paste0("*** First use compute_distance() to calculate ", measure, "***"))
+            }
+            # Plot of frequency by measure
+            if (is.null(cpalette)) cpalette <- c("#D55E00", "#0072A7")
             outcome <- positives <- negatives <- frequency <- dcat <- NULL
             if (is.null(object$trial$num)) {
                 return(plot(object$trial))
             }
-            an <- CRTanalysis(trial = object$trial, method = "EMP")
-            an$contamination$data$negatives <- with(an$contamination$data, total -
-                                                        positives)
-            an$contamination$data$dcat <- with(an$contamination, min(FittedCurve$d) +
-                                 (data$cats - 0.5) * (max(FittedCurve$d) - min(FittedCurve$d))/10)
-            data <- tidyr::gather(an$contamination$data[, c("dcat", "negatives",
+            analysis <- CRTanalysis(trial = object$trial, method = "EMP")
+            data <- group_data(analysis = analysis, measure = measure, grouping = "equalwidth")
+            data$negatives <- with(data, total - positives)
+            data$dcat <- with(analysis, min(trial[[measure]]) +
+                                 (data$cat - 0.5) * (max(trial[[measure]]) - min(trial[[measure]]))/10)
+            data <- tidyr::gather(data[, c("dcat", "negatives",
                                 "positives")], outcome, frequency, positives:negatives, factor_key = TRUE)
             g <- ggplot2::ggplot(data = data, aes(x = dcat, y = frequency, fill = outcome)) +
                 ggplot2::theme_bw() + ggplot2::geom_bar(stat = "identity") +
                 ggplot2::scale_fill_manual(values = cpalette, labels = c("Positive",
                                 "Negative")) + ggplot2::geom_vline(xintercept = 0, linewidth = 1,
-                                linetype = "dashed") + ggplot2::xlab("Distance from boundary (km)") +
-                ggplot2::ylab("Frequency") + ggplot2::theme(legend.position = "bottom")
+                                linetype = "dashed") + ggplot2::xlab(xaxistext) +
+                ggplot2::ylab("Frequency") + ggplot2::theme(legend.position = legend.position)
         }
     } else {
         if (isa(object, what = 'CRTanalysis')) {

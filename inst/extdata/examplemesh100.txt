@@ -71706,4 +71706,4 @@ int=structure(list(loc=NULL,idx=structure(integer(0),dim=c(0L,
 crs=NULL),class="inla.mesh.segment")),idx=list(
 loc=NULL,lattice=NULL,segm=1:900),crs=NULL),class="inla.mesh")),class=c("inla.spde2",
 "inla.spde","inla.model.class")),pixel=0.10000000000000001,
-measure="nearestDiscord",radius=1)
+measure="nearestDiscord",radius=NULL)

@@ -1,10 +1,10 @@
 ---
-title: "Use Case 6: Thematic mapping of the geography of a CRT"
+title: "Use Case 06: Thematic mapping of the geography of a CRT"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 6: Thematic mapping of the geography of a CRT}
+  %\VignetteIndexEntry{Use Case 06: Thematic mapping of the geography of a CRT}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

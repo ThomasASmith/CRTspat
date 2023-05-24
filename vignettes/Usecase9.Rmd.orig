@@ -1,10 +1,10 @@
 ---
-title: "Use Case 9: Preparation of datasets for `CRTspat`"
+title: "Use Case 09: Preparation of datasets for `CRTspat`"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 9: Preparation of datasets for `CRTspat`}
+  %\VignetteIndexEntry{Use Case 09: Preparation of datasets for `CRTspat`}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

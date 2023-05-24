@@ -8,7 +8,7 @@ CRTanalysis(
   trial,
   method = "GEE",
   measure = "nearestDiscord",
-  radius = 1,
+  beta = NULL,
   cfunc = "L",
   link = "logit",
   numerator = "num",
@@ -48,7 +48,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"sdep"} \tab simplicial depth\cr
 }}
 
-\item{radius}{numeric: radius of disc in km (if \code{measure = "disc"})}
+\item{beta}{numeric: pre-specified value of contamination parameter or disc radius}
 
 \item{cfunc}{transformation defining the contamination function. \cr
 options are:
@@ -117,12 +117,15 @@ list of class \code{CRTanalysis} containing the following results of the analysi
 and the \href{https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test}{t.test}
 function of package \code{stats}.
 The wrapper does not provide an interface to the full functionality of these packages.
-It is specific for typical analyses of cluster randomized trials with geographical clustering.\cr \cr
+It is specific for typical analyses of cluster randomized trials with geographical clustering. Details
+are provided in the \href{https://thomasasmith.github.io/articles/Usecase5.html}{vignette} \cr \cr
 
 The key results of the analyses can be extracted using a \code{summary()} of the output list.
 The \code{model_object} in the output list is the usual output from the statistical analysis routine,
 and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
-for purposes of evaluation of model fit etc..
+for purposes of evaluation of model fit etc..\cr \cr
+
+\code{beta} specifies the contamination parameter. If \code{measure = "disc"} then this is the disc radius in km.
 }
 \examples{
 {example <- readdata('exampleCRT.txt')

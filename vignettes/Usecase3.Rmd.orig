@@ -1,10 +1,10 @@
 ---
-title: "Use Case 3: Estimation of intracluster correlations (ICC) by cluster size"
+title: "Use Case 03: Estimation of intracluster correlations (ICC) by cluster size"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 3: Estimation of intracluster correlations (ICC) by cluster size}
+  %\VignetteIndexEntry{Use Case 03: Estimation of intracluster correlations (ICC) by cluster size}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
