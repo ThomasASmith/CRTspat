@@ -118,7 +118,8 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
                              "nearestDiscord" = "Distance to nearest discordant location (km)",
                              "disc" = paste0("disc (radius ", round(radius, digits = 3), " km)"),
                              "hdep" = "Tukey's half-depth",
-                             "sdep" = "Simplicial depth")
+                             "sdep" = "Simplicial depth",
+                             measure)
         if (isa(object, what = 'CRTanalysis')) {
             # if the object is the output from analysisCRT
             analysis <- object

@@ -118,7 +118,7 @@ CRTanalysis <- function(
         return(NULL)
     }
 
-    if (measure %in% c("hdep", "sdep", "disc") & !identical(cfunc, "R")) {
+    if (!identical(measure, "nearestDiscord")) {
         cfunc <- "R"
         cat("*** using linear contamination function ***")
     }
@@ -999,7 +999,8 @@ summary.CRTanalysis <- function(object, ...) {
                         "nearestDiscord" = "Nearest discordant location \n",
                         "disc" = paste0("disc of radius ", round(object$options$radius, digits = 3), " km \n"),
                         "hdep" = "Tukey's half-depth \n",
-                        "sdep" = "Simplicial depth\n"))
+                        "sdep" = "Simplicial depth\n",
+                        paste0(object$options$measure,"\n")))
     }
     if (!is.null(object$options$ftext))
         cat("Model formula: ", object$options$ftext, "\n")
