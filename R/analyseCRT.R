@@ -302,6 +302,7 @@ GEEanalysis <- function(analysis, resamples){
 
     # remove the temporary objects from the dataframe
     model_object$data$y1 <- model_object$data$y0 <- model_object$data$y_off <- NULL
+
     pt_ests$controlY <- invlink(link, lp_yC)
     int_ests$controlY <- namedCL(
         invlink(link, c(lp_yC - z * se_lp_yC, lp_yC + z * se_lp_yC)),
@@ -926,7 +927,8 @@ estimateContaminationLME4 <- function(
 # Add estimates to analysis list
 add_estimates <- function(analysis, bounds, CLnames){
     bounds <- data.frame(bounds)
-    for (variable in c("controlY","interventionY","effect_size",
+    for (variable in c("int", "arm", "pvar",
+                      "controlY","interventionY","effect_size",
                       "personal_protection","contamination_par",
                       "deviance","contamination_interval","contamination_limit0",
                       "contamination_limit1","contaminate_pop_pr")) {
@@ -1179,7 +1181,7 @@ extractEstimates <- function(analysis, sample) {
     if ("arm" %in% names(sample) & !("pvar" %in% names(sample))) {
         sample$interventionY <- invlink(link, sample$int + sample$arm)
     }
-    if ("pvar" %in% names(sample) & !("arms" %in% names(sample))) {
+    if ("pvar" %in% names(sample) & !("arm" %in% names(sample))) {
         sample$interventionY <- invlink(link, sample$int + sample$pvar)
     }
     if ("interventionY" %in% names(sample)) {
@@ -1500,41 +1502,42 @@ get_curve <- function(x, analysis) {
     trial <- analysis$trial
     link <- analysis$options$link
     cfunc <- analysis$options$cfunc
-    limits <- c(x[["controlY"]], x[["controlY"]])
-    if(!is.null(x[["interventionY"]])) limits[2] <- x[["interventionY"]]
-    if(is.na(limits[2])) limits[2] <- x[["controlY"]]
-    personal_protection <- x[["personal_protection"]]
+
+    limits <- matrix(x[["controlY"]], nrow = 2, ncol = 2)
+    if(!is.null(x[["interventionY"]])) {
+        limits[ ,2] <-  rep(x[["interventionY"]], times = 2)
+    } else {
+        limits[ , 2] <- rep(x[["controlY"]], times = 2)
+    }
+    if (!is.na(x[["personal_protection"]])) {
+        limits[1, 2] <- invlink(link, x[["int"]] + x[["pvar"]])
+        limits[2, 1] <- invlink(link, x[["int"]] + x[["arm"]])
+    }
+    if (identical(cfunc, 'X')) {
+        limits[1, 2] <- limits[1, 1]
+        limits[2, 1] <- limits[2, 2]
+    }
     contamination_par <- x[["contamination_par"]]
 
     # Trap cases with extreme effect: TODO: a different criterion may be needed for continuous data
     pars <- link_tr(link,limits)
     if (abs(pars[1] - pars[2]) > 10000) {
-        limits <- invlink(link,c(20,-20))
+        limits <- invlink(link, matrix(c(20,20, -20, -20), nrow = 2, ncol = 2))
     }
 
-    limits0 <- limits1 <- limits
-    range_d <- max(trial$measure) -
-        min(trial$measure)
+    range_d <- max(trial$measure) - min(trial$measure)
     d <- min(trial$measure) + range_d * (seq(1:1001) - 1)/1000
 
-    Cp <- 1
-    if (is.na(personal_protection)) {
-        Cp <- 0
-    } else if (0 <= personal_protection & personal_protection <= 1) {
-        Cp <- personal_protection
-        limits0 <- c(limits[1], Cp * limits[2] + (1 - Cp) * limits[1])
-        limits1 <- c(Cp * limits[1] + (1 - Cp) * limits[2], limits[2])
-    }
-
-    if (identical(limits[1], limits[2])) {
-        control_curve <- intervention_curve <- rep(limits[1],1001)
+    if (identical(limits[, 1], limits[ , 2])) {
+        control_curve <- rep(limits[1,1], 1001)
+        intervention_curve <- rep(limits[2, 1], 1001)
     } else {
-        par0 <- c(link_tr(link, limits0[1]),
-                  link_tr(link, limits0[2]) - link_tr(link, limits0[1]),
+        par0 <- c(link_tr(link, limits[1, 1]),
+                  link_tr(link, limits[1, 2]) - link_tr(link, limits[1, 1]),
                   contamination_par)
         par1 <- c(
-            link_tr(link, limits1[1]),
-            link_tr(link, limits1[2]) - link_tr(link, limits1[1]),
+            link_tr(link, limits[2, 1]),
+            link_tr(link, limits[2, 2]) - link_tr(link, limits[2, 1]),
             contamination_par
         )
         # trap extreme cases with undefined, flat or very steep curves
@@ -1551,9 +1554,14 @@ get_curve <- function(x, analysis) {
         FUN1 <- get_FUN(cfunc, variant = 1)
         intervention_curve <- invlink(link, FUN1(trial = data.frame(measure = d), par = par1))
         control_curve <- invlink(link, FUN1(trial = data.frame(measure = d), par = par0))
+        # if the trial arm corresponds to the sign of d then:
+    }
+    if(min(d) < 0) {
+        control_curve[d > 0] <- NA
+        intervention_curve[d < 0] <- NA
     }
     fittedCurve <- list(d = d, control_curve = control_curve, intervention_curve = intervention_curve,
-                        limits0 = limits0, limits1 = limits1)
+                        limits = limits)
     return(fittedCurve)
 }
 
@@ -1562,31 +1570,27 @@ get_contaminationStats <- function(fittedCurve, trial) {
     # Compute the contamination range
     # The absolute values of the limits are used so that a positive range is
     # obtained even with negative effect_size
-    limits0 <- fittedCurve$limits0
-    limits1 <- fittedCurve$limits1
+    limits <- fittedCurve$limits
     d <- fittedCurve$d
     curve <- ifelse(d > 0, fittedCurve$intervention_curve, fittedCurve$control_curve)
     thetaL <- thetaU <- NA
-    if (is.na(limits0[1]) | is.na(curve[1000])) {
-        rabbit <- 6
-    }
-    if (abs(limits0[1] - curve[1000]) >
-        0.025 * abs(limits0[1] - limits0[2]))
+    if (abs(limits[1, 1] - curve[1000]) >
+        0.025 * abs(limits[1, 1] - limits[1, 2]))
     {
         thetaL <- d[min(
             which(
-                abs(limits0[1] - curve) >
-                    0.025 * abs(limits0[1] - limits0[2])
+                abs(limits[1, 1] - curve) >
+                    0.025 * abs(limits[1, 1] - limits[1, 2])
             )
         )]
     }
-    if (abs(limits1[2] - curve[1000]) <
-        0.025 * abs(limits1[1] - limits1[2]))
+    if (abs(limits[2, 2] - curve[1000]) <
+        0.025 * abs(limits[2, 1] - limits[2, 2]))
     {
-        thetaU <- d[min(
+        thetaU <- d[max(
             which(
-                abs(limits1[2] - curve) <
-                    0.025 * abs(limits1[1] - limits1[2])
+                abs(limits[2, 2] - curve) >
+                    0.025 * abs(limits[2, 1] - limits[2, 2])
             )
         )]
     }

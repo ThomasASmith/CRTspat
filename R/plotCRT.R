@@ -131,10 +131,10 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
             data <- group_data(analysis = analysis, grouping = "quintiles")
             FittedCurve <- analysis$contamination$FittedCurve
             g <- ggplot2::ggplot() + ggplot2::theme_bw()
-            g <- g + ggplot2::geom_line(data = FittedCurve, ggplot2::aes(x = d, y = control_curve),
-                                        linewidth = 2, colour = "#b2df8a")
-            g <- g + ggplot2::geom_line(data = FittedCurve, ggplot2::aes(x = d, y = intervention_curve),
-                                        linewidth = 2, colour = "#0072A7")
+            g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$control_curve), ],
+                            ggplot2::aes(x = d, y = control_curve), linewidth = 2, colour = "#b2df8a")
+            g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$intervention_curve), ],
+                            ggplot2::aes(x = d, y = intervention_curve), linewidth = 2, colour = "#0072A7")
             g <- g + ggplot2::geom_point(data = data, ggplot2::aes(x = d, y = average,
                                         shape=factor(arm)), size = 2)
             g <- g + ggplot2::scale_shape_manual(name = "Arms", values = c(0, 16),
