@@ -231,7 +231,7 @@ CRTanalysis <- function(
                     radius = radius,
                     penalty = 0)
     # create scaffolds for lists
-    pt_ests <- list(contamination_par = NA, personal_protection = NA, contamination_interval = NA)
+    pt_ests <- list(contamination_par = NA, personal_protection = NA, contamination_interval = NA, total_effect = NA)
     int_ests <- list(controlY = NA, interventionY = NA, effect_size = NA)
     model_object <- list()
     description <- get_description(trial=trial, link=link, baselineOnly)
@@ -372,7 +372,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
                 trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
                 maskbuffer = 0.5, pixel = pixel,
                 measure = analysis$options$measure,
-                radius = analysis$options$measure)
+                radius = analysis$options$radius)
     }
     if (!identical(inla_mesh$measure, analysis$options$measure) |
         !identical(inla_mesh$radius, analysis$options$radius)) {
@@ -817,8 +817,8 @@ new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
                                             radius = radius))
     }
     inla_mesh <- list(
-        prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde, pixel = pixel, radius = radius
-    )
+        prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde,
+                            pixel = pixel, measure = measure, radius = radius)
     cat(
         "Mesh created of ", nrow(prediction), " pixels of size ", pixel," km \n"
     )
@@ -931,7 +931,9 @@ add_estimates <- function(analysis, bounds, CLnames){
                       "controlY","interventionY","effect_size",
                       "personal_protection","contamination_par",
                       "deviance","contamination_interval","contamination_limit0",
-                      "contamination_limit1","contaminate_pop_pr")) {
+                      "contamination_limit1","contaminate_pop_pr",
+                      "total_effect", "ipsilateral_spillover",
+                      "contralateral_spillover")) {
         if (variable %in% colnames(bounds)) {
             analysis$pt_ests[[variable]] <- bounds[2, variable]
             analysis$int_ests[[variable]] <- stats::setNames(
@@ -1015,7 +1017,7 @@ summary.CRTanalysis <- function(object, ...) {
                R = "Rescaled linear function for contamination\n"))
     CLtext <- paste0(" (", 100 * (1 - object$options$alpha), "% CL: ")
     cat(
-        "Estimates:      Control: ", object$pt_ests$controlY,
+        "Estimates:       Control: ", object$pt_ests$controlY,
         CLtext, unlist(object$int_ests$controlY),
         ")\n"
     )
@@ -1024,11 +1026,11 @@ summary.CRTanalysis <- function(object, ...) {
         if (!is.null(object$pt_ests$interventionY))
         {
             cat(
-                "           Intervention: ", object$pt_ests$interventionY,
+                "            Intervention: ", object$pt_ests$interventionY,
                 CLtext, unlist(object$int_ests$interventionY),
                 ")\n"
             )
-            effect.measure <- ifelse(object$options$link == 'identity', "Effect size: ","   Efficacy: ")
+            effect.measure <- ifelse(object$options$link == 'identity', "Effect size: ","    Efficacy: ")
             cat("           ",
                 effect.measure, object$pt_ests$effect_size, CLtext, unlist(object$int_ests$effect_size),
                 ")\n"
@@ -1037,7 +1039,7 @@ summary.CRTanalysis <- function(object, ...) {
         if (!is.na(object$pt_ests$personal_protection))
         {
             cat(
-                "Personal protection %  : ",
+                "Personal protection %   : ",
                 object$pt_ests$personal_protection*100,
                 CLtext, unlist(object$int_ests$personal_protection*100),
                     ")\n"
@@ -1062,14 +1064,22 @@ summary.CRTanalysis <- function(object, ...) {
                     "% locations contaminated:",
                     object$contamination$contaminate_pop_pr*100,
                     CLtext, unlist(object$int_ests$contaminate_pop_pr)*100,
-                    " %)\n")
+                    "%)\n")
+            }
+            if (!is.null(object$contamination$total_effect)) {
+                cat("Total effect            :", object$pt_ests$total_effect,
+                    CLtext, unlist(object$int_ests$total_effect),")\n")
+                cat("Ipsilateral Spillover   :", object$pt_ests$ipsilateral_spillover,
+                    CLtext, unlist(object$int_ests$ipsilateral_spillover),")\n")
+                cat("Contralateral Spillover :", object$pt_ests$contralateral_spillover,
+                    CLtext, unlist(object$int_ests$contralateral_spillover),")\n")
             }
         }
     }
     if (!is.null(object$pt_ests$ICC))
     {
         cat(
-            "Intracluster correlation (ICC) : ", object$pt_ests$ICC,
+            "Intracluster correlation (ICC)  : ", object$pt_ests$ICC,
             CLtext, unlist(object$int_ests$ICC),")\n"
         )
     }
@@ -1502,7 +1512,7 @@ get_curve <- function(x, analysis) {
     trial <- analysis$trial
     link <- analysis$options$link
     cfunc <- analysis$options$cfunc
-
+    total_effect <- ipsilateral_spillover <- contralateral_spillover <- NULL
     limits <- matrix(x[["controlY"]], nrow = 2, ncol = 2)
     if(!is.null(x[["interventionY"]])) {
         limits[ ,2] <-  rep(x[["interventionY"]], times = 2)
@@ -1552,8 +1562,14 @@ get_curve <- function(x, analysis) {
             }
         }
         FUN1 <- get_FUN(cfunc, variant = 1)
+        fitted_values <- ifelse(trial$arm == 'intervention',
+                invlink(link, FUN1(trial = trial, par = par1)),
+                invlink(link, FUN1(trial = trial, par = par0)))
+        total_effect <- x[["controlY"]] - x[["interventionY"]]
+        ipsilateral_spillover <- mean(fitted_values[trial$arm == 'intervention']) - x[["interventionY"]]
+        contralateral_spillover <- x[["controlY"]] - mean(fitted_values[trial$arm == 'control'])
         intervention_curve <- invlink(link, FUN1(trial = data.frame(measure = d), par = par1))
-        control_curve <- invlink(link, FUN1(trial = data.frame(measure = d), par = par0))
+        control_curve <- invlink(link, FUN1(trial =data.frame(measure = d), par = par0))
         # if the trial arm corresponds to the sign of d then:
     }
     if(min(d) < 0) {
@@ -1561,7 +1577,9 @@ get_curve <- function(x, analysis) {
         intervention_curve[d < 0] <- NA
     }
     fittedCurve <- list(d = d, control_curve = control_curve, intervention_curve = intervention_curve,
-                        limits = limits)
+                        limits = limits, total_effect = total_effect,
+                        ipsilateral_spillover = ipsilateral_spillover,
+                        contralateral_spillover = contralateral_spillover)
     return(fittedCurve)
 }
 
@@ -1617,7 +1635,10 @@ get_contaminationStats <- function(fittedCurve, trial) {
         contamination_interval = contamination_interval,
         contamination_limit0 = contamination_limits[1],
         contamination_limit1 = contamination_limits[2],
-        contaminate_pop_pr = contaminate_pop_pr)
+        contaminate_pop_pr = contaminate_pop_pr,
+        total_effect = fittedCurve$total_effect,
+        ipsilateral_spillover = fittedCurve$ipsilateral_spillover,
+        contralateral_spillover = fittedCurve$contralateral_spillover)
 return(contamination)}
 
 
