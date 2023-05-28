@@ -100,26 +100,21 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
     cpalette = NULL, buffer_width = NULL, maskbuffer = 0.2, labelsize = 4,
     legend.position = NULL) {
 
-    control_curve <- intervention_curve <- buffer <- g <- NULL
+    control_curve <- intervention_curve <- radius <- buffer <- g <- NULL
     if (is.null(legend.position)) legend.position <- "none"
     if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
     trial <- object$trial
     if (is.null(trial)) {
         stop("*** No data points for plotting ***")
     }
+    if (isa(object, what = 'CRTanalysis')) {
+        measure <- object$options$measure
+        radius <- object$options$radius
+    } else {
+        radius <- object$design$radius
+    }
+    distanceText <-  getDistanceText(measure = measure, radius = radius)
     if (!map) {
-        if (isa(object, what = 'CRTanalysis')) {
-            measure <- object$options$measure
-            radius <- object$options$radius
-        } else {
-            radius <- object$design$radius
-        }
-        xaxistext <-  switch(measure,
-                             "nearestDiscord" = "Distance to nearest discordant location (km)",
-                             "disc" = paste0("disc (radius ", round(radius, digits = 3), " km)"),
-                             "hdep" = "Tukey's half-depth",
-                             "sdep" = "Simplicial depth",
-                             measure)
         if (isa(object, what = 'CRTanalysis')) {
             # if the object is the output from analysisCRT
             analysis <- object
@@ -150,7 +145,7 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
                                                  ymin = -Inf, ymax = Inf), fill = alpha("#2C77BF", 0.2))
                 }
             }
-            g <- g + ggplot2::xlab(xaxistext)
+            g <- g + ggplot2::xlab(distanceText)
             g <- g + ggplot2::ylab("Outcome")
         } else {
             if (is.null(object$trial[[measure]])) {
@@ -173,55 +168,40 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
                 ggplot2::theme_bw() + ggplot2::geom_bar(stat = "identity") +
                 ggplot2::scale_fill_manual(values = cpalette, labels = c("Positive",
                                 "Negative")) + ggplot2::geom_vline(xintercept = 0, linewidth = 1,
-                                linetype = "dashed") + ggplot2::xlab(xaxistext) +
+                                linetype = "dashed") + ggplot2::xlab(distanceText) +
                 ggplot2::ylab("Frequency") + ggplot2::theme(legend.position = legend.position)
         }
     } else {
-        if (isa(object, what = 'CRTanalysis')) {
+        colourClusters <- identical(fill, "clusters")
+        showArms <- identical(fill, "arms")
+        if (isa(object, what = 'CRTanalysis') & !(fill %in% c("arms", "clusters"))){
             # raster map
             analysis <- object
             contamination_limits <- analysis$contamination$contamination_limits
-            showDistance <- (fill %in% c("nearestDiscord", "disc", "hdep", "sdep"))
-            showPrediction <- identical(fill, "prediction")
-            if (showPrediction)
-                showdistance <- FALSE
-            if(showDistance | showPrediction) {
-                # raster images derived from inla analysis
-                x <- y <- prediction <- nearestDiscord <- NULL
-
-                g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
-                if (!identical(analysis$options$method, "INLA")) {
-                    stop("*** Raster plots only available for outputs from INLA analysis ***")
+            # raster images derived from inla analysis
+            x <- y <- prediction <- nearestDiscord <- NULL
+            g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
+            if (!identical(analysis$options$method, "INLA")) {
+                stop("*** Raster plots only available for outputs from INLA analysis ***")
+            } else {
+                pixel <- analysis$inla_mesh$pixel
+                raster <- analysis$inla_mesh$prediction
+                if (identical(fill, "prediction")) distanceText <- "Prediction"
+                if (is.null(raster[[fill]])){
+                    stop("*** Requested measure not available for this analysis ***")
                 } else {
-                    pixel <- analysis$inla_mesh$pixel
-                    raster <- analysis$inla_mesh$prediction
-                    if (showPrediction) {
-                        g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                             fill = prediction), alpha = 0.5, width = pixel, height = pixel)
-                        g <- g + ggplot2::scale_fill_gradient(name = "Prediction",
-                                                              low = "blue", high = "orange")
-
-                    }
-                    if (showDistance) {
-                        if (!identical(fill, analysis$options$measure)) {
-                           stop("*** Requested measure not available for this analysis ***")
-                        }
-                        g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                             fill = fill), alpha = 0.5, width = pixel, height = pixel)
-                        g <- g + ggplot2::scale_fill_gradient(name = "Distance",
-                                                              low = "blue", high = "orange")
-
-                    }
+                    raster$fill <- raster[[fill]]
                 }
+                g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
+                     fill = fill, width = pixel, height = pixel))
+                g <- g + ggplot2::scale_fill_gradient(name = distanceText,
+                                                          low = "blue", high = "orange")
             }
         }
         # vector plot starts here
         arm <- cluster <- x <- y <- NULL
         xlim <- c(min(trial$x - maskbuffer), max(trial$x + maskbuffer))
         ylim <- c(min(trial$y - maskbuffer), max(trial$y + maskbuffer))
-
-        colourClusters <- identical(fill, "clusters")
-        showArms <- identical(fill, "arms")
 
         # The plotting routines require unique locations
         CRT <- aggregateCRT(trial)
