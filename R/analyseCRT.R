@@ -118,13 +118,10 @@ CRTanalysis <- function(
         return(NULL)
     }
 
-    if (!identical(measure, "nearestDiscord")) {
+    if (!identical(measure, "nearestDiscord") & !(cfunc %in% c("Z","X","R"))) {
         cfunc <- "R"
         cat("*** using linear contamination function ***\n")
     }
-
-
-    # MAIN FUNCTION CODE STARTS HERE
 
     cluster <- NULL
 
@@ -232,7 +229,9 @@ CRTanalysis <- function(
                     measure = measure, cfunc = cfunc,
                     alpha = alpha, baselineOnly = baselineOnly,
                     fterms = fterms, ftext = ftext,
-                    CLnames = CLnames, clusterEffects = clusterEffects,
+                    CLnames = CLnames,
+                    clusterEffects = clusterEffects,
+                    spatialEffects = spatialEffects,
                     beta = beta,
                     radius = radius,
                     penalty = penalty)
@@ -360,6 +359,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     cfunc <- analysis$options$cfunc
     link <- analysis$options$link
     measure <- analysis$options$measure
+    radius <- analysis$options$radius
     beta <- analysis$options$beta
     alpha <- analysis$options$alpha
     FUN <- get_FUN(cfunc, variant = 0)
