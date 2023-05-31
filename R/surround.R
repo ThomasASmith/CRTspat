@@ -3,29 +3,31 @@
 #' \code{compute_distance} computes distance or surround values for a cluster randomized trial (CRT)
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}).
-#' @param measure the quantity(s) to be computed. Options are:
+#' @param distance the quantity(s) to be computed. Options are:
 #'  \tabular{ll}{
 #' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 #' \code{"disc"} \tab disc \cr
+#' \code{"kern"} \tab kernel-based measure \cr
 #' \code{"hdep"} \tab Tukey's half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' \code{"all"} \tab all of distance to nearest discordant location, disc, half space depth, and simplicial depth\cr
 #' }
-#' @param radius radius used for calculating the disc in km (default 1.0)
+#' @param scale_par scale parameter (default 1.0) equal to the disc radius in km if \code{distance = "disc"}
+#' or to the standard deviance of the kernels if \code{distance = "kern"}
 #' @returns The input \code{"CRTsp"} object with additional column(s) added to the \code{trial} data frame
-#' with name(s) corresponding to the input value of \code{measure}.
+#' with name(s) corresponding to the input value of \code{distance}.
 #' @details
-#' For each selected measure, the function first checks whether the variable is already present, and carries out
+#' For each selected distance distance, the function first checks whether the variable is already present, and carries out
 #' the calculations only if the corresponding field is absent from the \code{trial} data frame.\cr\cr
-#' If \code{measure = "nearestDiscord"} is selected the computed values are Euclidean distances
+#' If \code{distance = "nearestDiscord"} is selected the computed values are Euclidean distances
 #' assigned a positive sign for the intervention arm of the trial, and a negative sign for the control arm.\cr\cr
-#' If \code{measure = "disc"} is specified, the disc statistic is computed for each location as the number of locations
+#' If \code{distance = "disc"} is specified, the disc statistic is computed for each location as the number of locations
 #' within the specified radius that are in the intervention arm
 #' ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)). The input
-#' value of \code{radius} is stored in the \code{design} list
+#' value of \code{scale_par} is stored in the \code{design} list
 #' of the output \code{"CRTsp"} object. Recalculation is carried out if the input value of
-#' \code{radius} differs from the one in the input \code{design} list.\cr\cr
-#' If either \code{measure = "hdep"} or \code{measure = "sdep"} is specified then both the simplicial depth and
+#' \code{scale_par} differs from the one in the input \code{design} list.\cr\cr
+#' If either \code{distance = "hdep"} or \code{distance = "sdep"} is specified then both the simplicial depth and
 #' Tukey's half space depth are calculated using the algorithm of
 #' [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073). For a location in the intervention arm, the
 #' depth is computed with respect to all other locations in the intervention arm. For a location in the control arm
@@ -33,39 +35,53 @@
 #' ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)).\cr
 #' @export
 #' @examples
-#' #Calculate the disc with a radius of 1 km
-#' exampletrial <- compute_distance(trial = readdata('exampleCRT.txt'), measure = 'disc', radius = 1.0)
-compute_distance <- function(trial, measure = "all", radius = 1.0) {
+#' #Calculate the disc with a radius of 0.5 km
+#' {exampletrial <- compute_distance(trial = readdata('exampleCRT.txt'),
+#'   distance = 'disc', scale_par = 0.5)}
+compute_distance <- function(trial, distance = "all", scale_par = 1.0) {
   CRT <- CRTsp(trial)
   trial <- CRT$trial
+  require_nearestDiscord <- is.null(trial$nearestDiscord) &
+                  distance %in% c("all", "nearestDiscord")
+  require_hdep <- is.null(trial$hdep) & distance %in% c("all", "hdep")
+  require_sdep <- is.null(trial$sdep) & distance %in% c("all", "sdep")
+  require_disc <- distance %in% c("all", "disc") & (is.null(trial$disc) |
+                                     !identical(CRT$design$scale_par, scale_par))
+  require_kern <- distance %in% c("all", "kern") & (is.null(trial$kern) |
+                                     !identical(CRT$design$scale_par, scale_par))
+  kern <- NULL
   if (is.null(trial$arm)) return('*** Randomization is required for computation of distances or surrounds ***')
-  if ((measure %in% c("all", "hdep", "sdep")) & is.null(trial$hdep)){
+  if (require_hdep | require_sdep){
     depthlist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial)
     depth_df <- as.data.frame(do.call(rbind, lapply(depthlist, as.data.frame)))
     trial <- cbind(trial,depth_df)
     trial$numh <- NULL
   }
-  if (!identical(CRT$design$radius,radius) & identical(measure,"disc")) trial$disc <- NULL
 
-  if ((measure %in% c("all", "disc", "nearestDiscord")) &
-      (is.null(trial$disc) | is.null(trial$nearestDiscord))) {
+  if ((require_nearestDiscord | require_disc | require_kern)){
       dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
-      if (is.null(trial$nearestDiscord) & !identical(measure, "disc")){
+      if (require_nearestDiscord){
           discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
           discord_dist_trial <- ifelse(discord, dist_trial, Inf)
           trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
-                          MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
+                     MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
       }
-      if (is.null(trial$disc) & !identical(measure, "nearestDiscord")){
-          intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= radius))
+      if (require_disc){
+          intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= scale_par))
           trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
-          CRT$design$radius <- radius
+          CRT$design$scale_par <- scale_par
+      }
+      if (require_kern){
+          kern <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) *
+                matrix(data = (trial$arm == 'intervention'),
+                       nrow = nrow(trial), ncol = nrow(trial)))
+          trial$kern <- ifelse(trial$arm == 'intervention',
+                       kern - dnorm(0, mean = 0, sd = scale_par), kern)
       }
   }
   CRT$trial <- trial
   return(CRT)
 }
-
 
 
 depths <- function(X, trial) {

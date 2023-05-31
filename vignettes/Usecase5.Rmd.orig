@@ -87,7 +87,7 @@ Table 5.2. Available contamination functions
     \end{matrix}\ $ | `LME4` `INLA` `MCMC` |
 | `R`| rescaled linear | $P\left( d \right) =\frac{d\ -\ min(d)}{max(d)\ -\ min(d)}$ | `LME4` `INLA` `MCMC` |
 
-`cfunc` options `P`, `L` and `S` (and also `measure` options `disc`) lead to non-linear models in which the contamination
+`cfunc` options `P`, `L` and `S` (and also `distance` options `disc`) lead to non-linear models in which the contamination
 scale parameter `beta` must be estimated. This is done by selecting `beta` using a one-dimensional optimisation of the goodness of fit of the model in `stats::optimize()`.
 
 The different values for `cfunc` lead to the fitted curves shown in Figure 5.1. The light blue shaded part of the
@@ -120,18 +120,18 @@ plot_grid(p0, p1, p2, p3, p4, p5, labels = c('Z', 'X', 'P', 'L', 'S', 'R'), labe
   <em>Fig 5.1 Fitted curves for the example dataset with different options for `cfunc`</em>
 </p>
 
-The piecewise linear contamination function, `cfunc = "S"`, is only linear on the scale of the linear predictor. When used in a logistic model, as here, the transformation via the inverse of the link function leads to a slightly curved plot (Figure 5.1S). The rescaled linear function, `cfunc = "R"`, is provided as a comparator and for use with `measure` values other than `measure = "nearestDiscord"` see below (it should not be used to estimate the contamination range).
+The piecewise linear contamination function, `cfunc = "S"`, is only linear on the scale of the linear predictor. When used in a logistic model, as here, the transformation via the inverse of the link function leads to a slightly curved plot (Figure 5.1S). The rescaled linear function, `cfunc = "R"`, is provided as a comparator and for use with `distance` values other than `distance = "nearestDiscord"` see below (it should not be used to estimate the contamination range).
 
 The full set of different `cfunc` options are available for each of model options `"LME4"`, `"INLA"`, and `"MCMC"`.
 The performance of all these different models has not yet been thoroughly investigated. The analyses of [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable contamination.
 
 Contamination can also be analysed *by assuming the effect size to be a function of the number of intervened locations in the surroundings of the location*
 [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316). Several different functions
-are available (Table 5.3). These are specified by the `measure` parameter.
+are available (Table 5.3). These are specified by the `distance` parameter.
 
 Table 5.3. Available surround functions
 
-| `measure` | Description | Details |
+| `distance` | Description | Details |
 |----------------|------------------|--------------------------------------------------------------|
 |`nearestDiscord`| Distance to nearest discordant location | The default. This is used for analyses by distance (see above) |
 |`hdep`| Tukey's half-depth | Algorithm of [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073)   |
@@ -140,14 +140,14 @@ Table 5.3. Available surround functions
 
 The [`compute_distance()`](../reference/compute_distance.html) function is provided to compute these quantities, so that they can be
 described, compared, and analysed independently of `CRTanalysis()`. Users can also devise other measures of surround or distance,
-add them to a `trial` data frame and specify them using `measure`.
+add them to a `trial` data frame and specify them using `distance`.
 
 
 ```{r example5c.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
-examples <- compute_distance(trial = example$trial, measure = "all", radius = 0.15)
-ps1 <- plotCRT(examples, measure = "hdep", legend.position = c(0.8, 0.8))
-ps2 <- plotCRT(examples, measure = "sdep")
-ps3 <- plotCRT(examples, measure = "disc")
+examples <- compute_distance(trial = example$trial, distance = "all", scale_par = 0.15)
+ps1 <- plotCRT(examples, distance = "hdep", legend.position = c(0.8, 0.8))
+ps2 <- plotCRT(examples, distance = "sdep")
+ps3 <- plotCRT(examples, distance = "disc")
 plot_grid(ps1, ps2, ps3, labels = c('hdep', 'sdep', 'disc'), label_size = 10, ncol = 2)
 ```
 
@@ -156,17 +156,18 @@ plot_grid(ps1, ps2, ps3, labels = c('hdep', 'sdep', 'disc'), label_size = 10, nc
   <em>Fig 5.2 Stacked bar plots for different surrounds</em>
 </p>
 
-If `measure` is assigned a value of either `hdep`, `sdep`, or `disc`, then `cfunc = "R"` is used and the overall effect size is
-computed by comparing the fitted values of the model for a surround value of zero with that of the maximum of the surround in the data. If `measure = "disc"` the radius is estimated in the same way as `beta` (see above Table 5.2).
+If `distance` is assigned a value of either `hdep`, `sdep`, or `disc`, then `cfunc = "R"` is used and the overall effect size is
+computed by comparing the fitted values of the model for a surround value of zero with that of the maximum of the surround in the data. If `distance = "disc"`
+the radius is estimated in the same way as the scale parameter in other models (see above Table 5.2).
 
 ```{r example5d.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
-examples_hdep <- CRTanalysis(examples, method = "LME4", measure = "hdep")
+examples_hdep <- CRTanalysis(examples, method = "LME4", distance = "hdep")
 summary(examples_hdep)
 ps4 <- plotCRT(examples_hdep,legend.position = c(0.8, 0.8))
-examples_sdep <- CRTanalysis(examples, method = "LME4", measure = "sdep")
+examples_sdep <- CRTanalysis(examples, method = "LME4", distance = "sdep")
 summary(examples_sdep)
 ps5 <- plotCRT(examples_sdep)
-examples_disc <- CRTanalysis(examples, method = "LME4", measure = "disc")
+examples_disc <- CRTanalysis(examples, method = "LME4", distance = "disc")
 summary(examples_disc)
 ps6 <- plotCRT(examples_disc)
 plot_grid(ps4, ps5, ps6, labels = c('hdep', 'sdep', 'disc'), label_size = 10, ncol = 2)

@@ -12,14 +12,14 @@
 #' \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
 #' \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
 #' }
-#' @param measure measure of distance or surround with options: \cr
+#' @param distance Measure of distance or surround with options: \cr
 #' \tabular{ll}{
 #' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 #' \code{"disc"} \tab disc\cr
 #' \code{"hdep"} \tab Tukey's half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' }
-#' @param beta numeric: pre-specified value of contamination parameter or disc radius
+#' @param scale_par numeric: pre-specified value of contamination parameter or disc radius
 #' @param cfunc transformation defining the contamination function. \cr
 #' options are:
 #' \tabular{llll}{
@@ -49,7 +49,7 @@
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
 #' @param resamples integer: number of samples for sample-based intervals
 #' @param requireMesh logical: indicator of whether spatial predictions are required
-#' @param inla_mesh string: name of pre-existing INLA input object created by \code{new_mesh()}
+#' @param inla_mesh string: name of pre-existing INLA input object created by \code{compute_mesh()}
 #' @return list of class \code{CRTanalysis} containing the following results of the analysis:
 #' \itemize{
 #' \item \code{description} : description of the dataset
@@ -74,7 +74,7 @@
 #' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
 #' for purposes of evaluation of model fit etc..\cr \cr
 #'
-#' \code{beta} specifies the contamination parameter. If \code{measure = "disc"} then this is the disc radius in km.
+#' \code{scale_par} specifies the contamination parameter. If \code{distance = "disc"} then this is the disc radius in km.
 #' @importFrom grDevices rainbow
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
 #' @importFrom utils head read.csv
@@ -92,7 +92,7 @@
 #' summary(exampleLME4)
 #' }
 CRTanalysis <- function(
-    trial, method = "GEE", measure = "nearestDiscord", beta = NULL,
+    trial, method = "GEE", distance = "nearestDiscord", scale_par = NULL,
     cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
@@ -106,19 +106,16 @@ CRTanalysis <- function(
         return(NULL)
     }
 
+    # cfunc='Z' is used to remove the estimation of effect size from the model
+    if (baselineOnly) cfunc <- "Z"
+
     if (!cfunc %in% c("S", "L", "P", "X", "Z", "R"))
         {
         stop("*** Invalid contamination function ***")
         return(NULL)
     }
 
-    if (!cfunc %in% c("S", "L", "P", "X", "Z", "R"))
-    {
-        stop("*** Invalid contamination function ***")
-        return(NULL)
-    }
-
-    if (!identical(measure, "nearestDiscord") & !(cfunc %in% c("Z","X","R"))) {
+    if (!identical(distance, "nearestDiscord") & !(cfunc %in% c("Z","X","R"))) {
         cfunc <- "R"
         cat("*** using linear contamination function ***\n")
     }
@@ -128,16 +125,19 @@ CRTanalysis <- function(
     CRT <- CRTsp(trial)
 
     # if the distance or surround is not provided, augment the trial data frame with distance or surround
-    CRT <- compute_distance(CRT, measure = measure)
-
+    if (identical(cfunc, "Z") & is.null(CRT$trial[[distance]])) {
+        CRT$trial[[distance]] <- NA
+    } else {
+        CRT <- compute_distance(CRT, distance = distance)
+    }
     trial <- CRT$trial
 
-    # if a user-supplied measure is used, then this must be pre-calculated
-    if (is.null(trial[[measure]])) {
-        stop("*** Invalid measure of distance or surround ***")
+    # if a user-supplied distance is used, then this must be pre-calculated
+    if (is.null(trial[[distance]])) {
+        stop("*** Invalid Measure of distance or surround ***")
         return(NULL)
     }
-    trial$measure <- trial[[measure]]
+    trial$distance <- trial[[distance]]
 
     if ("buffer" %in% colnames(trial) & excludeBuffer) trial <- trial[!trial$buffer, ]
 
@@ -159,8 +159,6 @@ CRTanalysis <- function(
         } else if (method == "INLA") {
             cat("Analysis of baseline only, using INLA\n")
         }
-        # cfunc='Z' is used to remove the estimation of effect size from the model
-        cfunc <- "Z"
         if (is.null(trial[[baselineNumerator]])) {
             stop("*** No baseline data provided ***")
         }
@@ -212,28 +210,21 @@ CRTanalysis <- function(
         paste0(100 - alpha/0.02, "%")
     )
 
-    if (identical(measure, "disc")) {
-        radius <- beta
-    } else {
-        radius <- NULL
-    }
-
-    # the goodness-of-fit is penalised if beta needs to be estimated (unless this is via MCMC)
-    # if beta does not need to be estimated then either a value has been provided or a value of 1 is used
-    penalty <- ifelse((is.null(beta) & !identical(method, "MCMC")) &
-        (cfunc %in% c("L", "P", "S") | identical(measure,"disc")), 2, 0)
-    if (identical(penalty, 0) & is.null(beta)) beta <- 1.0
+    # the goodness-of-fit is penalised if scale_par needs to be estimated (unless this is via MCMC)
+    # if scale_par does not need to be estimated then either a value has been provided or a value of 1 is used
+    penalty <- ifelse((is.null(scale_par) & !identical(method, "MCMC")) &
+        (cfunc %in% c("L", "P", "S") | identical(distance,"disc") & identical(cfunc, "R")), 2, 0)
+    if (identical(penalty, 0) & is.null(scale_par)) scale_par <- 1.0
 
     # store options here- noting that the model formula depends on allowable values of other options
     options <- list(method = method, link = link,
-                    measure = measure, cfunc = cfunc,
+                    distance = distance, cfunc = cfunc,
                     alpha = alpha, baselineOnly = baselineOnly,
                     fterms = fterms, ftext = ftext,
                     CLnames = CLnames,
                     clusterEffects = clusterEffects,
                     spatialEffects = spatialEffects,
-                    beta = beta,
-                    radius = radius,
+                    scale_par = scale_par,
                     penalty = penalty)
 
     # create scaffolds for lists
@@ -358,9 +349,8 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     trial <- analysis$trial
     cfunc <- analysis$options$cfunc
     link <- analysis$options$link
-    measure <- analysis$options$measure
-    radius <- analysis$options$radius
-    beta <- analysis$options$beta
+    distance <- analysis$options$distance
+    scale_par <- analysis$options$scale_par
     alpha <- analysis$options$alpha
     FUN <- get_FUN(cfunc, variant = 0)
     fterms <- analysis$options$fterms
@@ -376,23 +366,14 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     trial <- dplyr::mutate(trial, id =  dplyr::row_number())
 
     # Check if an appropriate inla_mesh is present and create one if necessary
-    # If a mesh is provided use radius measure from the mesh
+    # If a mesh is provided use scale_par from the mesh
     # If spatial predictions are not required a minimal mesh is sufficient
     pixel <- 0.5
-    if (!requireMesh) pixel <- 2
+    if (!requireMesh) pixel <- (max(trial$x) - min(trial$x))/2
     if (is.null(inla_mesh)) {
-            inla_mesh <- new_mesh(
+            inla_mesh <- compute_mesh(
                 trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
-                maskbuffer = 0.5, pixel = pixel, measure = measure,
-                radius = analysis$options$radius)
-        } else if (!is.null(inla_mesh$radius)) {
-                radius <- inla_mesh$radius
-                if (identical(measure,"disc")) beta <- radius
-    }
-    if (!identical(inla_mesh$measure, measure) |
-        !identical(inla_mesh$radius, radius)) {
-            stop("*** INLA mesh does not correspond to chosen distance or surround ***")
-            return(NULL)
+                maskbuffer = 0.5, pixel = pixel)
     }
     y_off <- NULL
     spde <- inla_mesh$spde
@@ -410,67 +391,64 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     effectsp <- list(df = dfp, s = inla_mesh$indexs)
 
     lc <- NULL
-    log_beta <- NA
+    log_scale_par <- NA
     FUN <- get_FUN(cfunc=cfunc, variant = 0)
-    if (analysis$options$penalty > 0) {
-        if (identical(Sys.getenv("TESTTHAT"), "true")) {
-            log_beta <- 2.0
-        } else {
-            tryCatch({
-            #cat("Estimating scale parameter for contamination range\n")
-            log_beta <- stats::optimize(
-                f = estimateContaminationINLA, interval = c(-5, 5),
-                tol = 0.1, trial = trial, FUN = FUN, formula = formula,
-                link = link, inla_mesh = inla_mesh, measure = measure)$minimum
-            },
-                 error = function(e){
-                message("*** Contamination scale parameter cannot be estimated ***")
-                log_beta <- 5
-            })
+    if (grepl("pvar", ftext, fixed = TRUE)) {
+        if (analysis$options$penalty > 0) {
+            if (identical(Sys.getenv("TESTTHAT"), "true")) {
+                log_scale_par <- 2.0
+            } else {
+                tryCatch({
+                #cat("Estimating scale parameter for contamination range\n")
+                log_scale_par <- stats::optimize(
+                    f = estimateContaminationINLA, interval = c(-7, 2),
+                    tol = 0.1, trial = trial, FUN = FUN, formula = formula,
+                    link = link, inla_mesh = inla_mesh, distance = distance)$minimum
+                },
+                     error = function(e){
+                    message("*** Contamination scale parameter cannot be estimated ***")
+                    log_scale_par <- 5
+                })
+            }
+            scale_par <- exp(log_scale_par)
         }
-        beta <- exp(log_beta)
-
-    }
-    if (identical(measure,"disc")) {
-        analysis$options$radius <- beta
-        trial <- compute_distance(trial, measure = 'disc', radius = beta)$trial
-        x <- trial$measure <- trial$disc
-        analysis$trial <- trial
-    } else {
-        x <- trial$measure * beta
-    }
-    trial$pvar <- eval(parse(text = FUN))
-    effectse$df$pvar <- trial$pvar
-
-    x <- inla_mesh$prediction[[analysis$options$measure]] * beta
-    inla_mesh$prediction$pvar <- eval(parse(text = FUN))
-    effectsp$df$pvar <- inla_mesh$prediction$pvar
-
-    # set up linear contrasts (not required for cfunc='X' or 'Z')
-    if (grepl("pvar", ftext, fixed = TRUE))
-        {
+        analysis$options$scale_par <- scale_par
+        if (identical(distance,"disc")) {
+            trial <- compute_distance(trial, distance = 'disc', scale_par = scale_par)$trial
+            x <- trial$distance <- trial$disc
+            trial$pvar <- eval(parse(text = FUN))
+            analysis$trial <- trial
+            inla_mesh$prediction <- compute_distance(trial = inla_mesh$prediction,
+                                         distance = 'disc', scale_par = scale_par)$trial
+            x <- inla_mesh$prediction$disc
+            inla_mesh$scale_par <- scale_par
+        } else {
+            x <- trial$distance * scale_par
+            trial$pvar <- eval(parse(text = FUN))
+            x <- inla_mesh$prediction[[analysis$options$distance]] * scale_par
+        }
+        inla_mesh$prediction$pvar <- eval(parse(text = FUN))
+        effectse$df$pvar <- trial$pvar
+        effectsp$df$pvar <- inla_mesh$prediction$pvar
+        # set up linear contrasts
         lc <- INLA::inla.make.lincomb(int = 1, pvar = 1)
-        if (grepl("arm", ftext, fixed = TRUE))
-          {
+        if (grepl("arm", ftext, fixed = TRUE)){
           lc <- INLA::inla.make.lincomb(int = 1, pvar = 1, arm = 1)
         }
-    } else if (grepl("arm", ftext, fixed = TRUE))
-        {
+    } else if (grepl("arm", ftext, fixed = TRUE)) {
         lc <- INLA::inla.make.lincomb(int = 1, arm = 1)
     }
     # stack for estimation stk.e
     stk.e <- INLA::inla.stack(
         tag = "est", data = list(y1 = trial$y1, y_off = trial$y_off),
         A = list(1, A = inla_mesh$A),
-        effects = effectse
-    )
+        effects = effectse)
 
     # stack for prediction stk.p
     stk.p <- INLA::inla.stack(
         tag = "pred", data = list(y1 = NA, y_off = NA),
         A = list(1, inla_mesh$Ap),
-        effects = effectsp
-    )
+        effects = effectsp)
 
     # stk.full comprises both stk.e and stk.p if a prediction mesh is in use
     stk.full <- INLA::inla.stack(stk.e, stk.p)
@@ -504,7 +482,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
             control.compute = list(dic = TRUE))
     }
 
-    analysis$pt_ests$contamination_par <- exp(log_beta)
+    analysis$pt_ests$contamination_par <- exp(log_scale_par)
 
     # The DIC is penalised if a contamination parameter was estimated
     analysis$pt_ests$DIC <- model_object$dic$dic + analysis$options$penalty
@@ -536,18 +514,18 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
 return(analysis)}
 
 
-group_data <- function(analysis, measure = NULL, grouping = "quintiles"){
+group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
     # define the limits of the curve both for control and intervention arms
         trial <- analysis$trial
         link <- analysis$options$link
         alpha <- analysis$options$alpha
-        if (is.null(measure)) measure <- analysis$options$measure
+        if (is.null(distance)) distance <- analysis$options$distance
         y_off <- y1 <- average <- upper <- lower <- NULL
         cats <- NULL
         breaks0 <- breaks1 <- rep(NA, times = 6)
         # categorisation of trial data for plotting
         if (identical(grouping, "quintiles")) {
-            groupvar <- ifelse(trial$arm == "intervention", 1000 + trial$measure, trial$measure)
+            groupvar <- ifelse(trial$arm == "intervention", 1000 + trial$distance, trial$distance)
             breaks0 <-unique(c(-Inf, quantile(groupvar[trial$arm == "control"],
                                     probs = seq(0.2, 1, by = 0.20))))
             breaks1 <-unique(c(999, quantile(groupvar[trial$arm == "intervention"],
@@ -556,10 +534,10 @@ group_data <- function(analysis, measure = NULL, grouping = "quintiles"){
                 groupvar, breaks=c(breaks0, breaks1),labels = FALSE)
             arm <- c(rep("control", times = length(breaks0)-1), rep("intervention", times = length(breaks1)-1))
         } else {
-            range_d <- max(trial[[measure]]) - min(trial[[measure]])
+            range_d <- max(trial[[distance]]) - min(trial[[distance]])
             trial$cat <- cut(
-                trial[[measure]], breaks =
-                    c(-Inf, min(trial[[measure]]) + seq(1:9) * range_d/10, Inf),labels = FALSE)
+                trial[[distance]], breaks =
+                    c(-Inf, min(trial[[distance]]) + seq(1:9) * range_d/10, Inf),labels = FALSE)
             arm <- NA
         }
         # calculate for log link
@@ -569,7 +547,7 @@ group_data <- function(analysis, measure = NULL, grouping = "quintiles"){
                 dplyr::summarize(
                     positives = sum(y1),
                     total = sum(y_off),
-                    d = median(measure),
+                    d = median(distance),
                     average = Williams(x=y1/y_off, alpha=alpha, option = 'M'),
                     lower = Williams(x=y1/y_off, alpha=alpha, option = 'L'),
                     upper = Williams(x=y1/y_off, alpha=alpha, option = 'U')))
@@ -588,7 +566,7 @@ group_data <- function(analysis, measure = NULL, grouping = "quintiles"){
                 dplyr::summarize(
                     positives = sum(y1),
                     total = sum(y_off),
-                    d = median(measure),
+                    d = median(distance),
                     average = mean(x=y1/y_off),
                     lower = Tinterval(y1/y_off, alpha = alpha, option = 'L'),
                     upper = Tinterval(y1/y_off, alpha = alpha, option = 'U')
@@ -709,7 +687,7 @@ estimateCLeffect_size <- function(q50, Sigma, alpha, resamples, method, link)
 
 # functions for INLA analysis
 
-#' \code{new_mesh} create objects required for INLA analysis of an object of class \code{"CRTsp"}.
+#' \code{compute_mesh} create objects required for INLA analysis of an object of class \code{"CRTsp"}.
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome.
 #' @param offset (see \code{inla.mesh.2d} documentation)
@@ -717,14 +695,6 @@ estimateCLeffect_size <- function(q50, Sigma, alpha, resamples, method, link)
 #' @param inla.alpha parameter related to the smoothness (see \code{inla} documentation)
 #' @param maskbuffer numeric: width of buffer around points (km)
 #' @param pixel numeric: size of pixel (km)
-#' @param measure measure of distance or surround with options: \cr
-#' \tabular{ll}{
-#' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
-#' \code{"disc"} \tab disc \cr
-#' \code{"hdep"} \tab Tukey's half space depth\cr
-#' \code{"sdep"} \tab simplicial depth\cr
-#' }
-#' @param radius numeric: radius used for computing disk (if \code{measure = "disc"} (km))
 #' @return list
 #' \itemize{
 #' \item \code{prediction} Data frame containing the prediction points and covariate values
@@ -734,7 +704,7 @@ estimateCLeffect_size <- function(q50, Sigma, alpha, resamples, method, link)
 #' \item \code{spde} SPDE model
 #' \item \code{pixel} pixel size (km)
 #' }
-#' @details \code{new_mesh} carries out the computationally intensive steps required for setting-up an
+#' @details \code{compute_mesh} carries out the computationally intensive steps required for setting-up an
 #' INLA analysis of an object of class \code{"CRTsp"}, creating the preface_validitytion mesh and the projection matrices.
 #' The mesh can be reused for different models fitted to the same
 #' geography. The computational resources required depend largely on the resolution of the prediction mesh.
@@ -747,17 +717,16 @@ estimateCLeffect_size <- function(q50, Sigma, alpha, resamples, method, link)
 #' # low resolution mesh for test dataset
 #' library(Matrix)
 #' example <- readdata('exampleCRT.txt')
-#' exampleMesh=new_mesh(example, pixel = 0.5)
+#' exampleMesh=compute_mesh(example, pixel = 0.5)
 #' }
 #' \dontrun{
-#' # 50m mesh for analyses of test dataset using \code{measure = "nearestDiscord"}.
+#' # 50m mesh for analyses of test dataset using \code{distance = "nearestDiscord"}.
 #' library(Matrix)
 #' example <- readdata('exampleCRT.txt')
-#' exampleMesh=new_mesh(example, pixel = 0.05)
+#' exampleMesh=compute_mesh(example, pixel = 0.05)
 #' }
-new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
-                     inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5,
-                     measure = "nearestDiscord", radius = 1.0)
+compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
+                     inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
     {
     # extract the trial data frame from the "CRTsp" object
     if (identical(class(trial),"CRTsp")) trial <- trial$trial
@@ -834,18 +803,9 @@ new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
     prediction <- with(prediction, prediction[order(y, x), ])
     prediction$shortestDistance <- apply(distM, 1, min)
     rows <- seq(1:nrow(prediction))
-    if (!is.null(trial$arm)) {
-        prediction[measure] <- unlist(sapply(rows,
-                                            FUN = calculate_singlevalue,
-                                            trial = trial,
-                                            prediction = prediction,
-                                            distM = distM,
-                                            measure = measure,
-                                            radius = radius))
-    }
     inla_mesh <- list(
         prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde,
-                            pixel = pixel, measure = measure, radius = radius)
+                            pixel = pixel)
     cat(
         "Mesh created of ", nrow(prediction), " pixels of size ", pixel," km \n"
     )
@@ -854,34 +814,34 @@ new_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
 }
 
 # Calculate the distance or surround for an arbitrary location
-calculate_singlevalue <- function(i, trial , prediction , distM, measure, radius){
-    if (identical(measure, "nearestDiscord")) {
+calculate_singlevalue <- function(i, trial , prediction , distM, distance, scale_par){
+    if (identical(distance, "nearestDiscord")) {
         discords <- (trial$arm != prediction$arm[i])
         nearestDiscord <- min(distM[i, discords])
         value <- ifelse(prediction$arm[i] == "control", -nearestDiscord, nearestDiscord)
     }
-    if (measure %in% c("hdep", "sdep")){
+    if (distance %in% c("hdep", "sdep")){
         X = list(x = prediction$x[i], y = prediction$y[i])
         depthlist <- depths(X, trial = trial)
-        value <- depthlist[measure]
+        value <- depthlist[distance]
     }
-    if (identical(measure, "disc")) {
-        value <- sum(trial$arm =='intervention' & (distM[i, ] <= radius))
+    if (identical(distance, "disc")) {
+        value <- sum(trial$arm =='intervention' & (distM[i, ] <= scale_par))
         if(identical(prediction$arm,'intervention')) value <- value - 1
     }
     return(value)
 }
 
-# Use profiling to estimate beta
+# Use profiling to estimate scale_par
 estimateContaminationINLA <- function(
-    log_beta = log_beta, trial = trial, FUN = FUN, inla_mesh = inla_mesh,
-    formula = formula, link = link, measure = measure){
+    log_scale_par = log_scale_par, trial = trial, FUN = FUN, inla_mesh = inla_mesh,
+    formula = formula, link = link, distance = distance){
     y1 <- y0 <- y_off <- NULL
-    if (identical(measure,'disc')) {
-        updated <- compute_distance(trial, measure = 'disc', radius = exp(log_beta))
-        x <- trial$measure <- updated$trial$disc
+    if (identical(distance,'disc')) {
+        updated <- compute_distance(trial, distance = 'disc', scale_par = exp(log_scale_par))
+        x <- trial$distance <- updated$trial$disc
     } else {
-        x <- trial$measure * exp(log_beta)
+        x <- trial$distance * exp(log_scale_par)
     }
     trial$pvar <- eval(parse(text = FUN))
 
@@ -924,21 +884,21 @@ estimateContaminationINLA <- function(
             control.compute = list(dic = TRUE)
         )
     }
-    # The DIC is penalised to allow for estimation of beta
+    # The DIC is penalised to allow for estimation of scale_par
     loss <- result.e$dic$family.dic + 2
     # Display the DIC here if necessary for debugging
-    # cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_beta), "  \r")
+     cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
     return(loss)
 }
 
-# Use profiling to estimate beta
+# Use profiling to estimate scale_par
 estimateContaminationLME4 <- function(
-    log_beta = log_beta, trial = trial, FUN = FUN, formula = formula, link = link, measure = measure){
-    if (identical(measure,'disc')) {
-        updated <- compute_distance(trial, measure = 'disc', radius = exp(log_beta))
-        x <- trial$measure <- updated$trial$disc
+    log_scale_par = log_scale_par, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance){
+    if (identical(distance,'disc')) {
+        updated <- compute_distance(trial, distance = 'disc', scale_par = exp(log_scale_par))
+        x <- trial$distance <- updated$trial$disc
     } else {
-        x <- trial$measure * exp(log_beta)
+        x <- trial$distance * exp(log_scale_par)
     }
     trial$pvar <- eval(parse(text = FUN))
     try(
@@ -952,7 +912,7 @@ estimateContaminationLME4 <- function(
     loss <- ifelse (is.null(model_object),999999, unlist(summary(model_object)$AICtab["AIC"]))
     # The AIC is used as a loss function
     # Display the AIC here if necessary for debugging
-    # cat("\rAIC: ", loss + 2, " Contamination scale parameter: ", exp(log_beta), "  \n")
+    # cat("\rAIC: ", loss + 2, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
     return(loss)
 }
 
@@ -1032,8 +992,9 @@ summary.CRTanalysis <- function(object, ...) {
     cat(
         "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n")
     if (object$options$cfunc %in% c("L", "P", "S", "R")) {
-        cat("Measure of distance or surround: ", getDistanceText(measure = object$options$measure,
-                                                                 radius = object$options$radius),"\n")
+        cat("Measure of distance or surround: ",
+            getDistanceText(distance = object$options$distance,
+             scale_par = object$options$scale_par),"\n")
     }
     if (!is.null(object$options$ftext))
         cat("Model formula: ", object$options$ftext, "\n")
@@ -1059,9 +1020,9 @@ summary.CRTanalysis <- function(object, ...) {
                 CLtext, unlist(object$int_ests$interventionY),
                 ")\n"
             )
-            effect.measure <- ifelse(object$options$link == 'identity', "Effect size: ","    Efficacy: ")
+            effect.distance <- ifelse(object$options$link == 'identity', "Effect size: ","    Efficacy: ")
             cat("           ",
-                effect.measure, object$pt_ests$effect_size, CLtext, unlist(object$int_ests$effect_size),
+                effect.distance, object$pt_ests$effect_size, CLtext, unlist(object$int_ests$effect_size),
                 ")\n"
             )
         }
@@ -1080,7 +1041,7 @@ summary.CRTanalysis <- function(object, ...) {
             }
         }
         if (object$options$cfunc %in% c("L", "P", "S", "R") &
-            identical(object$options$measure, "nearestDiscord")) {
+            identical(object$options$distance, "nearestDiscord")) {
             if (!is.null(object$pt_ests$contamination_interval)){
                 cat(
                     "Contamination range(km): ", object$pt_ests$contamination_interval,
@@ -1228,8 +1189,8 @@ extractEstimates <- function(analysis, sample) {
     }
     if (analysis$options$cfunc %in% c("L", "P", "S", "R")) {
         if (identical(analysis$options$cfunc, "R")) sample$contamination_par <- 1
-        if ("beta" %in% names(sample)) {
-            sample$contamination_par <- sample$beta
+        if ("scale_par" %in% names(sample)) {
+            sample$contamination_par <- sample$scale_par
         } else {
             sample$contamination_par <- analysis$pt_ests$contamination_par
         }
@@ -1252,12 +1213,12 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     cfunc <- analysis$options$cfunc
     FUN <- get_FUN(cfunc, variant = 0)
     alpha <- analysis$options$alpha
-    beta <- analysis$options$beta
-    measure <- analysis$options$measure
+    scale_par <- analysis$options$scale_par
+    distance <- analysis$options$distance
     fterms <- analysis$options$fterms
     # TODO replace the use of ftext with fterms
     ftext <- analysis$options$ftext
-    log_beta <- NA
+    log_scale_par <- NA
     contrasts <- NULL
     fterms = switch(link,
                     "identity" = c("y1/y_off ~ 1", fterms),
@@ -1266,28 +1227,28 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
     if (analysis$options$penalty > 0) {
         if (identical(Sys.getenv("TESTTHAT"), "true")) {
-            log_beta <- 2.0
+            log_scale_par <- 2.0
         } else {
             tryCatch({
             #cat("Estimating scale parameter for contamination range\n")
-            log_beta <- stats::optimize(
+            log_scale_par <- stats::optimize(
                 f = estimateContaminationLME4, interval = c(-5, 5), maximum = FALSE,
-                tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, measure = measure)$minimum
+                tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance)$minimum
             },
             error = function(e){
                message("*** Contamination scale parameter cannot be estimated ***")
-               log_beta <- 5
+               log_scale_par <- 5
             })
         }
-        beta <- exp(log_beta)
+        scale_par <- exp(log_scale_par)
     }
-    if (identical(measure,"disc")) {
-        analysis$options$radius <- beta
-        trial <- compute_distance(trial, measure = 'disc', radius = beta)$trial
-        x <- trial$measure <- trial$disc
+    analysis$options$scale_par <- scale_par
+    if (identical(distance,"disc")) {
+        trial <- compute_distance(trial, distance = 'disc', scale_par = scale_par)$trial
+        x <- trial$distance <- trial$disc
         analysis$trial <- trial
     } else {
-        x <- trial$measure * beta
+        x <- trial$distance * scale_par
     }
     trial$pvar <- eval(parse(text = FUN))
     model_object <- switch(link,
@@ -1296,7 +1257,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
                                family = poisson),
            "logit" = lme4::glmer(formula = formula, data = trial,
                                  family = binomial))
-    analysis$pt_ests$contamination_par <- exp(log_beta)
+    analysis$pt_ests$contamination_par <- exp(log_scale_par)
     analysis$pt_ests$deviance <- unname(summary(model_object)$AICtab["deviance"])
     analysis$pt_ests$AIC <- unname(summary(model_object)$AICtab["AIC"])
     analysis$pt_ests$df <- unname(summary(model_object)$AICtab["df.resid"])
@@ -1342,7 +1303,7 @@ MCMCanalysis <- function(analysis){
     burnin <- 5000
 
     datajags <- list(N = nrow(trial))
-    if (!identical(cfunc, "Z")) datajags$d <- trial$measure
+    if (!identical(cfunc, "Z")) datajags$d <- trial$distance
     if (identical(cfunc, "R")) {
         datajags$mind <- min(datajags$d)
         datajags$maxd <- max(datajags$d)
@@ -1362,11 +1323,11 @@ MCMCanalysis <- function(analysis){
     text1 <- "model{\n
           for(i in 1:N){\n"
 
-    text2 <- switch(cfunc, S = "pr[i] <- ifelse(d[i] < -beta/2,0,
-                                        ifelse(d[i] > beta/2,1,
-                                        (beta/2 + d[i])/beta))\n",
-                    P = "pr[i] <- pnorm(d[i]*beta,0, 1) \n",
-                    L = "pr[i] <- 1/(1 + exp(-beta*d[i])) \n",
+    text2 <- switch(cfunc, S = "pr[i] <- ifelse(d[i] < -scale_par/2,0,
+                                        ifelse(d[i] > scale_par/2,1,
+                                        (scale_par/2 + d[i])/scale_par))\n",
+                    P = "pr[i] <- pnorm(d[i]*scale_par,0, 1) \n",
+                    L = "pr[i] <- 1/(1 + exp(-scale_par*d[i])) \n",
                     X = "pr[i] <- ifelse(d[i] > 0, 1 ,0) \n",
                     Z = NULL,
                     R = "pr[i] <- (d[i] - mind)/(maxd - mind)")
@@ -1394,8 +1355,8 @@ MCMCanalysis <- function(analysis){
             sigma ~ dunif(0, 2) \n
             ", "}\n")
     text6 <-
-        "log_beta ~ dnorm(0, 1E-1) \n
-            beta <- exp(log_beta) \n
+        "log_scale_par ~ dnorm(0, 1E-1) \n
+            scale_par <- exp(log_scale_par) \n
             int ~ dnorm(0, 1E-2) \n"
     text7 <- ifelse(identical(cfunc,'Z'), "pvar <- 0 \n", "pvar ~ dnorm(0, 1E-2) \n")
     text8 <- switch(link,
@@ -1407,9 +1368,9 @@ MCMCanalysis <- function(analysis){
     )
 
     MCMCmodel <- paste0(text1, text2, text3, text4, text5, text6, text7, text8)
-    parameters.to.save <- switch(cfunc, S = c("int", "pvar", "beta"),
-                    P = c("int", "pvar", "beta"),
-                    L = c("int", "pvar", "beta"),
+    parameters.to.save <- switch(cfunc, S = c("int", "pvar", "scale_par"),
+                    P = c("int", "pvar", "scale_par"),
+                    L = c("int", "pvar", "scale_par"),
                     X = c("int", "pvar"),
                     Z = c("int"),
                     R = c("int", "pvar"))
@@ -1441,7 +1402,7 @@ StraightLine <- function(par, trial)
 StepFunction <- function(par, trial)
 {
     par[3] <- -9
-    lp <- ifelse(trial$measure < 0, par[1], par[1] + par[2])
+    lp <- ifelse(trial$distance < 0, par[1], par[1] + par[2])
     return(lp)
 }
 
@@ -1451,16 +1412,16 @@ StepFunction <- function(par, trial)
 PiecewiseLinearFunction <- function(par, trial)
 {
     # constrain the slope parameter to be positive (par[2] is positive if effect_size is negative)
-    beta <- par[3]
+    scale_par <- par[3]
 
-    # if beta is very large, the curve should be close to a straight line
-    if (beta > 20){
+    # if scale_par is very large, the curve should be close to a straight line
+    if (scale_par > 20){
         lp <- par[1] + 0.5 * par[2]
 
     } else {
         lp <- ifelse(
-            trial$measure > -beta/2, par[1] + par[2] * (beta/2 + trial$measure)/beta, par[1])
-        lp <- ifelse(trial$measure > beta/2, par[1] + par[2], lp)
+            trial$distance > -scale_par/2, par[1] + par[2] * (scale_par/2 + trial$distance)/scale_par, par[1])
+        lp <- ifelse(trial$distance > scale_par/2, par[1] + par[2], lp)
     }
     return(lp)
 }
@@ -1474,9 +1435,9 @@ return(value)}
 RescaledLinearFunction <- function(par, trial)
 {
     # par[3] is not used
-    beta <- par[3]
+    scale_par <- par[3]
 
-    lp <- par[1] + rescale(trial$measure) * par[2]
+    lp <- par[1] + rescale(trial$distance) * par[2]
 
     return(lp)
 }
@@ -1489,14 +1450,14 @@ return(value)}
 # sigmoid (logit) function
 InverseLogisticFunction <- function(par, trial)
 {
-    lp <- par[1] + par[2] * invlink(link = "logit", x = par[3] * trial$measure)
+    lp <- par[1] + par[2] * invlink(link = "logit", x = par[3] * trial$distance)
     return(lp)
 }
 
 # inverse probit function
 InverseProbitFunction <- function(par, trial)
 {
-    lp <- par[1] + par[2] * stats::pnorm(par[3] * trial$measure)
+    lp <- par[1] + par[2] * stats::pnorm(par[3] * trial$distance)
     return(lp)
 }
 
@@ -1554,12 +1515,12 @@ get_curve <- function(x, analysis) {
 
     # Trap cases with extreme effect: TODO: a different criterion may be needed for continuous data
     pars <- link_tr(link,limits)
-    if (abs(pars[1] - pars[2]) > 10000) {
+    if (sum((pars[, 1] - pars[, 2])^2) > 10000) {
         limits <- invlink(link, matrix(c(20,20, -20, -20), nrow = 2, ncol = 2))
     }
 
-    range_d <- max(trial$measure) - min(trial$measure)
-    d <- min(trial$measure) + range_d * (seq(1:1001) - 1)/1000
+    range_d <- max(trial$distance) - min(trial$distance)
+    d <- min(trial$distance) + range_d * (seq(1:1001) - 1)/1000
 
     if (identical(limits[, 1], limits[ , 2])) {
         control_curve <- rep(limits[1,1], 1001)
@@ -1580,7 +1541,7 @@ get_curve <- function(x, analysis) {
             } else if (is.na(contamination_par) |
                 contamination_par < 0.01 |
                 contamination_par > 100  |
-                (abs(pars[1] - pars[2]) > 10000)) {
+                (sum((pars[, 1] - pars[, 2])^2) > 10000)) {
                 cfunc <- "X"
             }
         }
@@ -1591,9 +1552,8 @@ get_curve <- function(x, analysis) {
         total_effect <- x[["controlY"]] - x[["interventionY"]]
         ipsilateral_spillover <- mean(fitted_values[trial$arm == 'intervention']) - x[["interventionY"]]
         contralateral_spillover <- x[["controlY"]] - mean(fitted_values[trial$arm == 'control'])
-        intervention_curve <- invlink(link, FUN1(trial = data.frame(measure = d), par = par1))
-        control_curve <- invlink(link, FUN1(trial =data.frame(measure = d), par = par0))
-        # if the trial arm corresponds to the sign of d then:
+        intervention_curve <- invlink(link, FUN1(trial = data.frame(distance = d), par = par1))
+        control_curve <- invlink(link, FUN1(trial =data.frame(distance = d), par = par0))
     }
     if(min(d) < 0) {
         control_curve[d > 0] <- NA
@@ -1636,17 +1596,17 @@ get_contaminationStats <- function(fittedCurve, trial) {
         )]
     }
     if (is.na(thetaU))
-        thetaU <- max(trial$measure)
+        thetaU <- max(trial$distance)
     if (is.na(thetaL))
-        thetaL <- min(trial$measure)
+        thetaL <- min(trial$distance)
 
     # contamination range
     contamination_limits <- c(thetaL, thetaU)
     if (thetaL > thetaU)
         contamination_limits <- c(thetaU, thetaL)
 
-    contaminate_pop_pr <- sum(trial$measure > contamination_limits[1] &
-                                  trial$measure < contamination_limits[2])/nrow(trial)
+    contaminate_pop_pr <- sum(trial$distance > contamination_limits[1] &
+                                  trial$distance < contamination_limits[2])/nrow(trial)
     contamination_interval <- thetaU - thetaL
     if (identical(thetaU, thetaL)) {
         contamination_interval <- 0
@@ -1666,7 +1626,7 @@ return(contamination)}
 
 
 tidyContamination <- function(contamination, analysis, fittedCurve){
-    if (identical(analysis$options$measure,"nearestDiscord")) {
+#    if (identical(analysis$options$distance,"nearestDiscord")) {
         contamination$contamination_limits <-
             with(contamination, c(contamination_limit0,contamination_limit1))
         if (analysis$options$cfunc %in% c("Z","X")) {
@@ -1681,7 +1641,7 @@ tidyContamination <- function(contamination, analysis, fittedCurve){
                     contamination$contamination_interval
         }
         contamination$contamination_limit0 <- contamination$contamination_limit1 <- NULL
-    }
+#    }
     contamination$FittedCurve <- data.frame(d = fittedCurve$d,
                                         intervention_curve = fittedCurve$intervention_curve,
                                         control_curve = fittedCurve$control_curve)
@@ -1732,12 +1692,12 @@ predict.CRTanalysis <- function(object, ...){
     return(value)
 }
 
-getDistanceText <- function(measure = "nearestDiscord", radius = NULL) {
-    value <- switch(measure,
+getDistanceText <- function(distance = "nearestDiscord", scale_par = NULL) {
+    value <- switch(distance,
                     "nearestDiscord" = "Signed distance to other arm (km)",
-                    "disc" = paste0("disc of radius ", round(radius, digits = 3), " km"),
+                    "disc" = paste0("disc of radius ", round(scale_par, digits = 3), " km"),
                     "hdep" = "Tukey's half-depth",
                     "sdep" = "Simplicial depth",
-                    measure)
+                    distance)
     return(value)
 }

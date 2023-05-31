@@ -4,6 +4,7 @@
 ## usethis namespace: start
 #' @importFrom stats aggregate
 #' @importFrom stats coef
+#' @importFrom stats dnorm
 #' @importFrom stats fitted
 #' @importFrom stats gaussian
 #' @importFrom stats poisson

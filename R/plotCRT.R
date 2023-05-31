@@ -6,7 +6,7 @@
 #' or of the results of statistical analyses of a CRT
 #' @param object object of class \code{'CRTanalysis'} produced by \code{CRTanalysis()}
 #' @param map logical: indicator of whether a map is required
-#' @param measure measure of distance or surround with options: \cr
+#' @param distance measure of distance or surround with options: \cr
 #' \tabular{ll}{
 #' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 #' \code{"disc"} \tab disc\cr
@@ -42,7 +42,7 @@
 #' @details
 #' If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object,
 #' containing a randomisation to arms, a stacked bar chart of the outcome
-#' grouped by the specified \code{measure} is produced. If the specified \code{measure}
+#' grouped by the specified \code{distance} is produced. If the specified \code{distance}
 #' has not yet been calculated an error is returned\cr
 #' If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
 #' estimated contamination function is generated. The fitted contamination function is plotted as a continuous blue line against the measure of distance
@@ -95,12 +95,12 @@
 #' plotCRT(analysis, map = FALSE)
 #' }
 #' @export
-plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arms", showLocations = FALSE,
+plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "arms", showLocations = FALSE,
     showClusterBoundaries = TRUE, showClusterLabels = FALSE, showBuffer = FALSE,
     cpalette = NULL, buffer_width = NULL, maskbuffer = 0.2, labelsize = 4,
     legend.position = NULL) {
 
-    control_curve <- intervention_curve <- radius <- buffer <- g <- NULL
+    control_curve <- intervention_curve <- scale_par <- buffer <- g <- NULL
     if (is.null(legend.position)) legend.position <- "none"
     if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
     trial <- object$trial
@@ -108,12 +108,12 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
         stop("*** No data points for plotting ***")
     }
     if (isa(object, what = 'CRTanalysis')) {
-        measure <- object$options$measure
-        radius <- object$options$radius
+        distance <- object$options$distance
+        scale_par <- object$options$scale_par
     } else {
-        radius <- object$design$radius
+        scale_par <- object$design$scale_par
     }
-    distanceText <-  getDistanceText(measure = measure, radius = radius)
+    distanceText <-  getDistanceText(distance = distance, scale_par = scale_par)
     if (!map) {
         if (isa(object, what = 'CRTanalysis')) {
             # if the object is the output from analysisCRT
@@ -122,7 +122,7 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
                 stop("*** No fitted curve available ***")
             d <- average <- upper <- lower <- contaminationFunction <- NULL
             interval <- analysis$contamination$contamination_limits
-            range <- max(analysis$trial$measure) - min(analysis$trial$measure)
+            range <- max(analysis$trial$distance) - min(analysis$trial$distance)
             data <- group_data(analysis = analysis, grouping = "quintiles")
             FittedCurve <- analysis$contamination$FittedCurve
             g <- ggplot2::ggplot() + ggplot2::theme_bw()
@@ -137,7 +137,7 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
             g <- g + ggplot2::theme(legend.position = legend.position)
             g <- g + ggplot2::geom_errorbar(data = data, mapping = ggplot2::aes(x = d, ymin = upper,
                                         ymax = lower), linewidth = 0.5, width = range/50)
-            if (identical(analysis$options$measure, "nearestDiscord")) {
+            if (identical(analysis$options$distance, "nearestDiscord")) {
                 g <- g + ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed")
                 if (analysis$options$cfunc %in% c("L","P","S")) {
                     g <- g + ggplot2::geom_vline(xintercept = interval, linewidth = 1)
@@ -148,20 +148,20 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
             g <- g + ggplot2::xlab(distanceText)
             g <- g + ggplot2::ylab("Outcome")
         } else {
-            if (is.null(object$trial[[measure]])) {
-                stop(paste0("*** First use compute_distance() to calculate ", measure, "***"))
+            if (is.null(object$trial[[distance]])) {
+                stop(paste0("*** First use compute_distance() to calculate ", distance, "***"))
             }
-            # Plot of frequency by measure
+            # Plot of frequency by distance
             if (is.null(cpalette)) cpalette <- c("#D55E00", "#0072A7")
             outcome <- positives <- negatives <- frequency <- dcat <- NULL
             if (is.null(object$trial$num)) {
                 return(plot(object$trial))
             }
             analysis <- CRTanalysis(trial = object$trial, method = "EMP")
-            data <- group_data(analysis = analysis, measure = measure, grouping = "equalwidth")
+            data <- group_data(analysis = analysis, distance = distance, grouping = "equalwidth")
             data$negatives <- with(data, total - positives)
-            data$dcat <- with(analysis, min(trial[[measure]]) +
-                                 (data$cat - 0.5) * (max(trial[[measure]]) - min(trial[[measure]]))/10)
+            data$dcat <- with(analysis, min(trial[[distance]]) +
+                                 (data$cat - 0.5) * (max(trial[[distance]]) - min(trial[[distance]]))/10)
             data <- tidyr::gather(data[, c("dcat", "negatives",
                                 "positives")], outcome, frequency, positives:negatives, factor_key = TRUE)
             g <- ggplot2::ggplot(data = data, aes(x = dcat, y = frequency, fill = outcome)) +
@@ -174,29 +174,34 @@ plotCRT <- function(object, map = FALSE, measure = "nearestDiscord", fill = "arm
     } else {
         colourClusters <- identical(fill, "clusters")
         showArms <- identical(fill, "arms")
-        if (isa(object, what = 'CRTanalysis') & !(fill %in% c("arms", "clusters"))){
-            # raster map
+        if (isa(object, what = 'CRTanalysis')) {
             analysis <- object
             contamination_limits <- analysis$contamination$contamination_limits
-            # raster images derived from inla analysis
-            x <- y <- prediction <- nearestDiscord <- NULL
-            g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
-            if (!identical(analysis$options$method, "INLA")) {
-                stop("*** Raster plots only available for outputs from INLA analysis ***")
-            } else {
-                pixel <- analysis$inla_mesh$pixel
-                raster <- analysis$inla_mesh$prediction
-                if (identical(fill, "prediction")) distanceText <- "Prediction"
-                if (is.null(raster[[fill]])){
-                    stop("*** Requested measure not available for this analysis ***")
+             if(!(fill %in% c("arms", "clusters"))){
+                # raster map
+
+                # raster images derived from inla analysis
+                x <- y <- prediction <- nearestDiscord <- NULL
+                g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
+                if (!identical(analysis$options$method, "INLA")) {
+                    stop("*** Raster plots only available for outputs from INLA analysis ***")
                 } else {
-                    raster$fill <- raster[[fill]]
+                    pixel <- analysis$inla_mesh$pixel
+                    raster <- analysis$inla_mesh$prediction
+                    if (identical(fill, "prediction")) distanceText <- "Prediction"
+                    if (is.null(raster[[fill]])){
+                        stop("*** Requested measure not available for this analysis ***")
+                    } else {
+                        raster$fill <- raster[[fill]]
+                    }
+                    g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
+                         fill = fill, width = pixel, height = pixel))
+                    g <- g + ggplot2::scale_fill_gradient(name = distanceText,
+                                                              low = "blue", high = "orange")
+                    g <- g + ggplot2::theme(legend.title = ggplot2::element_text(size = 8),
+                            legend.text = ggplot2::element_text(size = 8))
                 }
-                g <- g + ggplot2::geom_tile(data = raster, aes(x = x, y = y,
-                     fill = fill, width = pixel, height = pixel))
-                g <- g + ggplot2::scale_fill_gradient(name = distanceText,
-                                                          low = "blue", high = "orange")
-            }
+             }
         }
         # vector plot starts here
         arm <- cluster <- x <- y <- NULL

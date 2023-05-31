@@ -144,7 +144,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     }
 
     # compute distances to nearest discordant locations if they do not exist
-    if (is.null(trial$nearestDiscord)) trial <- compute_distance(trial, measure = "nearestDiscord")$trial
+    if (is.null(trial$nearestDiscord)) trial <- compute_distance(trial, distance = "nearestDiscord")$trial
 
     # trial needs to be ordered for GEE analyses (estimation of ICC)
     trial <- trial[order(trial$cluster), ]

@@ -81,10 +81,11 @@ of [Use Case 5](Usecase5.html).
 library(Matrix)
 examplemesh100 <- readdata("examplemesh100.txt")
 baselineanalysis <- CRTanalysis(trial=example_clustered,
-                        method = 'INLA', link='logit', baselineOnly = TRUE,
-                        baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom",
-                        clusterEffects = FALSE, spatialEffects = TRUE,
-                        requireMesh = TRUE, inla_mesh = examplemesh100)
+                     method = 'INLA', link='logit', baselineOnly = TRUE,
+                     baselineNumerator = "RDT_test_result",
+                     baselineDenominator =  "base_denom",
+                     clusterEffects = FALSE, spatialEffects = TRUE,
+                     requireMesh = TRUE, inla_mesh = examplemesh100)
 plotCRT(baselineanalysis, map = TRUE, fill = 'prediction')
 ```
 <p>

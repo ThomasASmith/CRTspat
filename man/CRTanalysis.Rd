@@ -7,8 +7,8 @@
 CRTanalysis(
   trial,
   method = "GEE",
-  measure = "nearestDiscord",
-  beta = NULL,
+  distance = "nearestDiscord",
+  scale_par = NULL,
   cfunc = "L",
   link = "logit",
   numerator = "num",
@@ -40,7 +40,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
 }}
 
-\item{measure}{measure of distance or surround with options: \cr
+\item{distance}{Measure of distance or surround with options: \cr
 \tabular{ll}{
 \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 \code{"disc"} \tab disc\cr
@@ -48,7 +48,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"sdep"} \tab simplicial depth\cr
 }}
 
-\item{beta}{numeric: pre-specified value of contamination parameter or disc radius}
+\item{scale_par}{numeric: pre-specified value of contamination parameter or disc radius}
 
 \item{cfunc}{transformation defining the contamination function. \cr
 options are:
@@ -93,7 +93,7 @@ With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used t
 
 \item{requireMesh}{logical: indicator of whether spatial predictions are required}
 
-\item{inla_mesh}{string: name of pre-existing INLA input object created by \code{new_mesh()}}
+\item{inla_mesh}{string: name of pre-existing INLA input object created by \code{compute_mesh()}}
 }
 \value{
 list of class \code{CRTanalysis} containing the following results of the analysis:
@@ -125,7 +125,7 @@ The \code{model_object} in the output list is the usual output from the statisti
 and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
 for purposes of evaluation of model fit etc..\cr \cr
 
-\code{beta} specifies the contamination parameter. If \code{measure = "disc"} then this is the disc radius in km.
+\code{scale_par} specifies the contamination parameter. If \code{distance = "disc"} then this is the disc radius in km.
 }
 \examples{
 {example <- readdata('exampleCRT.txt')

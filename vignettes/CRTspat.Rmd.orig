@@ -30,7 +30,7 @@ The package can facilitate design of efficient trials by providing algorithms fo
 + simulation of trials based on the geography of previously studied field sites and trials, and observed spatial patterns of outcomes, or on geographical information from novel sites.
 
 The package builds on the work of [Multerer *et al.* (2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8), [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) and
- [Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316).
+ [Anaya-Izquierdo & Alexander(2021)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316).
 
 The package is intended to function with outcomes that are proportions, count data, or continuous variables.
 The current version (0.1.0.9000) is for **testing** and has been developed mainly on data that are proportions. It will be revised to ensure that it gives the correct outputs with other kinds of outcome.

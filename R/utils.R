@@ -80,7 +80,7 @@ specify_buffer <- function(trial, buffer_width = 0) {
   if (is.null(trial$arm)) return('*** Randomization is required before buffer specification ***')
   # nearestDiscord: nearest coordinate in the discordant arm, for the
   # control coordinates return the minimal distance with a minus sign
-  if (is.null(trial$nearestDiscord)) trial <- compute_distance(trial, measure = "nearestDiscord")
+  if (is.null(trial$nearestDiscord)) trial <- compute_distance(trial, distance = "nearestDiscord")
   if (buffer_width > 0) {
     trial$buffer <- (abs(trial$nearestDiscord) < buffer_width)
   }
@@ -164,7 +164,7 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
     trial$arm <- factor(arm[trial$cluster[]], levels = c(0, 1), labels = c("control",
         "intervention"))
     CRT$trial <- trial
-    CRT <- compute_distance(CRT, measure = "nearestDiscord")
+    CRT <- compute_distance(CRT, distance = "nearestDiscord")
     return(CRTsp(CRT))
 }
 
