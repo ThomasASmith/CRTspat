@@ -10,14 +10,13 @@
 #' \code{"kern"} \tab kernel-based measure \cr
 #' \code{"hdep"} \tab Tukey's half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
-#' \code{"all"} \tab all of distance to nearest discordant location, disc, half space depth, and simplicial depth\cr
 #' }
-#' @param scale_par scale parameter (default 1.0) equal to the disc radius in km if \code{distance = "disc"}
+#' @param scale_par scale parameter equal to the disc radius in km if \code{distance = "disc"}
 #' or to the standard deviance of the kernels if \code{distance = "kern"}
 #' @returns The input \code{"CRTsp"} object with additional column(s) added to the \code{trial} data frame
-#' with name(s) corresponding to the input value of \code{distance}.
+#' with variable name corresponding to the input value of \code{distance}.
 #' @details
-#' For each selected distance distance, the function first checks whether the variable is already present, and carries out
+#' For each selected distance measure, the function first checks whether the variable is already present, and carries out
 #' the calculations only if the corresponding field is absent from the \code{trial} data frame.\cr\cr
 #' If \code{distance = "nearestDiscord"} is selected the computed values are Euclidean distances
 #' assigned a positive sign for the intervention arm of the trial, and a negative sign for the control arm.\cr\cr
@@ -25,8 +24,14 @@
 #' within the specified radius that are in the intervention arm
 #' ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)). The input
 #' value of \code{scale_par} is stored in the \code{design} list
-#' of the output \code{"CRTsp"} object. Recalculation is carried out if the input value of
+#' of the output \code{"CRTsp"} object. The values are divided by their maximum to give
+#' a variable on a scale of 0 - 1. Recalculation is carried out if the input value of
 #' \code{scale_par} differs from the one in the input \code{design} list.\cr\cr
+#' If \code{distance = "kern"} is specified, the Normal curve with standard deviation
+#' \code{scale_par} is used to simulate diffusion of the intervention effect by Euclidean
+#' distance. For each location in the trial, the contributions of all intervened locations are
+#' summed. The value of this statistic is divided by its maximum to give
+#' a variable on a scale of 0 - 1.\cr\cr
 #' If either \code{distance = "hdep"} or \code{distance = "sdep"} is specified then both the simplicial depth and
 #' Tukey's half space depth are calculated using the algorithm of
 #' [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073). For a location in the intervention arm, the
@@ -38,23 +43,25 @@
 #' #Calculate the disc with a radius of 0.5 km
 #' {exampletrial <- compute_distance(trial = readdata('exampleCRT.txt'),
 #'   distance = 'disc', scale_par = 0.5)}
-compute_distance <- function(trial, distance = "all", scale_par = 1.0) {
+compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NULL) {
   CRT <- CRTsp(trial)
   trial <- CRT$trial
-  require_nearestDiscord <- is.null(trial$nearestDiscord) &
-                  distance %in% c("all", "nearestDiscord")
-  require_hdep <- is.null(trial$hdep) & distance %in% c("all", "hdep")
-  require_sdep <- is.null(trial$sdep) & distance %in% c("all", "sdep")
-  require_disc <- distance %in% c("all", "disc") & (is.null(trial$disc) |
-                                     !identical(CRT$design$scale_par, scale_par))
-  require_kern <- distance %in% c("all", "kern") & (is.null(trial$kern) |
-                                     !identical(CRT$design$scale_par, scale_par))
+  require_nearestDiscord <- is.null(trial$nearestDiscord) & identical(distance, "nearestDiscord")
+  require_hdep <- is.null(trial$hdep) & identical(distance, "hdep")
+  require_sdep <- is.null(trial$sdep) & identical(distance, "sdep")
+  require_disc <- identical(distance, "disc") &
+                (is.null(trial$disc) | !identical(CRT$design$scale_par, scale_par))
+  require_kern <- identical(distance, "kern") &
+                (is.null(trial$kern) | !identical(CRT$design$scale_par, scale_par))
   kern <- NULL
-  if (is.null(trial$arm)) return('*** Randomization is required for computation of distances or surrounds ***')
+  if (is.null(trial[[distance]] & is.null(trial$arm)))
+    stop('*** Randomization is required for computation of distances or surrounds ***')
   if (require_hdep | require_sdep){
     depthlist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial)
     depth_df <- as.data.frame(do.call(rbind, lapply(depthlist, as.data.frame)))
     trial <- cbind(trial,depth_df)
+    trial$hdep <- trial$hdep/max(trial$hdep)
+    trial$sdep <- trial$sdep/max(trial$sdep)
     trial$numh <- NULL
   }
 
@@ -67,16 +74,23 @@ compute_distance <- function(trial, distance = "all", scale_par = 1.0) {
                      MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
       }
       if (require_disc){
+          if (is.null(scale_par)) {
+            stop("*** radius (scale_par) must be specified for computation of disc ***")
+          }
           intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= scale_par))
           trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
+          trial$disc <- trial$disc/max(trial$disc)
           CRT$design$scale_par <- scale_par
       }
       if (require_kern){
+          if (is.null(scale_par)) {
+            stop("*** s.d. (scale_par) must be specified for computation of kern ***")
+          }
           kern <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) *
                 matrix(data = (trial$arm == 'intervention'),
                        nrow = nrow(trial), ncol = nrow(trial)))
-          trial$kern <- ifelse(trial$arm == 'intervention',
-                       kern - dnorm(0, mean = 0, sd = scale_par), kern)
+          trial$kern <- kern/max(kern)
+          CRT$design$scale_par <- scale_par
       }
   }
   CRT$trial <- trial

@@ -21,7 +21,6 @@ CRTanalysis(
   personalProtection = FALSE,
   clusterEffects = TRUE,
   spatialEffects = FALSE,
-  resamples = 10000,
   requireMesh = FALSE,
   inla_mesh = NULL
 )
@@ -44,6 +43,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \tabular{ll}{
 \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 \code{"disc"} \tab disc\cr
+\code{"kern"} \tab surround based on sum of normal kernels\cr
 \code{"hdep"} \tab Tukey's half space depth\cr
 \code{"sdep"} \tab simplicial depth\cr
 }}
@@ -88,8 +88,6 @@ With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used t
 \item{clusterEffects}{logical: indicator of whether the model includes cluster random effects}
 
 \item{spatialEffects}{logical: indicator of whether the model includes spatial random effects}
-
-\item{resamples}{integer: number of samples for sample-based intervals}
 
 \item{requireMesh}{logical: indicator of whether spatial predictions are required}
 

@@ -16,21 +16,21 @@ VignetteBuilder: knitr
 Imports:
     ggplot2,
     stats,
-    spatstat.geom,
     utils,
     geepack,
     MASS,
     tidyr,
     magrittr,
     dplyr,
-    spatstat.random,
     OOR,
-    lme4, 
+    lme4,
     sf,
-    Matrix
+    Matrix,
+    spatstat.geom,
+    spatstat.random
 Suggests: 
     knitr, rmarkdown, INLA, jagsUI,
-    TSP, aod, ggthemes, gstat, maptools, methods, mvtnorm, plyr, qpdf, rgdal, spatstat.core,
+    TSP, aod, ggthemes, gstat, methods, mvtnorm, plyr, qpdf, 
     testthat (>= 2.0.0)
 Config/testthat/edition: 2
 Depends: 
