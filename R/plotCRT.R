@@ -122,7 +122,7 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
                 stop("*** No fitted curve available ***")
             d <- average <- upper <- lower <- contaminationFunction <- NULL
             interval <- analysis$contamination$contamination_limits
-            range <- max(analysis$trial$distance) - min(analysis$trial$distance)
+            range <- max(analysis$trial[[distance]]) - min(analysis$trial[[distance]])
             data <- group_data(analysis = analysis, grouping = "quintiles")
             FittedCurve <- analysis$contamination$FittedCurve
             g <- ggplot2::ggplot() + ggplot2::theme_bw()

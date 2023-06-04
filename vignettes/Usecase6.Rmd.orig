@@ -96,7 +96,8 @@ plotCRT(analysis, map = TRUE, fill = 'arms', showBuffer=TRUE, showClusterBoundar
   </p>
 
 
-##Conclusions
+
+## Conclusions
 
 In this example, a large proportion of the data points are close to the boundary between the arms.
 The analysis (based on simulated contamination) suggests that there are
