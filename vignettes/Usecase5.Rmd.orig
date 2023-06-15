@@ -65,7 +65,7 @@ used to select the best fitting model. The deviance information criterion (DIC) 
 
 `CRTanalysis()` provides options for analysing contamination between arms, or spillover effects either as function of a Euclidean distance or as a function of a surround measure:
 
-#### Models do not consider spillover
+#### Models that do not consider spillover
 Models that do not consider contamination can be fitted using options `Z` and `X`. These are included both to allow conventional analyses (see above), and also to enable model selection using and likelihood ratio tests, the Akaike information criterion (AIC), deviance information criterion (DIC) or Bayesian information criterion (BIC) .
 
 #### Spillover as a function of distance
@@ -82,7 +82,7 @@ Table 5.2. Available contamination functions
      P\left( d \right) = \ 1\ for\ d\  > \ 0 \\
      \end{matrix}\ $ | `T` `GEE` `LME4` `INLA` `MCMC` |
 | `L`| inverse logistic (sigmoid)|  $P\left( d \right) = \ \frac{1}{\left( 1\  + \ exp\left( - d/S \right) \right)}$ | `LME4` `INLA` `MCMC`  |
-| `P`| inverse probit (error function) | $P\left( d \right) = \frac{1}{2}\left( 1\  + \ erf\left( \frac{\text{d}{ S\sqrt{2}} \right) \right)$ | `LME4` `INLA` `MCMC`  |
+| `P`| inverse probit (error function) | $P\left( d \right) = 1\ +\ erf\left(\frac{d}{S\sqrt2}\right)$ | `LME4` `INLA` `MCMC`  |
 | `S`| piecewise linear | $\begin{matrix}
     P\left( d \right) = \ 0\  for\ d\  < \  - S/2\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  \ \ \ \ \ \ \ \ \\
     P\left( d \right) = \ \left(S/2\  + \ d \right)/S\ for\  - S/2 < d\  < \ S/2\\

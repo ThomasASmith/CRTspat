@@ -104,7 +104,7 @@ CRTanalysis <- function(
     cluster <- linearity <- penalty <- distance_type <- NULL
     resamples <- 1000
     penalty <- 0
-    searchinterval <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)))
+    log_sp_prior <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)))
 
     # Test of validity of inputs
     if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4"))
@@ -127,6 +127,7 @@ CRTanalysis <- function(
             CRT$trial$dummy <- runif(nrow(CRT$trial), 0, 1)
         }
         linearity <- "No non-linear parameter. "
+        scale_par <- 1.0
     } else {
         if(identical(distance, "nearestDiscord")) {
             distance_type <- "Signed distance "
@@ -139,20 +140,19 @@ CRTanalysis <- function(
             distance_type <- ifelse((min(CRT$trial[[distance]]) < 0), "Signed distance ", "Surround: ")
         }
         if (identical(distance_type, "Surround: ")) {
-            # surrounds must have cfunc of E or R
             if (!identical(cfunc,"E")) {
+                cat("*** Surrounds must have cfunc 'E' or 'R': using cfunc = 'R' ***")
                 cfunc <- "R"
             }
         } else {
-            # signed distances cannot have cfunc E
             if (identical(cfunc,"E")) {
+                cat("*** Signed distances cannot have cfunc = 'E': using cfunc = 'R' ***")
                 cfunc <- "R"
             }
         }
         if(identical(cfunc, "R")) {
             if (distance  %in% c("disc", "kern")) {
                 if (is.null(scale_par)) {
-                    cfunc <- "E"
                     penalty <- ifelse(identical(method, "MCMC"), 0, 2)
                     linearity <- "Estimated scale parameter: "
                 } else {
@@ -262,16 +262,17 @@ CRTanalysis <- function(
                     alpha = alpha, baselineOnly = baselineOnly,
                     fterms = fterms, ftext = ftext,
                     CLnames = CLnames,
-                    searchinterval = searchinterval,
+                    log_sp_prior = log_sp_prior,
                     clusterEffects = clusterEffects,
                     spatialEffects = spatialEffects,
+                    personalProtection = personalProtection,
                     distance_type = distance_type,
                     linearity = linearity,
                     scale_par = scale_par,
                     penalty = penalty)
 
     # create scaffolds for lists
-    pt_ests <- list(contamination_par = NA, personal_protection = NA, contamination_interval = NA)
+    pt_ests <- list(scale_par = NA, personal_protection = NA, contamination_interval = NA)
     int_ests <- list(controlY = NA, interventionY = NA, effect_size = NA)
     model_object <- list()
     description <- get_description(trial=trial, link=link, baselineOnly)
@@ -307,7 +308,77 @@ CRTanalysis <- function(
     return(analysis)
 }
 
+EMPanalysis <- function(analysis){
+    description <- analysis$description
+    pt_ests <- list()
+    pt_ests$controlY <- unname(description$controlY)
+    pt_ests$interventionY <- unname(description$interventionY)
+    pt_ests$effect_size <- unname(description$effect_size)
+    pt_ests$contamination_interval <- NA
+    pt_ests$personal_protection <- NA
+    analysis$pt_ests <- pt_ests
+    return(analysis)
+}
 
+Tanalysis <- function(analysis) {
+    y1 <- arm <- cluster <- y_off <- NULL
+    trial <- analysis$trial
+    link <- analysis$options$link
+    alpha <- analysis$options$alpha
+    clusterSum <- data.frame(
+        trial %>%
+            group_by(cluster) %>%
+            dplyr::summarize(
+                y = sum(y1),
+                total = sum(y_off),
+                arm = arm[1]
+            )
+    )
+    clusterSum$lp <- switch(link,
+                            "identity" = clusterSum$y/clusterSum$total,
+                            "log" = log(clusterSum$y/clusterSum$total),
+                            "logit" = logit(clusterSum$y/clusterSum$total))
+    formula <- stats::as.formula("lp ~ arm")
+
+    # Trap any non-finite values
+
+    clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
+
+    model_object <- stats::t.test(
+        formula = formula, data = clusterSum, alternative = "two.sided",
+        conf.level = 1 - alpha, var.equal = TRUE
+    )
+    analysis$pt_ests$p.value <- model_object$p.value
+    analysisC <- stats::t.test(
+        clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
+    analysis$pt_ests$controlY <- unname(invlink(link, analysisC$estimate[1]))
+    analysis$int_ests$controlY <- invlink(link, analysisC$conf.int)
+    analysisI <- stats::t.test(
+        clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
+    analysis$pt_ests$interventionY <- unname(invlink(link, analysisI$estimate[1]))
+    analysis$int_ests$interventionY <- invlink(link, analysisI$conf.int)
+
+    # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
+    Sigma <- base::matrix(
+        data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
+        nrow = 2, ncol = 2)
+    if (link == 'identity'){
+        analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
+            analysis$pt_ests$interventionY
+        analysis$int_ests$effect_size <- unlist(model_object$conf.int)
+    }
+    if (link %in% c("logit","log")){
+        analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
+            analysis$pt_ests$controlY
+        analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
+    }
+    analysis$pt_ests$t.statistic <- model_object$statistic
+    analysis$pt_ests$df <- unname(model_object$parameter)
+    analysis$pt_ests$p.value <- model_object$p.value
+    # tidy up and consolidate the list of analysis
+    analysis$model_object <- model_object
+    return(analysis)
+}
 
 GEEanalysis <- function(analysis, resamples){
     trial <- analysis$trial
@@ -321,9 +392,9 @@ GEEanalysis <- function(analysis, resamples){
     cluster <- NULL
     # GEE analysis of cluster effects
     fterms <- c(switch(link,
-                 "identity" = "y1/y_off ~ 1",
-                 "log" = "y1 ~ 1 + offset(log(y_off))",
-                 "logit" = "cbind(y1,y0) ~ 1"),
+                       "identity" = "y1/y_off ~ 1",
+                       "log" = "y1 ~ 1 + offset(log(y_off))",
+                       "logit" = "cbind(y1,y0) ~ 1"),
                 fterms)
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
     if (link == "log") {
@@ -374,8 +445,8 @@ GEEanalysis <- function(analysis, resamples){
         lp_yI <- summary.fit$coefficients[1, 1] + summary.fit$coefficients[2, 1]
         se_lp_yI <- sqrt(
             model_object$geese$vbeta[1, 1] +
-            model_object$geese$vbeta[2, 2] +
-            2 * model_object$geese$vbeta[1,2]
+                model_object$geese$vbeta[2, 2] +
+                2 * model_object$geese$vbeta[1,2]
         )
 
         int_ests$interventionY <- namedCL(
@@ -393,7 +464,99 @@ GEEanalysis <- function(analysis, resamples){
     analysis$model_object <- model_object
     analysis$pt_ests <- pt_ests[names(pt_ests) != "model_object"]
     analysis$int_ests <- int_ests
-return(analysis)
+    return(analysis)
+}
+
+
+LME4analysis <- function(analysis, cfunc, trial, link, fterms){
+    trial <- analysis$trial
+    link <- analysis$options$link
+    cfunc <- analysis$options$cfunc
+    FUN <- get_FUN(cfunc, variant = 0)
+    alpha <- analysis$options$alpha
+    scale_par <- analysis$options$scale_par
+    distance <- analysis$options$distance
+    log_sp_prior <- analysis$options$log_sp_prior
+    linearity <- analysis$options$linearity
+    distance_type <- analysis$options$distance_type
+    fterms <- analysis$options$fterms
+    # TODO replace the use of ftext with fterms
+    ftext <- analysis$options$ftext
+    log_scale_par <- NA
+    contrasts <- NULL
+    fterms = switch(link,
+                    "identity" = c("y1/y_off ~ 1", fterms),
+                    "log" = c("y1 ~ 1", fterms, "offset(log(y_off))"),
+                    "logit" = c("cbind(y1,y0) ~ 1", fterms))
+    formula <- stats::as.formula(paste(fterms, collapse = "+"))
+    if (!identical(distance_type, "No fixed effects of distance ")) {
+        if (analysis$options$penalty > 0) {
+            if (identical(Sys.getenv("TESTTHAT"), "true")) {
+                log_scale_par <- 2.0
+            } else {
+                tryCatch({
+                    #cat("Estimating scale parameter for contamination range\n")
+                    log_scale_par <- stats::optimize(
+                        f = estimateContaminationLME4, interval = log_sp_prior, maximum = FALSE,
+                        tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance)$minimum
+                },
+                error = function(e){
+                    message("*** Contamination scale parameter cannot be estimated ***")
+                    log_scale_par <- 0
+                })
+            }
+            scale_par <- exp(log_scale_par)
+        }
+        analysis$options$scale_par <- scale_par
+
+        if (distance %in% c('disc','kern')) {
+            trial <- compute_distance(trial,
+                                      distance = distance, scale_par = scale_par)$trial
+            x <- trial[[distance]]
+            analysis$trial <- trial
+        } else {
+            x <- trial[[distance]] / scale_par
+        }
+        trial$pvar <- eval(parse(text = FUN))
+    }
+    model_object <- switch(link,
+                           "identity" = lme4::lmer(formula = formula, data = trial, REML = FALSE),
+                           "log" = lme4::glmer(formula = formula, data = trial,
+                                               family = poisson),
+                           "logit" = lme4::glmer(formula = formula, data = trial,
+                                                 family = binomial))
+    analysis$pt_ests$scale_par <- exp(log_scale_par)
+    analysis$pt_ests$deviance <- unname(summary(model_object)$AICtab["deviance"])
+    analysis$pt_ests$AIC <- unname(summary(model_object)$AICtab["AIC"])
+    analysis$pt_ests$df <- unname(summary(model_object)$AICtab["df.resid"])
+    # if the contamination parameter has been estimated then penalise the AIC and
+    # adjust the degrees of freedom in the output
+
+    cov <- q50 <- NULL
+
+    analysis$pt_ests$AIC <- analysis$pt_ests$AIC + analysis$options$penalty
+    analysis$pt_ests$df <- analysis$pt_ests$df - (analysis$options$penalty > 0)
+    coefficients <- summary(model_object)$coefficients
+    if (!identical(distance_type, "No fixed effects of distance ")) {
+        WaldP <- ifelse(ncol(coefficients) == 4, coefficients['pvar',4], NA)
+    }
+    if (grepl("pvar", ftext, fixed = TRUE) |
+        grepl("arm", ftext, fixed = TRUE)) {
+        q50 <- summary(model_object)$coefficients[,1]
+        names(q50)[grep("Int",names(q50))] <- "int"
+        names(q50)[grep("arm",names(q50))] <- "arm"
+        names(q50)[grep("pvar",names(q50))] <- "pvar"
+        cov <- vcov(model_object)
+        rownames(cov) <- colnames(cov) <- names(q50)
+    }
+    analysis$model_object <- model_object
+    if (!identical(cfunc, "Z")){
+        sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = q50, Sigma = cov))
+        analysis <- extractEstimates(analysis = analysis, sample = sample)
+    } else {
+        analysis$pt_ests$controlY <- invlink(link, summary(model_object)$coefficients[,1])
+    }
+    return(analysis)
 }
 
 INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_mesh){
@@ -401,7 +564,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     cfunc <- analysis$options$cfunc
     link <- analysis$options$link
     distance <- analysis$options$distance
-    searchinterval <- analysis$options$searchinterval
+    log_sp_prior <- analysis$options$log_sp_prior
     distance_type <- analysis$options$distance_type
     linearity <- analysis$options$linearity
     scale_par <- analysis$options$scale_par
@@ -425,9 +588,9 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     pixel <- 0.5
     if (!requireMesh) pixel <- (max(trial$x) - min(trial$x))/2
     if (is.null(inla_mesh)) {
-            inla_mesh <- compute_mesh(
-                trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
-                maskbuffer = 0.5, pixel = pixel)
+        inla_mesh <- compute_mesh(
+            trial = trial, offset = -0.1, max.edge = 0.25, inla.alpha = 2,
+            maskbuffer = 0.5, pixel = pixel)
     }
     y_off <- NULL
     spde <- inla_mesh$spde
@@ -453,13 +616,13 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                #cat("Estimating scale parameter for contamination range\n")
-                log_scale_par <- stats::optimize(
-                    f = estimateContaminationINLA, interval = searchinterval,
-                    tol = 0.1, trial = trial, FUN = FUN, formula = formula,
-                    link = link, inla_mesh = inla_mesh, distance = distance)$minimum
+                    #cat("Estimating scale parameter for contamination range\n")
+                    log_scale_par <- stats::optimize(
+                        f = estimateContaminationINLA, interval = log_sp_prior,
+                        tol = 0.1, trial = trial, FUN = FUN, formula = formula,
+                        link = link, inla_mesh = inla_mesh, distance = distance)$minimum
                 },
-                     error = function(e){
+                error = function(e){
                     message("*** Contamination scale parameter cannot be estimated ***")
                     log_scale_par <- 5
                 })
@@ -488,7 +651,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
         # set up linear contrasts
         lc <- INLA::inla.make.lincomb(int = 1, pvar = 1)
         if (grepl("arm", ftext, fixed = TRUE)){
-          lc <- INLA::inla.make.lincomb(int = 1, pvar = 1, arm = 1)
+            lc <- INLA::inla.make.lincomb(int = 1, pvar = 1, arm = 1)
         }
     } else if (grepl("arm", ftext, fixed = TRUE)) {
         lc <- INLA::inla.make.lincomb(int = 1, arm = 1)
@@ -537,26 +700,25 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
             control.compute = list(dic = TRUE))
     }
 
-    # TODO: replace all references to contamination_par with scale_par
-    analysis$pt_ests$contamination_par <- scale_par
+    analysis$pt_ests$scale_par <- scale_par
 
-    # The DIC is penalised if a contamination parameter was estimated
+    # The DIC is penalised if a scale parameter was estimated
     analysis$pt_ests$DIC <- model_object$dic$dic + analysis$options$penalty
 
     # Augment the inla results list with application specific quantities
     index <- INLA::inla.stack.index(stack = stk.full, tag = "pred")$data
     inla_mesh$prediction$prediction <-
-            invlink(link, model_object$summary.linear.predictor[index, "0.5quant"])
+        invlink(link, model_object$summary.linear.predictor[index, "0.5quant"])
     # Compute sample-based confidence limits for intervened outcome and effect_size
     # intervention effects are estimated
     q50 <- cov <- list()
     if (grepl("pvar", ftext, fixed = TRUE) |
         grepl("arm", ftext, fixed = TRUE)) {
-            # Specify the point estimates of the parameters
-            q50 <- model_object$summary.lincomb.derived$"0.5quant"
-            names(q50) <- rownames(model_object$summary.lincomb.derived)
-            # Specify the covariance matrix of the parameters
-            cov <- model_object$misc$lincomb.derived.covariance.matrix
+        # Specify the point estimates of the parameters
+        q50 <- model_object$summary.lincomb.derived$"0.5quant"
+        names(q50) <- rownames(model_object$summary.lincomb.derived)
+        # Specify the covariance matrix of the parameters
+        cov <- model_object$misc$lincomb.derived.covariance.matrix
 
     }
     analysis$inla_mesh <- inla_mesh
@@ -568,6 +730,160 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
         analysis$pt_ests$controlY <- invlink(link, model_object$summary.fixed[["0.5quant"]])
     }
 return(analysis)}
+
+
+# MCMC Methods
+MCMCanalysis <- function(analysis){
+    trial <- analysis$trial
+    link <- analysis$options$link
+    cfunc <- analysis$options$cfunc
+    alpha <- analysis$options$alpha
+    fterms <- analysis$options$fterms
+    linearity <- analysis$options$linearity
+    personalProtection <- analysis$options$personalProtection
+    distance <- analysis$options$distance
+    scale_par <- analysis$options$scale_par
+    log_sp_prior <- analysis$options$log_sp_prior
+    clusterEffects<- analysis$options$clusterEffects
+    FUN <- get_FUN(cfunc, variant = 0)
+    nsteps <- 10
+
+    # JAGS parameters
+    nchains <- 4
+    iter.increment <- 500
+    max.iter <- 50000
+    n.burnin <- 500
+
+    datajags <- list(N = nrow(trial))
+    if (identical(linearity,"Estimated scale parameter: ")) {
+        # Create vector of candidate values of scale_par
+        # by dividing the prior (on log scale) into equal bins
+        # log_sp is the central value of each bin
+        nbins <- 10
+        binsize <- (log_sp_prior[2] - log_sp_prior[1])/(nbins - 1)
+        log_sp <- log_sp_prior[1] + c(0, seq(1:nbins -1 )) * binsize
+        # calculate pvar corresponding to first value of sp
+        Pr <- compute_pvar(trial = trial, distance = distance,
+                           scale_par = exp(log_sp[1]), FUN = FUN)
+        for(i in 1:nbins - 1){
+            Pri <- compute_pvar(trial = trial,
+                                distance = distance, scale_par = exp(log_sp[1 + i]), FUN = FUN)
+            Pr <- data.frame(cbind(Pr, Pri))
+        }
+        log_sp1 <- c(log_sp + binsize/2, log_sp[nbins - 1] + binsize/2)
+        datajags$Pr <- as.matrix(Pr)
+        datajags$nbins <- nbins
+        datajags$log_sp <- log_sp
+        cfunc <- "O"
+    } else if (identical(cfunc, "R")) {
+        trial <- compute_distance(trial, distance = distance,
+                                  scale_par = scale_par)$trial
+        datajags$d <- trial[[distance]]
+        datajags$mind <- min(trial[[distance]])
+        datajags$maxd <- max(trial[[distance]])
+    }
+    if ("arm" %in% fterms) {
+        datajags$intervened <- ifelse(trial$arm == "intervention", 1, 0)
+    }
+    if (identical(link, 'identity')) {
+        datajags$y <- trial$y1/trial$y_off
+    } else {
+        datajags$y1 <- trial$y1
+        datajags$y_off <- trial$y_off
+    }
+    if (clusterEffects) {
+        datajags$cluster <- as.numeric(as.character(trial$cluster))
+        datajags$ncluster <- max(as.numeric(as.character(trial$cluster)))
+    }
+    # construct the rjags code by concatenating strings
+
+    text1 <- "model{\n"
+
+    text2 <- switch(cfunc,
+                    X = "for(i in 1:N){\n",
+                    Z = "for(i in 1:N){\n",
+                    R = "for(i in 1:N){\n
+                        pr[i] <- (d[i] - mind)/(maxd - mind)",
+                    O = "pr_s[1] <- pnorm(log_sp[1],log_scale_par,tau.s)
+                        cum_pr[1] <- pr_s[1]
+                        for (j in 1:(nbins - 2)) {
+                            pr_s[j + 1] <- pnorm(log_sp[j + 1],log_scale_par, tau.s) - cum_pr[j]
+                            cum_pr[j + 1] <- pr_s[j + 1] + cum_pr[j]
+                        }
+                        pr_s[nbins] <- 1 - cum_pr[nbins - 1]
+                        for(i in 1:N){\n
+                            for(j in 1:nbins){\n
+                                pr_j[i,j] <- sum(Pr[i,j] * pr_s[j])
+                            }
+                            pr[i] <- sum(pr_j[i, ])
+                         ")
+
+    text3 <- switch(link,
+                    "identity" = "y[i] ~ dnorm(lp[i],tau1) \n",
+                    "log" =  "gamma1[i] ~ dnorm(0,tau1) \n
+                                  Expect_y[i] <- exp(lp[i] + gamma1[i]) * y_off[i] \n
+                                  y1[i] ~ dpois(Expect_y[i]) \n",
+                    "logit" = "logitp[i] <- lp[i]  \n
+                                   p[i] <- 1/(1 + exp(-logitp[i])) \n
+                                   y1[i] ~ dbin(p[i],y_off[i]) \n"
+    )
+
+    # construct JAGS code for the linear predictor
+
+    if (cfunc %in% c('Z', 'X')) {
+        text4 <- "lp[i] <- int"
+    } else {
+        text4 <- "lp[i] <- int + pvar * pr[i]"
+    }
+    text5 <- ifelse(clusterEffects,
+                    " + gamma[cluster[i]] \n
+            }\n
+            for(ic in 1:ncluster) {\n
+                gamma[ic] ~ dnorm(0, tau)\n
+            }\n
+            tau <- 1/(sigma * sigma) \n
+            sigma ~ dunif(0, 2) \n
+            ", "}\n")
+    text6 <-
+        "log_scale_par ~ dnorm(0, 1E-1) \n
+            scale_par <- exp(log_scale_par) \n
+            tau.s ~ dunif(0,3) \n
+            int ~ dnorm(0, 1E-2) \n"
+    if ("arm" %in% fterms) {
+        text4 <- paste0(text4, " + arm * intervened[i]")
+        text6 <- paste(text6, "arm ~ dnorm(0, 1E-2) \n")
+    }
+    text7 <- ifelse(identical(cfunc,'Z'), "pvar <- 0 \n", "pvar ~ dnorm(0, 1E-2) \n")
+    text8 <- switch(link,
+                    "identity" = "tau1 <- 1/(sigma1 * sigma1) \n
+                                  sigma1 ~ dunif(0, 2) } \n",
+                    "log" = "tau1 <- 1/(sigma1 * sigma1) \n
+                             sigma1 ~ dunif(0, 2) } \n",
+                    "logit" = "} \n")
+
+    MCMCmodel <- paste0(text1, text2, text3, text4, text5, text6, text7, text8)
+    if (identical(cfunc, "E")) cfunc = "ES"
+    parameters.to.save <- switch(cfunc, O = c("int", "pvar", "scale_par"),
+                                 X = c("int"),
+                                 Z = c("int"),
+                                 R = c("int", "pvar"))
+    if ("arm" %in% fterms) parameters.to.save <- c(parameters.to.save, "arm")
+    model_object <- jagsUI::autojags(data = datajags, inits = NULL,
+                                     parameters.to.save = parameters.to.save,
+                                     model.file = textConnection(MCMCmodel), n.chains = nchains,
+                                     iter.increment = iter.increment, n.burnin = n.burnin, max.iter=max.iter)
+    sample <- data.frame(rbind(model_object$samples[[1]],model_object$samples[[2]]))
+    model_object$MCMCmodel <- MCMCmodel
+    analysis$model_object <- model_object
+    analysis$trial <- trial
+    analysis <- extractEstimates(analysis = analysis, sample = sample)
+    analysis$options$scale_par <- analysis$pt_ests$scale_par
+    # distance must be re-computed in the case of surrounds with estimated scale parameter
+    analysis$trial <- compute_distance(trial, distance = distance,
+                                       scale_par = analysis$options$scale_par)$trial
+    analysis$pt_ests$DIC <- model_object$DIC
+    return(analysis)
+}
 
 
 group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
@@ -643,31 +959,6 @@ namedCL <- function(limits, alpha = alpha)
     return(limits)
 }
 
-# logit transformation
-logit <- function(p = p)
-    {
-    return(log(p/(1 - p)))
-}
-
-# link transformation
-link_tr <- function(link = link, x = x)
-{
-    value <- switch(link,
-                    "identity" = x,
-                    "log" = log(x),
-                    "logit" =  log(x/(1 - x)))
-    return(value)
-}
-
-# inverse transformation of link function
-invlink <- function(link = link, x = x)
-    {
-    value <- switch(link,
-        "identity" = x,
-        "log" = exp(x),
-        "logit" =  1/(1 + exp(-x)))
-    return(value)
-}
 
 # Minimal data description and crude effect_size estimate
 get_description <- function(trial, link, baselineOnly)
@@ -945,7 +1236,7 @@ estimateContaminationINLA <- function(
     # The DIC is penalised to allow for estimation of scale_par
     loss <- result.e$dic$family.dic + 2
     # Display the DIC here if necessary for debugging
-      cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
+    #  cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
     return(loss)
 }
 
@@ -980,7 +1271,7 @@ add_estimates <- function(analysis, bounds, CLnames){
     bounds <- data.frame(bounds)
     for (variable in c("int", "arm", "pvar",
                       "controlY","interventionY","effect_size",
-                      "personal_protection","contamination_par",
+                      "personal_protection","scale_par",
                       "deviance","contamination_interval","contamination_limit0",
                       "contamination_limit1","contaminate_pop_pr",
                       "total_effect", "ipsilateral_spillover",
@@ -1149,77 +1440,6 @@ summary.CRTanalysis <- function(object, ...) {
 
 }
 
-EMPanalysis <- function(analysis){
-    description <- analysis$description
-    pt_ests <- list()
-    pt_ests$controlY <- unname(description$controlY)
-    pt_ests$interventionY <- unname(description$interventionY)
-    pt_ests$effect_size <- unname(description$effect_size)
-    pt_ests$contamination_interval <- NA
-    pt_ests$personal_protection <- NA
-    analysis$pt_ests <- pt_ests
-    return(analysis)
-}
-
-Tanalysis <- function(analysis) {
-    y1 <- arm <- cluster <- y_off <- NULL
-    trial <- analysis$trial
-    link <- analysis$options$link
-    alpha <- analysis$options$alpha
-    clusterSum <- data.frame(
-        trial %>%
-            group_by(cluster) %>%
-            dplyr::summarize(
-                y = sum(y1),
-                total = sum(y_off),
-                arm = arm[1]
-            )
-    )
-    clusterSum$lp <- switch(link,
-                            "identity" = clusterSum$y/clusterSum$total,
-                            "log" = log(clusterSum$y/clusterSum$total),
-                            "logit" = logit(clusterSum$y/clusterSum$total))
-    formula <- stats::as.formula("lp ~ arm")
-
-    # Trap any non-finite values
-
-    clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
-
-    model_object <- stats::t.test(
-        formula = formula, data = clusterSum, alternative = "two.sided",
-        conf.level = 1 - alpha, var.equal = TRUE
-    )
-    analysis$pt_ests$p.value <- model_object$p.value
-    analysisC <- stats::t.test(
-        clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
-    analysis$pt_ests$controlY <- unname(invlink(link, analysisC$estimate[1]))
-    analysis$int_ests$controlY <- invlink(link, analysisC$conf.int)
-    analysisI <- stats::t.test(
-        clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
-    analysis$pt_ests$interventionY <- unname(invlink(link, analysisI$estimate[1]))
-    analysis$int_ests$interventionY <- invlink(link, analysisI$conf.int)
-
-    # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
-    Sigma <- base::matrix(
-        data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
-        nrow = 2, ncol = 2)
-    if (link == 'identity'){
-        analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
-                                analysis$pt_ests$interventionY
-        analysis$int_ests$effect_size <- unlist(model_object$conf.int)
-    }
-    if (link %in% c("logit","log")){
-        analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
-                                            analysis$pt_ests$controlY
-        analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
-    }
-    analysis$pt_ests$t.statistic <- model_object$statistic
-    analysis$pt_ests$df <- unname(model_object$parameter)
-    analysis$pt_ests$p.value <- model_object$p.value
-    # tidy up and consolidate the list of analysis
-    analysis$model_object <- model_object
-    return(analysis)
-}
 
 extractEstimates <- function(analysis, sample) {
     alpha <- analysis$options$alpha
@@ -1230,7 +1450,9 @@ extractEstimates <- function(analysis, sample) {
     sample$controlY <- invlink(link, sample$int)
     # personal_protection is the proportion of effect attributed to personal protection
     if ("arm" %in% names(sample) & "pvar" %in% names(sample)) {
-        if (identical(method,"LME4")) sample$lc <- with(sample, int + pvar + arm)
+        if (method %in% c("MCMC","LME4")) {
+            sample$lc <- with(sample, int + pvar + arm)
+        }
         sample$interventionY <- invlink(link, sample$lc)
         sample$personal_protection <- with(
             sample, (controlY - invlink(link, int + arm))/(controlY -
@@ -1248,12 +1470,8 @@ extractEstimates <- function(analysis, sample) {
         sample$effect_size <- 1 - sample$interventionY/sample$controlY
     }
     if (analysis$options$cfunc %in% c("L", "P", "S", "R")) {
-            if (identical(analysis$options$cfunc, "R")) sample$contamination_par <- 1
-            if ("scale_par" %in% names(sample)) {
-                sample$contamination_par <- sample$scale_par
-            } else {
-                sample$contamination_par <- analysis$pt_ests$contamination_par
-            }
+            if (identical(analysis$options$cfunc, "R")
+                & is.null(sample$scale_par)) sample$scale_par <- 1
             contamination_list <- apply(sample, MARGIN = 1, FUN = get_contamination,
                                         analysis = analysis)
             contamination_df <- as.data.frame(do.call(rbind, lapply(contamination_list, as.data.frame)))
@@ -1267,195 +1485,31 @@ extractEstimates <- function(analysis, sample) {
 return(analysis)
 }
 
-
-LME4analysis <- function(analysis, cfunc, trial, link, fterms){
-    trial <- analysis$trial
-    link <- analysis$options$link
-    cfunc <- analysis$options$cfunc
-    FUN <- get_FUN(cfunc, variant = 0)
-    alpha <- analysis$options$alpha
-    scale_par <- analysis$options$scale_par
-    distance <- analysis$options$distance
-    searchinterval <- analysis$options$searchinterval
-    linearity <- analysis$options$linearity
-    distance_type <- analysis$options$distance_type
-    fterms <- analysis$options$fterms
-    # TODO replace the use of ftext with fterms
-    ftext <- analysis$options$ftext
-    log_scale_par <- NA
-    contrasts <- NULL
-    fterms = switch(link,
-                    "identity" = c("y1/y_off ~ 1", fterms),
-                    "log" = c("y1 ~ 1", fterms, "offset(log(y_off))"),
-                    "logit" = c("cbind(y1,y0) ~ 1", fterms))
-    formula <- stats::as.formula(paste(fterms, collapse = "+"))
-    if (!identical(distance_type, "No fixed effects of distance ")) {
-        if (analysis$options$penalty > 0) {
-            if (identical(Sys.getenv("TESTTHAT"), "true")) {
-                log_scale_par <- 2.0
-            } else {
-                tryCatch({
-                #cat("Estimating scale parameter for contamination range\n")
-                log_scale_par <- stats::optimize(
-                    f = estimateContaminationLME4, interval = searchinterval, maximum = FALSE,
-                    tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance)$minimum
-                },
-                error = function(e){
-                   message("*** Contamination scale parameter cannot be estimated ***")
-                   log_scale_par <- 0
-                })
-            }
-            scale_par <- exp(log_scale_par)
-        }
-        analysis$options$scale_par <- scale_par
-        if (distance %in% c('disc','kern')) {
-            trial <- compute_distance(trial,
-                        distance = distance, scale_par = scale_par)$trial
-            x <- trial[[distance]]
-            analysis$trial <- trial
-        } else {
-            x <- trial[[distance]] / scale_par
-        }
-        trial$pvar <- eval(parse(text = FUN))
-    }
-    model_object <- switch(link,
-           "identity" = lme4::lmer(formula = formula, data = trial, REML = FALSE),
-           "log" = lme4::glmer(formula = formula, data = trial,
-                               family = poisson),
-           "logit" = lme4::glmer(formula = formula, data = trial,
-                                 family = binomial))
-    analysis$pt_ests$contamination_par <- exp(log_scale_par)
-    analysis$pt_ests$deviance <- unname(summary(model_object)$AICtab["deviance"])
-    analysis$pt_ests$AIC <- unname(summary(model_object)$AICtab["AIC"])
-    analysis$pt_ests$df <- unname(summary(model_object)$AICtab["df.resid"])
-    # if the contamination parameter has been estimated then penalise the AIC and
-    # adjust the degrees of freedom in the output
-
-    cov <- q50 <- NULL
-
-    analysis$pt_ests$AIC <- analysis$pt_ests$AIC + analysis$options$penalty
-    analysis$pt_ests$df <- analysis$pt_ests$df - (analysis$options$penalty > 0)
-    coefficients <- summary(model_object)$coefficients
-    if (!identical(distance_type, "No fixed effects of distance ")) {
-        WaldP <- ifelse(ncol(coefficients) == 4, coefficients['pvar',4], NA)
-    }
-    if (grepl("pvar", ftext, fixed = TRUE) |
-        grepl("arm", ftext, fixed = TRUE)) {
-        q50 <- summary(model_object)$coefficients[,1]
-        names(q50)[grep("Int",names(q50))] <- "int"
-        names(q50)[grep("arm",names(q50))] <- "arm"
-        names(q50)[grep("pvar",names(q50))] <- "pvar"
-        cov <- vcov(model_object)
-        rownames(cov) <- colnames(cov) <- names(q50)
-    }
-    analysis$model_object <- model_object
-    if (!identical(cfunc, "Z")){
-        sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = q50, Sigma = cov))
-        analysis <- extractEstimates(analysis = analysis, sample = sample)
-    } else {
-        analysis$pt_ests$controlY <- invlink(link, summary(model_object)$coefficients[,1])
-    }
- return(analysis)
+# logit transformation
+logit <- function(p = p)
+{
+    return(log(p/(1 - p)))
 }
 
-# MCMC Methods
-MCMCanalysis <- function(analysis){
-    trial <- analysis$trial
-    link <- analysis$options$link
-    cfunc <- analysis$options$cfunc
-    alpha <- analysis$options$alpha
-    fterms <- analysis$options$fterms
-    distance <- analysis$options$distance
-    clusterEffects<- analysis$options$clusterEffects
-    nchains <- 2
-    max.iter <- 50000
-    burnin <- 5000
-
-    datajags <- list(N = nrow(trial))
-    if (!identical(cfunc, "Z")) datajags$d <- trial[[distance]]
-    if (identical(cfunc, "R")) {
-        datajags$mind <- min(datajags$d)
-        datajags$maxd <- max(datajags$d)
-    }
-    if (identical(link, 'identity')) {
-        datajags$y <- trial$y1/trial$y_off
-    } else {
-        datajags$y1 <- trial$y1
-        datajags$y_off <- trial$y_off
-    }
-    if (clusterEffects) {
-        datajags$cluster <- as.numeric(as.character(trial$cluster))
-        datajags$ncluster <- max(as.numeric(as.character(trial$cluster)))
-    }
-    # construct the rjags code by concatenating strings
-
-    text1 <- "model{\n
-          for(i in 1:N){\n"
-
-    text2 <- switch(cfunc, S = "pr[i] <- ifelse(d[i] < -scale_par/2,0,
-                                        ifelse(d[i] > scale_par/2,1,
-                                        (scale_par/2 + d[i])/scale_par))\n",
-                    P = "pr[i] <- pnorm(d[i]*scale_par,0, 1) \n",
-                    L = "pr[i] <- 1/(1 + exp(-scale_par*d[i])) \n",
-                    X = "pr[i] <- ifelse(d[i] > 0, 1 ,0) \n",
-                    Z = NULL,
-                    R = "pr[i] <- (d[i] - mind)/(maxd - mind)")
-
-    text3 <- switch(link,
-                    "identity" = "y[i] ~ dnorm(lp[i],tau1) \n",
-                    "log" =  "gamma1[i] ~ dnorm(0,tau1) \n
-                                  Expect_y[i] <- exp(lp[i] + gamma1[i]) * y_off[i] \n
-                                  y1[i] ~ dpois(Expect_y[i]) \n",
-                    "logit" = "logitp[i] <- lp[i]  \n
-                                   p[i] <- 1/(1 + exp(-logitp[i])) \n
-                                   y1[i] ~ dbin(p[i],y_off[i]) \n"
-    )
-
-    # construct linear predictor
-    text4 <- "lp[i] <- int + pvar * pr[i]"
-    if (identical(cfunc,'Z')) text4 <- "lp[i] <- int"
-    text5 <- ifelse(clusterEffects,
-                    " + gamma[cluster[i]] \n
-            }\n
-            for(ic in 1:ncluster) {\n
-                gamma[ic] ~ dnorm(0, tau)\n
-            }\n
-            tau <- 1/(sigma * sigma) \n
-            sigma ~ dunif(0, 2) \n
-            ", "}\n")
-    text6 <-
-        "log_scale_par ~ dnorm(0, 1E-1) \n
-            scale_par <- exp(log_scale_par) \n
-            int ~ dnorm(0, 1E-2) \n"
-    text7 <- ifelse(identical(cfunc,'Z'), "pvar <- 0 \n", "pvar ~ dnorm(0, 1E-2) \n")
-    text8 <- switch(link,
-                    "identity" = "tau1 <- 1/(sigma1 * sigma1) \n
-                                  sigma1 ~ dunif(0, 2) } \n",
-                    "log" = "tau1 <- 1/(sigma1 * sigma1) \n
-                             sigma1 ~ dunif(0, 2) } \n",
-                    "logit" = "} \n"
-    )
-
-    MCMCmodel <- paste0(text1, text2, text3, text4, text5, text6, text7, text8)
-    parameters.to.save <- switch(cfunc, S = c("int", "pvar", "scale_par"),
-                    P = c("int", "pvar", "scale_par"),
-                    L = c("int", "pvar", "scale_par"),
-                    X = c("int", "pvar"),
-                    Z = c("int"),
-                    R = c("int", "pvar"))
-
-    model_object <- jagsUI::autojags(data = datajags, inits = NULL,
-                       parameters.to.save = parameters.to.save,
-                       model.file = textConnection(MCMCmodel), n.chains = nchains,
-                       iter.increment = 1000, n.burnin = burnin, max.iter=max.iter)
-    sample <- data.frame(rbind(model_object$samples[[1]],model_object$samples[[2]]))
-    analysis$model_object <- model_object
-    analysis <- extractEstimates(analysis = analysis, sample = sample)
-    analysis$pt_ests$DIC <- model_object$DIC
-    analysis$model_object$MCMCmodel <- MCMCmodel
-return(analysis)
+# link transformation
+link_tr <- function(link = link, x = x)
+{
+    value <- switch(link,
+                    "identity" = x,
+                    "log" = log(x),
+                    "logit" =  log(x/(1 - x)))
+    return(value)
 }
 
+# inverse transformation of link function
+invlink <- function(link = link, x = x)
+{
+    value <- switch(link,
+                    "identity" = x,
+                    "log" = exp(x),
+                    "logit" =  1/(1 + exp(-x)))
+    return(value)
+}
 
 # Contributions to the linear predictor for different contamination functions
 
@@ -1594,14 +1648,14 @@ get_curve <- function(x, analysis) {
         limits[1, 2] <- limits[1, 1]
         limits[2, 1] <- limits[2, 2]
     }
-    contamination_par <- x[["contamination_par"]]
-
+    scale_par <- ifelse("scale_par" %in% names(x), x[["scale_par"]], analysis$options$scale_par)
     # Trap cases with extreme effect: TODO: a different criterion may be needed for continuous data
     pars <- link_tr(link,limits)
     if (sum((pars[, 1] - pars[, 2])^2) > 10000) {
         limits <- invlink(link, matrix(c(20,20, -20, -20), nrow = 2, ncol = 2))
     }
-
+    if (is.null(trial[[distance]]))
+        trial <- compute_distance(trial, distance = distance, scale_par = scale_par)$trial
     range_d <- max(trial[[distance]]) - min(trial[[distance]])
     d <- min(trial[[distance]]) + range_d * (seq(1:1001) - 1)/1000
     if (identical(limits[, 1], limits[ , 2])) {
@@ -1610,19 +1664,19 @@ get_curve <- function(x, analysis) {
     } else {
         par0 <- c(link_tr(link, limits[1, 1]),
                   link_tr(link, limits[1, 2]) - link_tr(link, limits[1, 1]),
-                  contamination_par)
+                  scale_par)
         par1 <- c(
             link_tr(link, limits[2, 1]),
             link_tr(link, limits[2, 2]) - link_tr(link, limits[2, 1]),
-            contamination_par
+            scale_par
         )
         # trap extreme cases with undefined, flat or very steep curves
         if (!identical(cfunc, "R")) {
-            if (is.null(contamination_par)) {
+            if (is.null(scale_par)) {
                 cfunc <- "X"
-            } else if (is.na(contamination_par) |
-                contamination_par < 0.01 |
-                contamination_par > 100  |
+            } else if (is.na(scale_par) |
+                scale_par < 0.01 |
+                scale_par > 100  |
                 (sum((pars[, 1] - pars[, 2])^2) > 10000)) {
                 cfunc <- "X"
             }
@@ -1716,8 +1770,8 @@ tidyContamination <- function(contamination, analysis, fittedCurve){
             contamination$contaminate_pop_pr <- NULL
             contamination$contamination_limits <- c(-1.0E-4,1.0E-4)
         } else {
-            if (is.na(analysis$pt_ests$contamination_par))
-                analysis$pt_ests$contamination_par <- contamination$contamination_par
+            if (is.na(analysis$pt_ests$scale_par))
+                analysis$pt_ests$scale_par <- contamination$scale_par
             if (is.na(analysis$pt_ests$contamination_interval))
                 analysis$pt_ests$contamination_interval <-
                     contamination$contamination_interval
@@ -1783,4 +1837,16 @@ getDistanceText <- function(distance = "nearestDiscord", scale_par = NULL) {
                     "sdep" = "Simplicial depth ",
                     distance)
     return(value)
+}
+
+compute_pvar <- function(trial, distance, scale_par, FUN) {
+    if (distance %in% c('disc','kern')) {
+        trial <- compute_distance(trial,
+                                  distance = distance, scale_par = scale_par)$trial
+        x <- trial[[distance]]
+    } else {
+        x <- trial[[distance]]/scale_par
+    }
+    pvar <- eval(parse(text = FUN))
+    return(pvar)
 }

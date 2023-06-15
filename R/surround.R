@@ -37,7 +37,9 @@
 #' [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073). For a location in the intervention arm, the
 #' depth is computed with respect to all other locations in the intervention arm. For a location in the control arm
 #' the depth is computed relative to all intervention locations
-#' ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)).\cr
+#' ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)). The values of the
+#' both the simplicial depth and Tukey's half space depth are  divided by their maxima to give
+#' variables on a scale of 0 - 1.\cr
 #' @export
 #' @examples
 #' #Calculate the disc with a radius of 0.5 km
