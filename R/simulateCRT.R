@@ -245,16 +245,15 @@ get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
   trial[[numerator]] <- NULL
 
   # Smooth the propensity.  the s.d. in each dimension of the 2 d gaussian is bw/sqrt(2)
-  # smoothedBaseline is the amount received by the each cluster from the contributions (propensity) of each
-  #  noisyPropensity <- trial$propensity + stats::rlnorm(nrow(trial), meanlog = 0.1, sdlog = 0.2)
   smoothedPropensity <- gauss(bw, euclid) %*% trial$propensity
 
   # adjustedpropensity is the value of propensity decremented by the effect of intervention and smoothed
-  # by applying the error function contamination function (trap the case with no contamination)
+  # by applying a further kernel smoothing step (trap the case with no contamination)
   if (sd < 0.001) sd <- 0.001
-  adjustedPropensity <-  smoothedPropensity  * (1 - effect * stats::pnorm(trial$nearestDiscord/sd))
+  decrementedPropensity <- smoothedPropensity * (1 - effect * (trial$arm == "intervention"))
+  adjustedPropensity <- gauss(sd*sqrt(2), euclid) %*% decrementedPropensity
 
-  # compute the total positives expected given the input effect size
+    # compute the total positives expected given the input effect size
   npositives <- round(outcome0 * sum(trial[[denominator]]) * (1 - 0.5 * effect))
 
   if (!(denominator %in% colnames(trial))) trial[[denominator]] <- 1

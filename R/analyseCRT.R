@@ -104,7 +104,9 @@ CRTanalysis <- function(
     cluster <- linearity <- penalty <- distance_type <- NULL
     resamples <- 1000
     penalty <- 0
-    log_sp_prior <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)))
+    # The prior for the scale parameter should allow this to range from smaller than
+    # any plausible contamination zone, to larger than the study area
+    log_sp_prior <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)) + 2)
 
     # Test of validity of inputs
     if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4"))
@@ -750,9 +752,9 @@ MCMCanalysis <- function(analysis){
 
     # JAGS parameters
     nchains <- 4
-    iter.increment <- 500
+    iter.increment <- 2000
     max.iter <- 50000
-    n.burnin <- 500
+    n.burnin <- 1000
 
     datajags <- list(N = nrow(trial))
     if (identical(linearity,"Estimated scale parameter: ")) {
@@ -1447,6 +1449,7 @@ extractEstimates <- function(analysis, sample) {
     method <- analysis$options$method
     distance <- analysis$options$distance
     CLnames <- analysis$options$CLnames
+    scale_par <- analysis$options$scale_par
     sample$controlY <- invlink(link, sample$int)
     # personal_protection is the proportion of effect attributed to personal protection
     if ("arm" %in% names(sample) & "pvar" %in% names(sample)) {
@@ -1469,13 +1472,13 @@ extractEstimates <- function(analysis, sample) {
     if ("interventionY" %in% names(sample)) {
         sample$effect_size <- 1 - sample$interventionY/sample$controlY
     }
-    if (analysis$options$cfunc %in% c("L", "P", "S", "R")) {
-            if (identical(analysis$options$cfunc, "R")
-                & is.null(sample$scale_par)) sample$scale_par <- 1
-            contamination_list <- apply(sample, MARGIN = 1, FUN = get_contamination,
-                                        analysis = analysis)
-            contamination_df <- as.data.frame(do.call(rbind, lapply(contamination_list, as.data.frame)))
-            sample <- cbind(sample, contamination_df)
+    if (!(analysis$options$cfunc %in% c("X", "Z"))) {
+        if (is.null(sample$scale_par)) sample$scale_par <- scale_par
+        if (is.null(sample$scale_par)) sample$scale_par <- 1
+        contamination_list <- apply(sample, MARGIN = 1, FUN = get_contamination,
+                                    analysis = analysis)
+        contamination_df <- as.data.frame(do.call(rbind, lapply(contamination_list, as.data.frame)))
+        sample <- cbind(sample, contamination_df)
     }
     bounds <- (apply(
         sample, 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
