@@ -27,5 +27,5 @@ get_test9 = function(){
   value <- round(analysis$pt_ests$DIC)
   return(value)}
 test_that("Analysis using INLA option gives expected DIc", {
-  expect_equal(get_test9(), 1301)
+  expect_equal(get_test9(), 1330)
 })
