@@ -28,10 +28,9 @@ Information about the underlying spatial pattern of disease is used in the form 
 |:-------------------|:--------------------------|
 |`propensity` supplied by user|Baseline data are created by sampling around `propensity`|
 |Baseline data are supplied by user and `propensity` is not supplied |`propensity` is created from the baseline data|
-|Neither baseline data nor `propensity` are supplied |`propensity` is generated as a normal kernel, with the bandwidth adjusted to achieve the input value of the `ICC_inp` (after the further smoothing stage to simulate contamination)|
+|Neither baseline data nor `propensity` are supplied |`propensity` is generated as a normal kernel, with the bandwidth adjusted to achieve the input value of the `ICC_inp` (after the further smoothing stage to simulate contamination (see below))|
 
-Contamination or spillover between trial arms is modelled as a additional smoothing process applied to the `propensity` via a normal kernel. In the case of malaria this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a contamination range with the `theta_inp` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. If both are provided then it is the value of `theta_inp` that is used. The
-effect is modelled by applying an [inverse probit (error function) transformation](Usecase5.html) to the `propensity`:   $P\left( d \right) = \frac{1}{2}\left( 1\  + \ erf\left( \frac{\text{d/σ}}{\sqrt{2}} \right) \right)$, where σ is the value of `sd` and $d$ is the distance to the boundary between the arms.
+The effect of intervention is simulated as a fixed percentage reduction in the `propensity`. Contamination or spillover between trial arms is then modelled as a additional smoothing process applied to the intervention-adjusted `propensity` via a further bivariate normal kernel. In the case of mosquito borne disease this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a contamination range with the `theta_inp` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. If both are provided then it is the value of `theta_inp` that is used.
 
 #### Example with baseline data provided as proportions
 ```{r example2a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
@@ -45,7 +44,7 @@ example_randomized <- CRTsp(example_locations) %>%
   specify_clusters(h = 50, algorithm = 'NN') %>%
   randomizeCRT(matchedPair = FALSE)
 summary(example_randomized)
-plotCRT(example_randomized, map = TRUE)
+plotCRT(example_randomized, map = TRUE, legend.position = c(0.8, 0.8))
   example2a <- simulateCRT(example_randomized,
            effect = 0.8,
            outcome0 = 0.5,
@@ -58,22 +57,27 @@ library(Matrix)
 examplemesh100 <- readdata("examplemesh100.txt")
 example2aanalysis <- CRTanalysis(trial=example2a, method = 'T')
 summary(example2aanalysis)
+plotCRT(example2aanalysis)
 example2aINLA <- CRTanalysis(trial=example2a,
-                 method = 'INLA', link='logit', cfunc = 'X',
-                 clusterEffects = TRUE,
+                 method = 'INLA', link='logit', cfunc = 'Z',
+                 clusterEffects = FALSE, spatialEffects = TRUE,
                  requireMesh = TRUE, inla_mesh = examplemesh100)
-plotCRT(example2aINLA)
-plotCRT(example2aINLA, map = TRUE, fill = 'prediction', showClusterBoundaries = TRUE)
+plotCRT(example2aINLA, map = TRUE, fill = 'prediction',
+  showClusterBoundaries = TRUE, legend.position = c(0.8, 0.8))
 ```
-
 <p>
     <img src="example2a.r-1.png" > <br>
-    <em>Fig 2.1 Map of simulated outcome at cluster level</em>
+    <em>Fig 2.1 Map of allocations of clusters to arms</em>
 </p>
 
 <p>
     <img src="example2a.r-2.png" > <br>
-    <em>Fig 2.2 Variation in outcome by distance from boundary</em>
+    <em>Fig 2.2 Plot of data by distance to other arm</em>
+</p>
+
+<p>
+    <img src="example2a.r-3.png" > <br>
+    <em>Fig 2.3 Smoothed outcome from geostatistical model</em>
 </p>
 
 #### Example with infectiousness proxy surface generated externally
@@ -100,7 +104,7 @@ plotCRT(example2b, map = TRUE, fill = 'clusters', showClusterLabels = TRUE, mask
 ```
 <p>
     <img src="example2b.r-1.png" > <br>
-    <em>Fig 2.3 Map of clusters in simulated trial</em>
+    <em>Fig 2.4 Map of clusters in simulated trial</em>
 </p>
 
 #### Example with baseline generated from user-provided values of the overall initial prevalence and ICC
