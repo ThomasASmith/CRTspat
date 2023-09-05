@@ -262,7 +262,8 @@ CRTanalysis <- function(
     options <- list(method = method, link = link,
                     distance = distance, cfunc = cfunc,
                     alpha = alpha, baselineOnly = baselineOnly,
-                    fterms = fterms, ftext = ftext,
+                    fterms = fterms,
+                    ftext = ftext,
                     CLnames = CLnames,
                     log_sp_prior = log_sp_prior,
                     clusterEffects = clusterEffects,
@@ -292,7 +293,7 @@ CRTanalysis <- function(
            "INLA" = INLAanalysis(analysis, requireMesh = requireMesh, inla_mesh = inla_mesh),
            "MCMC" = MCMCanalysis(analysis)
     )
-    if (!baselineOnly){
+    if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
         fittedCurve <- get_curve(x = analysis$pt_ests, analysis = analysis)
         contamination <- get_contaminationStats(fittedCurve=fittedCurve,
                                     trial=analysis$trial, distance = distance)
@@ -310,6 +311,135 @@ CRTanalysis <- function(
     return(analysis)
 }
 
+# functions for INLA analysis
+
+#' \code{compute_mesh} create objects required for INLA analysis of an object of class \code{"CRTsp"}.
+#' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
+#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome.
+#' @param offset (see \code{inla.mesh.2d} documentation)
+#' @param max.edge  (see \code{inla.mesh.2d} documentation)
+#' @param inla.alpha parameter related to the smoothness (see \code{inla} documentation)
+#' @param maskbuffer numeric: width of buffer around points (km)
+#' @param pixel numeric: size of pixel (km)
+#' @return list
+#' \itemize{
+#' \item \code{prediction} Data frame containing the prediction points and covariate values
+#' \item \code{A} projection matrix from the observations to the mesh nodes.
+#' \item \code{Ap} projection matrix from the prediction points to the mesh nodes.
+#' \item \code{indexs} index set for the SPDE model
+#' \item \code{spde} SPDE model
+#' \item \code{pixel} pixel size (km)
+#' }
+#' @details \code{compute_mesh} carries out the computationally intensive steps required for setting-up an
+#' INLA analysis of an object of class \code{"CRTsp"}, creating the preface_validitytion mesh and the projection matrices.
+#' The mesh can be reused for different models fitted to the same
+#' geography. The computational resources required depend largely on the resolution of the prediction mesh.
+#' The prediction mesh is thinned to include only pixels centred at a distance less than
+#' \code{maskbuffer} from the nearest point.\cr
+#' A warning may be generated unless the \code{Matrix} library is loaded.
+#' @export
+#' @examples
+#' {
+#' # low resolution mesh for test dataset
+#' library(Matrix)
+#' example <- readdata('exampleCRT.txt')
+#' exampleMesh=compute_mesh(example, pixel = 0.5)
+#' }
+#' \dontrun{
+#' # 50m mesh for analyses of test dataset using \code{distance = "nearestDiscord"}.
+#' library(Matrix)
+#' example <- readdata('exampleCRT.txt')
+#' exampleMesh=compute_mesh(example, pixel = 0.05)
+#' }
+compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
+                         inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
+{
+    # extract the trial data frame from the "CRTsp" object
+    if (identical(class(trial),"CRTsp")) trial <- trial$trial
+    # create an id variable if this does not exist
+    if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
+
+    # create buffer around area of points
+    trial.coords <- base::matrix(
+        c(trial$x, trial$y),
+        ncol = 2
+    )
+
+    tr <- sf::st_as_sf(trial, coords = c("x","y"))
+    buf1 <- sf::st_buffer(tr, maskbuffer)
+    buf2 <- sf::st_union(buf1)
+    # determine pixel size
+    area <- sf::st_area(buf2)
+    buffer <- sf::as_Spatial(buf2)
+
+    # estimation mesh construction
+    # dummy call to Matrix. This miraculously allows the loading of the "dgCMatrix" in the mesh to pass the test
+    dummy <- Matrix::as.matrix(c(1,1,1,1))
+
+    mesh <- INLA::inla.mesh.2d(
+        boundary = buffer, offset = offset, cutoff = 0.05, max.edge = max.edge
+    )
+
+    # set up SPDE (Stochastic Partial Differential Equation) model
+    spde <- INLA::inla.spde2.matern(mesh = mesh, alpha = inla.alpha, constr = TRUE)
+    indexs <- INLA::inla.spde.make.index("s", spde$n.spde)
+    A <- INLA::inla.spde.make.A(mesh = mesh, loc = trial.coords)
+
+    # 8.3.6 Prediction data from https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html
+    bb <- sf::st_bbox(buffer)
+
+    # create a raster that is slightly larger than the buffered area
+    xpixels <- round((bb$xmax - bb$xmin)/pixel) + 2
+    ypixels <- round((bb$ymax - bb$ymin)/pixel) + 2
+    x <- bb$xmin + (seq(1:xpixels) - 1.5)*pixel
+    y <- bb$ymin + (seq(1:ypixels) - 1.5)*pixel
+    all.coords <- as.data.frame(expand.grid(x, y), ncol = 2)
+    colnames(all.coords) <- c("x", "y")
+    all.coords <- sf::st_as_sf(all.coords, coords = c("x", "y"))
+    pred.coords <- sf::st_filter(all.coords, sf::st_as_sf(buf2))
+    pred.coords <- t(base::matrix(
+        unlist(pred.coords),
+        nrow = 2
+    ))
+    # projection matrix for the prediction locations
+    Ap <- INLA::inla.spde.make.A(mesh = mesh, loc = pred.coords)
+
+    # Distance matrix calculations for the prediction stack Create all pairwise comparisons
+    pairs <- tidyr::crossing(
+        row = seq(1:nrow(pred.coords)),
+        col = seq(1:nrow(trial))
+    )
+    # Calculate the distances
+    calcdistP <- function(row, col) sqrt(
+        (trial$x[col] - pred.coords[row, 1])^2 + (trial$y[col] - pred.coords[row,
+                                                                             2])^2
+    )
+    distP <- apply(pairs, 1, function(y) calcdistP(y["row"], y["col"]))
+    distM <- base::matrix(
+        distP, nrow = nrow(pred.coords),
+        ncol = nrow(trial),
+        byrow = TRUE
+    )
+    nearestNeighbour <- apply(distM, 1, function(x) return(array(which.min(x))))
+    prediction <- data.frame(
+        x = pred.coords[, 1], y = pred.coords[, 2],
+        nearestNeighbour = nearestNeighbour)
+    prediction$id <- trial$id[nearestNeighbour]
+    if (!is.null(trial$arm)) prediction$arm <- trial$arm[nearestNeighbour]
+    if (!is.null(trial$cluster)) prediction$cluster <- trial$cluster[nearestNeighbour]
+    prediction <- with(prediction, prediction[order(y, x), ])
+    prediction$shortestDistance <- apply(distM, 1, min)
+    rows <- seq(1:nrow(prediction))
+    inla_mesh <- list(
+        prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde,
+        pixel = pixel)
+
+    if (nrow(prediction) > 20){
+        cat("Mesh of ", nrow(prediction), " pixels of size ", pixel," km \n")
+    }
+    return(inla_mesh)
+}
+
 EMPanalysis <- function(analysis){
     description <- analysis$description
     pt_ests <- list()
@@ -323,64 +453,101 @@ EMPanalysis <- function(analysis){
 }
 
 Tanalysis <- function(analysis) {
-    y1 <- arm <- cluster <- y_off <- NULL
+    if(!identical(analysis$options$distance,"nearestDiscord")) {
+        analysis <- Twithin_cluster_analysis(analysis)
+    } else {
+        y1 <- arm <- cluster <- y_off <- NULL
+        trial <- analysis$trial
+        link <- analysis$options$link
+        alpha <- analysis$options$alpha
+
+        clusterSum <- data.frame(
+            trial %>%
+                group_by(cluster) %>%
+                dplyr::summarize(
+                    y = sum(y1),
+                    total = sum(y_off),
+                    arm = arm[1]
+                )
+        )
+        clusterSum$lp <- switch(link,
+                                "identity" = clusterSum$y/clusterSum$total,
+                                "log" = log(clusterSum$y/clusterSum$total),
+                                "logit" = logit(clusterSum$y/clusterSum$total))
+        formula <- stats::as.formula("lp ~ arm")
+
+        # Trap any non-finite values
+
+        clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
+
+        model_object <- stats::t.test(
+            formula = formula, data = clusterSum, alternative = "two.sided",
+            conf.level = 1 - alpha, var.equal = TRUE
+        )
+        analysis$model_object <- model_object
+        analysis$pt_ests$p.value <- model_object$p.value
+        analysisC <- stats::t.test(
+            clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
+        analysis$pt_ests$controlY <- unname(invlink(link, analysisC$estimate[1]))
+        analysis$int_ests$controlY <- invlink(link, analysisC$conf.int)
+        analysisI <- stats::t.test(
+            clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
+        analysis$pt_ests$interventionY <- unname(invlink(link, analysisI$estimate[1]))
+        analysis$int_ests$interventionY <- invlink(link, analysisI$conf.int)
+
+        # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
+        Sigma <- base::matrix(
+            data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
+            nrow = 2, ncol = 2)
+        if (link == 'identity'){
+            analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
+                analysis$pt_ests$interventionY
+            analysis$int_ests$effect_size <- unlist(model_object$conf.int)
+        }
+        if (link %in% c("logit","log")){
+            analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
+                analysis$pt_ests$controlY
+            analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
+        }
+    }
+    analysis$pt_ests$t.statistic <- analysis$model_object$statistic
+    analysis$pt_ests$df <- unname(analysis$model_object$parameter)
+    analysis$pt_ests$p.value <- analysis$model_object$p.value
+    return(analysis)
+}
+
+Twithin_cluster_analysis <- function(analysis) {
+    y1 <- cluster <- y_off <- NULL
     trial <- analysis$trial
     link <- analysis$options$link
     alpha <- analysis$options$alpha
-    clusterSum <- data.frame(
-        trial %>%
-            group_by(cluster) %>%
-            dplyr::summarize(
-                y = sum(y1),
-                total = sum(y_off),
-                arm = arm[1]
-            )
-    )
-    clusterSum$lp <- switch(link,
-                            "identity" = clusterSum$y/clusterSum$total,
-                            "log" = log(clusterSum$y/clusterSum$total),
-                            "logit" = logit(clusterSum$y/clusterSum$total))
-    formula <- stats::as.formula("lp ~ arm")
-
-    # Trap any non-finite values
-
-    clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
-
-    model_object <- stats::t.test(
-        formula = formula, data = clusterSum, alternative = "two.sided",
-        conf.level = 1 - alpha, var.equal = TRUE
-    )
-    analysis$pt_ests$p.value <- model_object$p.value
-    analysisC <- stats::t.test(
-        clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
-    analysis$pt_ests$controlY <- unname(invlink(link, analysisC$estimate[1]))
-    analysis$int_ests$controlY <- invlink(link, analysisC$conf.int)
-    analysisI <- stats::t.test(
-        clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
-    analysis$pt_ests$interventionY <- unname(invlink(link, analysisI$estimate[1]))
-    analysis$int_ests$interventionY <- invlink(link, analysisI$conf.int)
-
-    # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
-    Sigma <- base::matrix(
-        data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
-        nrow = 2, ncol = 2)
+    trial$d <- trial[[analysis$options$distance]]
+    fterms <- c(switch(link,
+                       "identity" = "y1/y_off ~ 0",
+                       "log" = "y1 ~ 0 + offset(log(y_off))",
+                       "logit" = "cbind(y1,y0) ~ 0"),
+                "cluster*d - d")
+    formula <- stats::as.formula(paste(fterms, collapse = "+"))
+    glm <- glm(formula = formula, family = "binomial", data = trial)
+    pe <- matrix(glm$coefficients, ncol = 2)
+    rr <- (1 + exp(-(pe[, 1] + pe[,2])))/(1 + exp(-pe[, 1]))
+    model_object <- t.test(log(rr[!is.infinite(log(rr))]), mu = 0, conf.level = 1 - alpha)
+    analysis$pt_ests$controlY <- NULL
     if (link == 'identity'){
         analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
             analysis$pt_ests$interventionY
         analysis$int_ests$effect_size <- unlist(model_object$conf.int)
     }
     if (link %in% c("logit","log")){
-        analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
-            analysis$pt_ests$controlY
+        analysis$pt_ests$effect_size <- 1 - exp(model_object$estimate)
         analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
     }
-    analysis$pt_ests$t.statistic <- model_object$statistic
-    analysis$pt_ests$df <- unname(model_object$parameter)
-    analysis$pt_ests$p.value <- model_object$p.value
-    # tidy up and consolidate the list of analysis
-    analysis$model_object <- model_object
+    analysis$pt_ests$t.statistic <- analysis$model_object$statistic
+    analysis$pt_ests$df <- unname(analysis$model_object$parameter)
+    analysis$pt_ests$p.value <- analysis$model_object$p.value
     return(analysis)
 }
+
 
 GEEanalysis <- function(analysis, resamples){
     trial <- analysis$trial
@@ -468,7 +635,6 @@ GEEanalysis <- function(analysis, resamples){
     analysis$int_ests <- int_ests
     return(analysis)
 }
-
 
 LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     trial <- analysis$trial
@@ -733,8 +899,6 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     }
 return(analysis)}
 
-
-# MCMC Methods
 MCMCanalysis <- function(analysis){
     trial <- analysis$trial
     link <- analysis$options$link
@@ -1035,134 +1199,6 @@ estimateCLeffect_size <- function(q50, Sigma, alpha, resamples, method, link)
     return(CL)
 }
 
-# functions for INLA analysis
-
-#' \code{compute_mesh} create objects required for INLA analysis of an object of class \code{"CRTsp"}.
-#' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
-#'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome.
-#' @param offset (see \code{inla.mesh.2d} documentation)
-#' @param max.edge  (see \code{inla.mesh.2d} documentation)
-#' @param inla.alpha parameter related to the smoothness (see \code{inla} documentation)
-#' @param maskbuffer numeric: width of buffer around points (km)
-#' @param pixel numeric: size of pixel (km)
-#' @return list
-#' \itemize{
-#' \item \code{prediction} Data frame containing the prediction points and covariate values
-#' \item \code{A} projection matrix from the observations to the mesh nodes.
-#' \item \code{Ap} projection matrix from the prediction points to the mesh nodes.
-#' \item \code{indexs} index set for the SPDE model
-#' \item \code{spde} SPDE model
-#' \item \code{pixel} pixel size (km)
-#' }
-#' @details \code{compute_mesh} carries out the computationally intensive steps required for setting-up an
-#' INLA analysis of an object of class \code{"CRTsp"}, creating the preface_validitytion mesh and the projection matrices.
-#' The mesh can be reused for different models fitted to the same
-#' geography. The computational resources required depend largely on the resolution of the prediction mesh.
-#' The prediction mesh is thinned to include only pixels centred at a distance less than
-#' \code{maskbuffer} from the nearest point.\cr
-#' A warning may be generated unless the \code{Matrix} library is loaded.
-#' @export
-#' @examples
-#' {
-#' # low resolution mesh for test dataset
-#' library(Matrix)
-#' example <- readdata('exampleCRT.txt')
-#' exampleMesh=compute_mesh(example, pixel = 0.5)
-#' }
-#' \dontrun{
-#' # 50m mesh for analyses of test dataset using \code{distance = "nearestDiscord"}.
-#' library(Matrix)
-#' example <- readdata('exampleCRT.txt')
-#' exampleMesh=compute_mesh(example, pixel = 0.05)
-#' }
-compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
-                     inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
-    {
-    # extract the trial data frame from the "CRTsp" object
-    if (identical(class(trial),"CRTsp")) trial <- trial$trial
-    # create an id variable if this does not exist
-    if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
-
-    # create buffer around area of points
-    trial.coords <- base::matrix(
-        c(trial$x, trial$y),
-        ncol = 2
-    )
-
-    tr <- sf::st_as_sf(trial, coords = c("x","y"))
-    buf1 <- sf::st_buffer(tr, maskbuffer)
-    buf2 <- sf::st_union(buf1)
-    # determine pixel size
-    area <- sf::st_area(buf2)
-    buffer <- sf::as_Spatial(buf2)
-
-    # estimation mesh construction
-    # dummy call to Matrix. This miraculously allows the loading of the "dgCMatrix" in the mesh to pass the test
-    dummy <- Matrix::as.matrix(c(1,1,1,1))
-
-    mesh <- INLA::inla.mesh.2d(
-        boundary = buffer, offset = offset, cutoff = 0.05, max.edge = max.edge
-    )
-
-    # set up SPDE (Stochastic Partial Differential Equation) model
-    spde <- INLA::inla.spde2.matern(mesh = mesh, alpha = inla.alpha, constr = TRUE)
-    indexs <- INLA::inla.spde.make.index("s", spde$n.spde)
-    A <- INLA::inla.spde.make.A(mesh = mesh, loc = trial.coords)
-
-    # 8.3.6 Prediction data from https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html
-    bb <- sf::st_bbox(buffer)
-
-    # create a raster that is slightly larger than the buffered area
-    xpixels <- round((bb$xmax - bb$xmin)/pixel) + 2
-    ypixels <- round((bb$ymax - bb$ymin)/pixel) + 2
-    x <- bb$xmin + (seq(1:xpixels) - 1.5)*pixel
-    y <- bb$ymin + (seq(1:ypixels) - 1.5)*pixel
-    all.coords <- as.data.frame(expand.grid(x, y), ncol = 2)
-    colnames(all.coords) <- c("x", "y")
-    all.coords <- sf::st_as_sf(all.coords, coords = c("x", "y"))
-    pred.coords <- sf::st_filter(all.coords, sf::st_as_sf(buf2))
-    pred.coords <- t(base::matrix(
-        unlist(pred.coords),
-        nrow = 2
-    ))
-    # projection matrix for the prediction locations
-    Ap <- INLA::inla.spde.make.A(mesh = mesh, loc = pred.coords)
-
-    # Distance matrix calculations for the prediction stack Create all pairwise comparisons
-    pairs <- tidyr::crossing(
-        row = seq(1:nrow(pred.coords)),
-        col = seq(1:nrow(trial))
-    )
-    # Calculate the distances
-    calcdistP <- function(row, col) sqrt(
-        (trial$x[col] - pred.coords[row, 1])^2 + (trial$y[col] - pred.coords[row,
-            2])^2
-    )
-    distP <- apply(pairs, 1, function(y) calcdistP(y["row"], y["col"]))
-    distM <- base::matrix(
-        distP, nrow = nrow(pred.coords),
-        ncol = nrow(trial),
-        byrow = TRUE
-    )
-    nearestNeighbour <- apply(distM, 1, function(x) return(array(which.min(x))))
-    prediction <- data.frame(
-        x = pred.coords[, 1], y = pred.coords[, 2],
-        nearestNeighbour = nearestNeighbour)
-    prediction$id <- trial$id[nearestNeighbour]
-    if (!is.null(trial$arm)) prediction$arm <- trial$arm[nearestNeighbour]
-    if (!is.null(trial$cluster)) prediction$cluster <- trial$cluster[nearestNeighbour]
-    prediction <- with(prediction, prediction[order(y, x), ])
-    prediction$shortestDistance <- apply(distM, 1, min)
-    rows <- seq(1:nrow(prediction))
-    inla_mesh <- list(
-        prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde,
-                            pixel = pixel)
-
-    if (nrow(prediction) > 20){
-        cat("Mesh of ", nrow(prediction), " pixels of size ", pixel," km \n")
-    }
-    return(inla_mesh)
-}
 
 # Calculate the distance or surround for an arbitrary location
 calculate_singlevalue <- function(i, trial , prediction , distM, distance, scale_par){

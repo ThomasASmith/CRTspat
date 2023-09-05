@@ -62,6 +62,8 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
     depthlist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial)
     depth_df <- as.data.frame(do.call(rbind, lapply(depthlist, as.data.frame)))
     trial <- cbind(trial,depth_df)
+    CRT$design$max_unadjusted_hdep <- max(trial$hdep)
+    CRT$design$max_unadjusted_sdep <- max(trial$sdep)
     trial$hdep <- trial$hdep/max(trial$hdep)
     trial$sdep <- trial$sdep/max(trial$sdep)
     trial$numh <- NULL
@@ -81,6 +83,7 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
           }
           intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= scale_par))
           trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
+          CRT$design$max_unadjusted_disc <- max(trial$disc)
           trial$disc <- trial$disc/max(trial$disc)
           CRT$design$scale_par <- scale_par
       }
@@ -91,6 +94,7 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
           kern <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) *
                 matrix(data = (trial$arm == 'intervention'),
                        nrow = nrow(trial), ncol = nrow(trial)))
+          CRT$design$max_unadjusted_kern <- max(kern)
           trial$kern <- kern/max(kern)
           CRT$design$scale_par <- scale_par
       }

@@ -86,17 +86,16 @@ set.seed(1234)
 # Simulate a site with 2000 locations
 new_site <- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40)
 # propensity surface generated as an arbitrary linear function of x the co-ordinate
-new_site$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
+new_site$trial$propensity <- 0.5*new_site$trial$x - min(new_site$trial$x)+1
 library(dplyr)
 example2b<- CRTsp(new_site) %>%
    specify_clusters(h = 40, algorithm = 'NN') %>%
    randomizeCRT(matchedPair = FALSE) %>%
-   simulateCRT(example_simulated,
-                          effect = 0.8,
-                          outcome0 = 0.5,
-                          generateBaseline = TRUE,
-                          ICC_inp = 0.05,
-                          theta_inp = 0.5)
+   simulateCRT(effect = 0.8,
+               outcome0 = 0.5,
+               generateBaseline = TRUE,
+               ICC_inp = 0.05,
+               theta_inp = 0.5)
 summary(example2b)
 results2b <- CRTanalysis(example2b, method = 'GEE')
 summary(results2b)
@@ -114,8 +113,7 @@ set.seed(1234)
 example2c<- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40) %>%
    specify_clusters(h = 40, algorithm = 'NN') %>%
    randomizeCRT(matchedPair = FALSE) %>%
-   simulateCRT(new_site,
-       effect = 0.8,
+   simulateCRT(effect = 0.8,
        outcome0 = 0.5,
        generateBaseline = TRUE,
        baselineNumerator = 'base_num',
