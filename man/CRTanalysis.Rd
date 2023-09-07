@@ -37,6 +37,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"LME4"} \tab Generalized Linear Mixed-Effects Models \cr
 \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
 \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
+\code{"WCA"}\tab Within cluster analysis \cr
 }}
 
 \item{distance}{Measure of distance or surround with options: \cr

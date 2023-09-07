@@ -207,6 +207,8 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     cat("Estimating the smoothing required to achieve the target ICC of", ICC_inp, "\n")
 
     # determine the required smoothing bandwidth by fitting to the pre-specified ICC
+    # random multiplier is used to prevent the random number stream being reset to the same value for any given bw value
+    random_multiplier <- sample(1e6, size = 1)
     loss <- 999
     nb_iter <- 20
     if (identical(Sys.getenv("TESTTHAT"), "true")) nb_iter <- 5
@@ -214,7 +216,8 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     while (loss > tol) {
         ICC.loss <- OOR::StoSOO(par = c(NA), fn = ICCdeviation, lower = -5, upper = 5, nb_iter = nb_iter,
                                 trial = trial, ICC_inp = ICC_inp, approx_diag = approx_diag, sd = sd,
-                                scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0)
+                                scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0,
+                                random_multiplier = random_multiplier)
         loss <- ICC.loss$value
     }
     logbw <- ICC.loss$par
@@ -223,7 +226,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
 
     # recover the seed that generated the best fitting trial and use this to regenerate this trial
     bw <- exp(logbw[1])
-    set.seed(round(bw * 1e+06))
+    set.seed(round(bw * random_multiplier))
 
     trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
                     outcome0 = outcome0, bw = bw, numerator = "num", denominator = "denom")
@@ -305,12 +308,12 @@ return(trial)
 }
 
 # deviation of ICC from target as a function of bandwidth
-ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, effect, outcome0) {
+ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, effect, outcome0, random_multiplier) {
     cluster <- NULL
     # set the seed so that a reproducible result is obtained for a specific bandwidth
     if (!is.null(logbw)) {
         bw <- exp(logbw[1])
-        set.seed(round(bw * 1e+06))
+        set.seed(round(bw * random_multiplier))
     }
 
     trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,

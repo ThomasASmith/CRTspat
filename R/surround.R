@@ -62,8 +62,8 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
     depthlist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial)
     depth_df <- as.data.frame(do.call(rbind, lapply(depthlist, as.data.frame)))
     trial <- cbind(trial,depth_df)
-    CRT$design$max_unadjusted_hdep <- max(trial$hdep)
-    CRT$design$max_unadjusted_sdep <- max(trial$sdep)
+    CRT$design$hdep <- distance_stats(trial, distance = "hdep")
+    CRT$design$sdep <- distance_stats(trial, distance = "sdep")
     trial$hdep <- trial$hdep/max(trial$hdep)
     trial$sdep <- trial$sdep/max(trial$sdep)
     trial$numh <- NULL
@@ -76,6 +76,7 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
           discord_dist_trial <- ifelse(discord, dist_trial, Inf)
           trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
                      MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
+          CRT$design$nearestDiscord <- distance_stats(trial, distance = "nearestDiscord")
       }
       if (require_disc){
           if (is.null(scale_par)) {
@@ -83,20 +84,20 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
           }
           intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= scale_par))
           trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
-          CRT$design$max_unadjusted_disc <- max(trial$disc)
+          CRT$design$disc <- distance_stats(trial, distance = "disc")
           trial$disc <- trial$disc/max(trial$disc)
-          CRT$design$scale_par <- scale_par
+          CRT$design$disc$scale_par <- scale_par
       }
       if (require_kern){
           if (is.null(scale_par)) {
             stop("*** s.d. (scale_par) must be specified for computation of kern ***")
           }
-          kern <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) *
+          trial$kern <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) *
                 matrix(data = (trial$arm == 'intervention'),
                        nrow = nrow(trial), ncol = nrow(trial)))
-          CRT$design$max_unadjusted_kern <- max(kern)
-          trial$kern <- kern/max(kern)
-          CRT$design$scale_par <- scale_par
+          CRT$design$kern <- distance_stats(trial, distance = "kern")
+          trial$kern <- trial$kern/max(trial$kern)
+          CRT$design$kern$scale_par <- scale_par
       }
   }
   CRT$trial <- trial
@@ -260,5 +261,18 @@ k <- function(m, j) {
       k <- (m * (m - 1) * (m - 2))/6
   }
   return(k)
+}
+
+# This could be incorporated into calculate_distance
+distance_stats <- function(trial, distance){
+  trial$distance <- trial[[distance]]
+  formula <- stats::as.formula("distance ~ cluster")
+  aov <- summary(aov(data = trial, formula = formula))
+  within_cluster_sd <- sqrt(aov[[1]]$`Mean Sq`[2])
+  rSq <- aov[[1]]$`Sum Sq`[1]/(aov[[1]]$`Sum Sq`[1] + aov[[1]]$`Sum Sq`[2])
+  distance_stats <- c(as.list(summary(trial[[distance]])),
+                      list(sd = sd(trial[[distance]]),
+                           within_cluster_sd = within_cluster_sd, rSq = rSq))
+  return(distance_stats)
 }
 

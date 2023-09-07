@@ -11,6 +11,7 @@
 #' \code{"LME4"} \tab Generalized Linear Mixed-Effects Models \cr
 #' \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
 #' \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
+#' \code{"WCA"}\tab Within cluster analysis \cr
 #' }
 #' @param distance Measure of distance or surround with options: \cr
 #' \tabular{ll}{
@@ -109,7 +110,7 @@ CRTanalysis <- function(
     log_sp_prior <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)) + 2)
 
     # Test of validity of inputs
-    if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4"))
+    if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4", "WCA"))
     {
         stop("*** Invalid value for statistical method ***")
         return(NULL)
@@ -201,7 +202,7 @@ CRTanalysis <- function(
 
     if (baselineOnly){
         # Baseline analyses are available only for GEE and INLA
-        if (method %in% c("EMP", "T", "GEE", "MCMC", "LME4"))
+        if (method %in% c("EMP", "T", "GEE", "MCMC", "LME4", "WCA"))
             {
             method <- "GEE"
             cat("Analysis of baseline only, using GEE\n")
@@ -291,7 +292,8 @@ CRTanalysis <- function(
            "GEE" = GEEanalysis(analysis = analysis, resamples=resamples),
            "LME4" = LME4analysis(analysis),
            "INLA" = INLAanalysis(analysis, requireMesh = requireMesh, inla_mesh = inla_mesh),
-           "MCMC" = MCMCanalysis(analysis)
+           "MCMC" = MCMCanalysis(analysis),
+           "WCA" = wc_analysis(analysis, design = CRT$design)
     )
     if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
         fittedCurve <- get_curve(x = analysis$pt_ests, analysis = analysis)
@@ -453,62 +455,58 @@ EMPanalysis <- function(analysis){
 }
 
 Tanalysis <- function(analysis) {
-    if(!identical(analysis$options$distance,"nearestDiscord")) {
-        analysis <- Twithin_cluster_analysis(analysis)
-    } else {
-        y1 <- arm <- cluster <- y_off <- NULL
-        trial <- analysis$trial
-        link <- analysis$options$link
-        alpha <- analysis$options$alpha
+    y1 <- arm <- cluster <- y_off <- NULL
+    trial <- analysis$trial
+    link <- analysis$options$link
+    alpha <- analysis$options$alpha
 
-        clusterSum <- data.frame(
-            trial %>%
-                group_by(cluster) %>%
-                dplyr::summarize(
-                    y = sum(y1),
-                    total = sum(y_off),
-                    arm = arm[1]
-                )
-        )
-        clusterSum$lp <- switch(link,
-                                "identity" = clusterSum$y/clusterSum$total,
-                                "log" = log(clusterSum$y/clusterSum$total),
-                                "logit" = logit(clusterSum$y/clusterSum$total))
-        formula <- stats::as.formula("lp ~ arm")
+    clusterSum <- data.frame(
+        trial %>%
+            group_by(cluster) %>%
+            dplyr::summarize(
+                y = sum(y1),
+                total = sum(y_off),
+                arm = arm[1]
+            )
+    )
+    clusterSum$lp <- switch(link,
+                            "identity" = clusterSum$y/clusterSum$total,
+                            "log" = log(clusterSum$y/clusterSum$total),
+                            "logit" = logit(clusterSum$y/clusterSum$total))
+    formula <- stats::as.formula("lp ~ arm")
 
-        # Trap any non-finite values
+    # Trap any non-finite values
 
-        clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
+    clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
 
-        model_object <- stats::t.test(
-            formula = formula, data = clusterSum, alternative = "two.sided",
-            conf.level = 1 - alpha, var.equal = TRUE
-        )
-        analysis$model_object <- model_object
-        analysis$pt_ests$p.value <- model_object$p.value
-        analysisC <- stats::t.test(
-            clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
-        analysis$pt_ests$controlY <- unname(invlink(link, analysisC$estimate[1]))
-        analysis$int_ests$controlY <- invlink(link, analysisC$conf.int)
-        analysisI <- stats::t.test(
-            clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
-        analysis$pt_ests$interventionY <- unname(invlink(link, analysisI$estimate[1]))
-        analysis$int_ests$interventionY <- invlink(link, analysisI$conf.int)
+    model_object <- stats::t.test(
+        formula = formula, data = clusterSum, alternative = "two.sided",
+        conf.level = 1 - alpha, var.equal = TRUE
+    )
+    analysis$model_object <- model_object
+    analysis$pt_ests$p.value <- model_object$p.value
+    analysisC <- stats::t.test(
+        clusterSum$lp[clusterSum$arm == "control"], conf.level = 1 - alpha)
+    analysis$pt_ests$controlY <- unname(invlink(link, analysisC$estimate[1]))
+    analysis$int_ests$controlY <- invlink(link, analysisC$conf.int)
+    analysisI <- stats::t.test(
+        clusterSum$lp[clusterSum$arm == "intervention"], conf.level = 1 - alpha)
+    analysis$pt_ests$interventionY <- unname(invlink(link, analysisI$estimate[1]))
+    analysis$int_ests$interventionY <- invlink(link, analysisI$conf.int)
 
-        # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
-        Sigma <- base::matrix(
-            data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
-            nrow = 2, ncol = 2)
-        if (link == 'identity'){
-            analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
-                analysis$pt_ests$interventionY
-            analysis$int_ests$effect_size <- unlist(model_object$conf.int)
-        }
-        if (link %in% c("logit","log")){
-            analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
-                analysis$pt_ests$controlY
-            analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
-        }
+    # Covariance matrix (note that two arms are independent so the off-diagonal elements are zero)
+    Sigma <- base::matrix(
+        data = c(analysisC$stderr^2, 0, 0, analysisI$stderr^2),
+        nrow = 2, ncol = 2)
+    if (link == 'identity'){
+        analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
+            analysis$pt_ests$interventionY
+        analysis$int_ests$effect_size <- unlist(model_object$conf.int)
+    }
+    if (link %in% c("logit","log")){
+        analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
+            analysis$pt_ests$controlY
+        analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
     }
     analysis$pt_ests$t.statistic <- analysis$model_object$statistic
     analysis$pt_ests$df <- unname(analysis$model_object$parameter)
@@ -516,36 +514,70 @@ Tanalysis <- function(analysis) {
     return(analysis)
 }
 
-Twithin_cluster_analysis <- function(analysis) {
-    y1 <- cluster <- y_off <- NULL
+wc_analysis <- function(analysis, design) {
+    analysis$pt_ests <- analysis$int_ests <- y1 <- cluster <- y_off <- NULL
     trial <- analysis$trial
     link <- analysis$options$link
     alpha <- analysis$options$alpha
-    trial$d <- trial[[analysis$options$distance]]
-    fterms <- c(switch(link,
-                       "identity" = "y1/y_off ~ 0",
-                       "log" = "y1 ~ 0 + offset(log(y_off))",
-                       "logit" = "cbind(y1,y0) ~ 0"),
-                "cluster*d - d")
+    distance = analysis$options$distance
+    trial$d <- trial[[distance]]
+    nclusters <- nlevels(trial$cluster)
+    analysis$options <- list(
+         method = "WCA",
+         link = link,
+         distance = distance,
+         alpha = alpha,
+         scale_par = design[[distance]][["scale_par"]]
+    )
+    analysis[[distance]] <- design[[distance]]
+    analysis$nearestDiscord <- design$nearestDiscord
+    fterms <- switch(link,
+                       "identity" = "y1/y_off ~ 1 + d",
+                       "log" = "y1 ~ 1 + d + offset(log(y_off))",
+                       "logit" = "cbind(y1,y0) ~ 1 + d")
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
-    glm <- glm(formula = formula, family = "binomial", data = trial)
-    pe <- matrix(glm$coefficients, ncol = 2)
-    rr <- (1 + exp(-(pe[, 1] + pe[,2])))/(1 + exp(-pe[, 1]))
-    model_object <- t.test(log(rr[!is.infinite(log(rr))]), mu = 0, conf.level = 1 - alpha)
-    analysis$pt_ests$controlY <- NULL
-    if (link == 'identity'){
-        analysis$pt_ests$effect_size <- analysis$pt_ests$controlY -
-            analysis$pt_ests$interventionY
-        analysis$int_ests$effect_size <- unlist(model_object$conf.int)
+    pe <- matrix(nrow = 0, ncol = 2)
+    for (cluster in levels(trial$cluster)){
+        glm <- tryCatch(glm(formula = formula, family = "binomial", data = trial[trial$cluster == cluster,])
+            , warning = function(w){ NULL})
+        if (!is.null(glm)) {
+            pe <- rbind(pe, matrix(glm$coefficients, ncol = 2))
+        }
     }
-    if (link %in% c("logit","log")){
-        analysis$pt_ests$effect_size <- 1 - exp(model_object$estimate)
-        analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
-    }
-    analysis$pt_ests$t.statistic <- analysis$model_object$statistic
-    analysis$pt_ests$df <- unname(analysis$model_object$parameter)
-    analysis$pt_ests$p.value <- analysis$model_object$p.value
+    rr <- invlink(link = link, x = pe[ , 1] + pe[, 2])/invlink(link = link, x = pe[ , 1])
+    exact = ifelse(length(unique(rr[!is.infinite(rr)])) == length(rr[!is.infinite(rr)]) , TRUE, FALSE)
+    model_object <- stats::wilcox.test(rr, mu = 1,
+                                alternative = "less", exact = exact, conf.int = TRUE, conf.level = 1 - alpha)
+    model_object$conf.int[1] <- ifelse(model_object$conf.int[1] > 0, model_object$conf.int[1], 0)
+    analysis$pt_ests$effect_size <- 1 - model_object$estimate
+    analysis$int_ests$effect_size <- 1 - rev(unname(model_object$conf.int))
+    analysis$pt_ests$test.statistic <- unname(model_object$statistic)
+    analysis$pt_ests$p.value <- model_object$p.value
+    analysis$model_object <- model_object
     return(analysis)
+}
+
+wc_summary <- function(analysis){
+    defaultdigits <- getOption("digits")
+    options(digits = 3)
+    distance <- analysis$options$distance
+    cat('\nDistance and surround statistics\n')
+    cat('Measure            Minimum    Median    Maximum    S.D.   Within-cluster S.D.   R-squared\n')
+    cat('-------            -------    ------    -------    ----   -------------------   ---------\n')
+    with(analysis$nearestDiscord,cat("Signed distance",
+                                     format(Min., scientific=F), Median,
+                                     format(Max., scientific=F), sd, "   ",
+                                     within_cluster_sd, rSq, "\n", sep = "      "))
+    with(analysis[[distance]],
+         cat(distance, strrep(" ",8-nchar(distance)), Min., Median, Max., sd, "   ", within_cluster_sd, rSq, "\n", sep = "      "))
+    cat("\nClusters assigned    : ", analysis$description$nclusters, "\n")
+    cat("Clusters analysed    : ", analysis$description$nclusters, "\n")
+    cat("Wilcoxon statistic   : ", analysis$pt_ests$statistic, "\n")
+    cat("P-value (1-sided)    : ", analysis$pt_ests$p.value, "\n")
+    cat(
+        "Effect size estimate : ", analysis$pt_ests$effect_size,
+         paste0(" (", 100 * (1 - analysis$options$alpha), "% CL: "), unlist(analysis$int_ests$effect_size),")\n"
+    )
 }
 
 
@@ -1376,106 +1408,111 @@ summary.CRTanalysis <- function(object, ...) {
     defaultdigits <- getOption("digits")
     options(digits = 3)
     scale_par <- object$options$scale_par
-    cat("=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
+    cat("\n=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
     cat(
         "Analysis method: ", object$options$method, "\nLink function: ", object$options$link, "\n")
     if(!identical(object$options$distance_type,"No fixed effects of distance ")){
         cat(paste0("Measure of distance or surround: ", getDistanceText(distance = object$options$distance,
                  scale_par = scale_par),"\n"))
-        cat(object$options$linearity)
-        if (!is.null(scale_par)) cat(paste0(round(scale_par, digits = 3),"\n"))
+        if (!is.null(object$options$linearity)){
+            cat(object$options$linearity)
+            if (!is.null(scale_par)) cat(paste0(round(scale_par, digits = 3),"\n"))
+        }
     }
-    if (!is.null(object$options$ftext))
-        cat("Model formula: ", object$options$ftext, "\n")
-    cat(switch(object$options$cfunc,
-               Z = "No comparison of arms \n",
-               X = "No modelling of contamination \n",
-               S = "Piecewise linear function for contamination\n",
-               P = "Error function model for contamination\n",
-               L = "Sigmoid (logistic) function for contamination\n",
-               R = "Rescaled linear function for contamination\n"))
-    CLtext <- paste0(" (", 100 * (1 - object$options$alpha), "% CL: ")
-    cat(
-        "Estimates:       Control: ", object$pt_ests$controlY,
-        CLtext, unlist(object$int_ests$controlY),
-        ")\n"
-    )
-    if (!is.null(object$pt_ests$effect_size))
-    {
-        if (!is.null(object$pt_ests$interventionY))
+    if (identical(object$options$method,"WCA")) {
+        wc_summary(object)
+    } else {
+        if (!is.null(object$options$ftext))
+            cat("Model formula: ", object$options$ftext, "\n")
+        cat(switch(object$options$cfunc,
+                   Z = "No comparison of arms \n",
+                   X = "No modelling of contamination \n",
+                   S = "Piecewise linear function for contamination\n",
+                   P = "Error function model for contamination\n",
+                   L = "Sigmoid (logistic) function for contamination\n",
+                   R = "Rescaled linear function for contamination\n"))
+        CLtext <- paste0(" (", 100 * (1 - object$options$alpha), "% CL: ")
+        cat(
+            "Estimates:       Control: ", object$pt_ests$controlY,
+            CLtext, unlist(object$int_ests$controlY),
+            ")\n"
+        )
+        if (!is.null(object$pt_ests$effect_size))
         {
-            cat(
-                "            Intervention: ", object$pt_ests$interventionY,
-                CLtext, unlist(object$int_ests$interventionY),
-                ")\n"
-            )
-            effect.distance <- ifelse(object$options$link == 'identity', "Effect size: ","    Efficacy: ")
-            cat("           ",
-                effect.distance, object$pt_ests$effect_size, CLtext, unlist(object$int_ests$effect_size),
-                ")\n"
-            )
-        }
-        if (!is.na(object$pt_ests$personal_protection))
-        {
-            cat(
-                "Personal protection %   : ",
-                object$pt_ests$personal_protection*100,
-                CLtext, unlist(object$int_ests$personal_protection*100),
+            if (!is.null(object$pt_ests$interventionY))
+            {
+                cat(
+                    "            Intervention: ", object$pt_ests$interventionY,
+                    CLtext, unlist(object$int_ests$interventionY),
                     ")\n"
-            )
-            if (object$pt_ests$personal_protection < 0 | object$pt_ests$personal_protection >  1){
-                cat(
-                    "** Warning: different signs for main effect and personal protection effect:
-            face validity check fails **\n")
-            }
-        }
-        if (!identical(object$options$distance_type, "No fixed effects of distance ")){
-            if (!is.null(object$pt_ests$contamination_interval)){
-                cat(
-                    "Contamination range(km): ", object$pt_ests$contamination_interval,
-                    CLtext, unlist(object$int_ests$contamination_interval),
+                )
+                effect.distance <- ifelse(object$options$link == 'identity', "Effect size: ","    Efficacy: ")
+                cat("           ",
+                    effect.distance, object$pt_ests$effect_size, CLtext, unlist(object$int_ests$effect_size),
                     ")\n"
                 )
             }
-            if (!is.null(object$contamination$contaminate_pop_pr)){
+            if (!is.na(object$pt_ests$personal_protection))
+            {
                 cat(
-                    "% locations contaminated:",
-                    object$contamination$contaminate_pop_pr*100,
-                    CLtext, unlist(object$int_ests$contaminate_pop_pr)*100,
-                    "%)\n")
+                    "Personal protection %   : ",
+                    object$pt_ests$personal_protection*100,
+                    CLtext, unlist(object$int_ests$personal_protection*100),
+                        ")\n"
+                )
+                if (object$pt_ests$personal_protection < 0 | object$pt_ests$personal_protection >  1){
+                    cat(
+                        "** Warning: different signs for main effect and personal protection effect:
+                face validity check fails **\n")
+                }
+            }
+            if (!identical(object$options$distance_type, "No fixed effects of distance ")){
+                if (!is.null(object$pt_ests$contamination_interval)){
+                    cat(
+                        "Contamination range(km): ", object$pt_ests$contamination_interval,
+                        CLtext, unlist(object$int_ests$contamination_interval),
+                        ")\n"
+                    )
+                }
+                if (!is.null(object$contamination$contaminate_pop_pr)){
+                    cat(
+                        "% locations contaminated:",
+                        object$contamination$contaminate_pop_pr*100,
+                        CLtext, unlist(object$int_ests$contaminate_pop_pr)*100,
+                        "%)\n")
+                }
+            }
+            if (!is.null(object$int_ests$total_effect)) {
+                cat("Total effect            :", object$pt_ests$total_effect,
+                    CLtext, unlist(object$int_ests$total_effect),")\n")
+                cat("Ipsilateral Spillover   :", object$pt_ests$ipsilateral_spillover,
+                    CLtext, unlist(object$int_ests$ipsilateral_spillover),")\n")
+                cat("Contralateral Spillover :", object$pt_ests$contralateral_spillover,
+                    CLtext, unlist(object$int_ests$contralateral_spillover),")\n")
             }
         }
-        if (!is.null(object$int_ests$total_effect)) {
-            cat("Total effect            :", object$pt_ests$total_effect,
-                CLtext, unlist(object$int_ests$total_effect),")\n")
-            cat("Ipsilateral Spillover   :", object$pt_ests$ipsilateral_spillover,
-                CLtext, unlist(object$int_ests$ipsilateral_spillover),")\n")
-            cat("Contralateral Spillover :", object$pt_ests$contralateral_spillover,
-                CLtext, unlist(object$int_ests$contralateral_spillover),")\n")
+        if (!is.null(object$pt_ests$ICC))
+        {
+            cat(
+                "Intracluster correlation (ICC)  : ", object$pt_ests$ICC,
+                CLtext, unlist(object$int_ests$ICC),")\n"
+            )
+        }
+        options(digits = defaultdigits)
+        # goodness of fit
+        if (!is.null(object$pt_ests$deviance)) cat("deviance: ", object$pt_ests$deviance, "\n")
+        if (!is.null(object$pt_ests$DIC)) cat("DIC     : ", object$pt_ests$DIC)
+        if (!is.null(object$pt_ests$AIC)) cat("AIC     : ", object$pt_ests$AIC)
+        if (object$options$penalty > 0) {
+            cat(" including penalty for the contamination scale parameter\n")
+        } else {
+            cat(" \n")
+        }
+    # TODO: add the degrees of freedom to the output
+        if (!is.null(object$pt_ests$p.value)){
+            cat("P-value (2-sided): ", object$pt_ests$p.value, "\n")
         }
     }
-    if (!is.null(object$pt_ests$ICC))
-    {
-        cat(
-            "Intracluster correlation (ICC)  : ", object$pt_ests$ICC,
-            CLtext, unlist(object$int_ests$ICC),")\n"
-        )
-    }
-    options(digits = defaultdigits)
-    # goodness of fit
-    if (!is.null(object$pt_ests$deviance)) cat("deviance: ", object$pt_ests$deviance, "\n")
-    if (!is.null(object$pt_ests$DIC)) cat("DIC     : ", object$pt_ests$DIC)
-    if (!is.null(object$pt_ests$AIC)) cat("AIC     : ", object$pt_ests$AIC)
-    if (object$options$penalty > 0) {
-        cat(" including penalty for the contamination scale parameter\n")
-    } else {
-        cat(" \n")
-    }
-# TODO: add the degrees of freedom to the output
-    if (!is.null(object$pt_ests$p.value)){
-        cat("P-value (2-sided): ", object$pt_ests$p.value, "\n")
-    }
-
 }
 
 
