@@ -52,21 +52,26 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
   require_hdep <- is.null(trial$hdep) & identical(distance, "hdep")
   require_sdep <- is.null(trial$sdep) & identical(distance, "sdep")
   require_disc <- identical(distance, "disc") &
-                (is.null(trial$disc) | !identical(CRT$design$scale_par, scale_par))
+                (is.null(trial$disc) | !identical(CRT$design$disc$scale_par, scale_par))
   require_kern <- identical(distance, "kern") &
-                (is.null(trial$kern) | !identical(CRT$design$scale_par, scale_par))
+                (is.null(trial$kern) | !identical(CRT$design$kern$scale_par, scale_par))
   kern <- NULL
   if (is.null(trial[[distance]] & is.null(trial$arm)))
     stop('*** Randomization is required for computation of distances or surrounds ***')
   if (require_hdep | require_sdep){
-    depthlist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial)
-    depth_df <- as.data.frame(do.call(rbind, lapply(depthlist, as.data.frame)))
-    trial <- cbind(trial,depth_df)
+    depthilist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial, cloud = 'intervention')
+    depthi_df <- as.data.frame(do.call(rbind, lapply(depthilist, as.data.frame)))
+    depthclist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial, cloud = 'control' )
+    depthc_df <- as.data.frame(do.call(rbind, lapply(depthclist, as.data.frame)))
+    trial$hdep <- depthi_df$hdep/(depthc_df$hdep + depthi_df$hdep)
+    trial$sdep <- depthi_df$sdep/(depthc_df$sdep + depthi_df$sdep)
+
+    # replace NA with limiting value, depending which arm it is in (these points are on the outside of the cloud)
+    trial$hdep[is.na(trial$hdep)] <- ifelse(trial$arm[is.na(trial$hdep)] == 'intervention', 1, 0)
+    trial$sdep[is.na(trial$sdep)] <- ifelse(trial$arm[is.na(trial$sdep)] == 'intervention', 1, 0)
+
     CRT$design$hdep <- distance_stats(trial, distance = "hdep")
     CRT$design$sdep <- distance_stats(trial, distance = "sdep")
-    trial$hdep <- trial$hdep/max(trial$hdep)
-    trial$sdep <- trial$sdep/max(trial$sdep)
-    trial$numh <- NULL
   }
 
   if ((require_nearestDiscord | require_disc | require_kern)){
@@ -82,21 +87,21 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
           if (is.null(scale_par)) {
             stop("*** radius (scale_par) must be specified for computation of disc ***")
           }
+          neighbours <- colSums(dist_trial <= scale_par)
           intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= scale_par))
-          trial$disc <- ifelse(trial$arm == 'intervention', intervened_neighbours - 1, intervened_neighbours)
+          trial$disc <- intervened_neighbours/neighbours
           CRT$design$disc <- distance_stats(trial, distance = "disc")
-          trial$disc <- trial$disc/max(trial$disc)
           CRT$design$disc$scale_par <- scale_par
       }
       if (require_kern){
           if (is.null(scale_par)) {
             stop("*** s.d. (scale_par) must be specified for computation of kern ***")
           }
-          trial$kern <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) *
-                matrix(data = (trial$arm == 'intervention'),
+          weighted_neighbours <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par))
+          weighted_intervened <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) * matrix(data = (trial$arm == 'intervention'),
                        nrow = nrow(trial), ncol = nrow(trial)))
+          trial$kern <- weighted_intervened/weighted_neighbours
           CRT$design$kern <- distance_stats(trial, distance = "kern")
-          trial$kern <- trial$kern/max(trial$kern)
           CRT$design$kern$scale_par <- scale_par
       }
   }
@@ -105,7 +110,7 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
 }
 
 
-depths <- function(X, trial) {
+depths <- function(X, trial, cloud) {
   # this is an R translation of the fortran code in
   # Rousseeuw & Ruts https://www.jstor.org/stable/2986073
   # algorithm as 307.1 Appl.Statist. (1996), vol.45, no.4
@@ -117,7 +122,7 @@ depths <- function(X, trial) {
 
   # for the CRT application, depth is computed with respect to the set of intervention individuals
   # excluding the point itself (if it is in the intervention arm)
-  trial <- trial[trial$arm == 'intervention' & (trial$x != u | trial$y != v),]
+  trial <- trial[trial$arm == cloud & (trial$x != u | trial$y != v),]
 
   n <- nrow(trial)
   x <- trial$x
@@ -242,6 +247,7 @@ depths <- function(X, trial) {
   numh <- numh + nt
   hdep <- numh/n
   depths <- list(numh = numh, hdep = hdep, sdep = sdep)
+  return(depths)
 }
 
 

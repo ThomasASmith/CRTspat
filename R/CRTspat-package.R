@@ -11,6 +11,7 @@
 #' @importFrom stats predict
 #' @importFrom stats quasipoisson
 #' @importFrom stats residuals
+#' @importFrom stats sd
 #' @importFrom stats vcov
 ## usethis namespace: end
 NULL

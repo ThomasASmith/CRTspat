@@ -4,7 +4,7 @@ test_that("designCRT() creates the default trial", {
     test_locationsLatLong <- readdata("example_latlong.csv")
     testLocationsxy <- latlong_as_xy(test_locationsLatLong)
     test_buffered <- CRTsp(testLocationsxy) %>%
-      specify_clusters(h = 50, algorithm = 'NN') %>%
+      specify_clusters(h = 10, algorithm = 'NN') %>%
       randomizeCRT(matchedPair = FALSE) %>%
       specify_buffer(buffer_width = 0.05)
     test_design <- CRTpower(trial = test_buffered,

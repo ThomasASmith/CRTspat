@@ -111,7 +111,7 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
         distance <- object$options$distance
         scale_par <- object$options$scale_par
     } else {
-        scale_par <- object$design$scale_par
+        scale_par <- object$design[[distance]]$scale_par
     }
     distanceText <-  getDistanceText(distance = distance, scale_par = scale_par)
     if (!map) {

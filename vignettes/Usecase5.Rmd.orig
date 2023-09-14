@@ -144,15 +144,17 @@ Table 5.3. Available surround functions
 |`kern`| Sum of kernels | The sum of normal kernels |
 
 The [`compute_distance()`](../reference/compute_distance.html) function is provided to compute these quantities, so that they can be
-described, compared, and analysed independently of `CRTanalysis()`. Users can also devise other measures of surround or distance,
+described, compared, and analysed independently of `CRTanalysis()`. Note that the values of the surround calculated by `compute_distance()` are scaled to avoid correlation with the spatial density of the points (see [documentation](../reference/compute_distance.html) and so are not equivalent to the quantities reported in the original publications.
+
+Users can also devise other measures of surround or distance,
 add them to a `trial` data frame and specify them using `distance`. `CRTanalysis()` computes the minimum value for the specified field
 
 
 ```{r example5c.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
 examples <- compute_distance(example, distance = "hdep")
-examples <- compute_distance(examples, distance = "disc", scale_par = 0.15)
-examples <- compute_distance(examples, distance = "kern", scale_par = 0.15)
-ps1 <- plotCRT(examples, distance = "hdep", legend.position = c(0.8, 0.8))
+examples <- compute_distance(examples, distance = "disc", scale_par = 0.5)
+examples <- compute_distance(examples, distance = "kern", scale_par = 0.5)
+ps1 <- plotCRT(examples, distance = "hdep", legend.position = c(0.6, 0.8))
 ps2 <- plotCRT(examples, distance = "sdep")
 ps3 <- plotCRT(examples, distance = "disc")
 ps4 <- plotCRT(examples, distance = "kern")

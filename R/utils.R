@@ -123,6 +123,9 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
     baselineDenominator = "base_denom") {
 
     CRT <- CRTsp(trial)
+
+    CRT$design <- NULL
+
     trial <- CRT$trial
 
     # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
@@ -130,10 +133,9 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
         cat("** Warning: no baseline data for matching. Unmatched randomisation **\n")
         matchedPair <- FALSE
     }
-    trial$arm <- NULL
-    trial$pair <-NULL
-
+    trial$arm <- trial$pair <- trial$nearestDiscord <- trial$hdep <- trial$sdep <- trial$disc <- trial$kern <- NULL
     pair <- cluster <- base_num <- base_denom <- NULL
+
     trial$cluster <- as.factor(trial$cluster)
     # Randomization, assignment to arms
     nclusters <- length(unique(trial$cluster))
