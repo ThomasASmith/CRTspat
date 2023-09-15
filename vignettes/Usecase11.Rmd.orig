@@ -1,0 +1,45 @@
+---
+title: "Use Case 11: Analysis of indirect effects of interventions"
+output:
+  rmarkdown::html_vignette:
+  toc: true
+vignette: >
+  %\VignetteIndexEntry{Use Case 11: Analysis of indirect effects of interventions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+<!--To build the vignette
+# since the vignette takes a long time to run, it is not run with every build
+# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
+# to Knit this vignette without this time consuming step being part of the default build
+knitr::knit("vignettes/Usecase1.Rmd.orig", output = "vignettes/Usecase1.Rmd")
+rmarkdown.html_vignette.check_title = FALSE
+devtools::install(build_vignettes = TRUE)
+-->
+
+
+
+```{r example1a.r, echo = TRUE}
+library(CRTspat)
+example <- readdata('exampleCRT.txt')
+exampleLME4 <- CRTanalysis(example, method = "LME4", distance = "hdep", cfunc = "R")
+plotCRT(exampleLME4, map=F)
+exampleLME4 <- CRTanalysis(example, method = "LME4", cfunc = "R")
+plotCRT(exampleLME4, map=F)
+exampleLME4 <- CRTanalysis(example, method = "LME4", cfunc = "L")
+plotCRT(exampleLME4, map=F)
+exampleLME4 <- CRTanalysis(example, method = "LME4", distance = "sdep", cfunc = "R")
+plotCRT(exampleLME4, map=F)
+exampleLME4 <- CRTanalysis(example, method = "LME4", distance = "disc", cfunc = "R")
+plotCRT(exampleLME4, map=F)
+summary(exampleLME4)
+exampleLME4 <- CRTanalysis(example, method = "LME4", distance = "disc", cfunc = "R", personalProtection = TRUE)
+summary(exampleLME4)
+plotCRT(exampleLME4, map=F)
+exampleLME4 <- CRTanalysis(example, method = "LME4",
+  distance = "nearestDiscord", cfunc = "L", personalProtection = TRUE)
+summary(exampleLME4)
+plotCRT(exampleLME4, map=F)
+exampleLME4 <- CRTanalysis(example, method = "LME4", distance = "hdep", cfunc = "R", personalProtection = TRUE)
+plotCRT(exampleLME4, map=F)
+```

@@ -19,7 +19,7 @@ get_test9 = function(){
                            ICC_inp = 0.05, theta_inp = 0.8)
   # Reading in the inla.mesh functions when run outside the check but not as part of a check
   library(Matrix)
-  inla_mesh <- readdata("examplemesh100.txt")
+  inla_mesh <- readdata("examplemesh100.rds")
   analysis <- CRTanalysis(trial=example2a,
                           method = 'INLA', link='logit', cfunc='P',
                           personalProtection = TRUE, clusterEffects= TRUE,

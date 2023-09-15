@@ -79,7 +79,7 @@ of [Use Case 5](Usecase5.html).
 
 ```{r example1c.r,  fig.keep = 'none', echo = TRUE}
 library(Matrix)
-examplemesh100 <- readdata("examplemesh100.txt")
+examplemesh100 <- readdata("examplemesh100.rds")
 baselineanalysis <- CRTanalysis(trial=example_clustered,
                      method = 'INLA', link='logit', baselineOnly = TRUE,
                      baselineNumerator = "RDT_test_result",

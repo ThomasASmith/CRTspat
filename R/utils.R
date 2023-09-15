@@ -497,14 +497,13 @@ readdata <- function(filename) {
     fname <- eval(filename)
     extdata <- system.file("extdata", package = "CRTspat")
     if (unlist(gregexpr("mesh", fname)) > 0) {
-      # The mesh was stored using 'dump' e.g.
+      # The mesh was stored using saveRDS e.g.
       # library(Matrix)
-      # save("mesh",file = "inst/extdata/examplemesh100.rData", evaluate= TRUE)
-      sourced <- load(file = paste0(extdata, "/", fname))
-      robject <- sourced$value
+      # saveRDS(inla_mesh,file = "inst/extdata/examplemesh100.rds")
+      robject <- readRDS(file = paste0(extdata, "/", fname))
     } else if (unlist(gregexpr("analysis", fname)) > 0) {
-      # Analysis objects should also be stored using 'dump' but are easy to reproduce
-      sourced <- source(file = paste0(extdata, "/", fname))
+      # Analysis objects should be stored using 'dump' but are easy to reproduce
+      sourced <- load(file = paste0(extdata, "/", fname))
       robject <- sourced$value
     } else if (unlist(gregexpr(".csv", fname)) > 0) {
       robject <- read.csv(file = paste0(extdata, "/", fname), row.names = NULL)
