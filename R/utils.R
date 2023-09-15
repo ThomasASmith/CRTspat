@@ -499,8 +499,8 @@ readdata <- function(filename) {
     if (unlist(gregexpr("mesh", fname)) > 0) {
       # The mesh was stored using 'dump' e.g.
       # library(Matrix)
-      # dump("mesh",file = "inst/extdata/testmesh100.txt", evaluate= TRUE)
-      sourced <- source(file = paste0(extdata, "/", fname))
+      # save("mesh",file = "inst/extdata/examplemesh100.rData", evaluate= TRUE)
+      sourced <- load(file = paste0(extdata, "/", fname))
       robject <- sourced$value
     } else if (unlist(gregexpr("analysis", fname)) > 0) {
       # Analysis objects should also be stored using 'dump' but are easy to reproduce
