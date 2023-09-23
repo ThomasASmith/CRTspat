@@ -781,3 +781,8 @@ kmeans_ClusterDefinition <- function(coordinates, nclusters) {
   return(coordinates)
 }
 
+map_scale_to_link <- function(scale) {
+  scales <- c("proportion", "count", "continuous")
+  links <- c("logit","log","identity")
+  link <-  links[which(scale == scales)]
+return(link)}

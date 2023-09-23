@@ -83,7 +83,7 @@ ten categories of distance from the boundary. Both the
 average of the outcome and confidence intervals are plotted.
 \itemize{
 \item For analyses with logit link function the outcome is plotted as a proportion. \cr
-\item For analyses with log link function the outcome is plotted on a scale of the Williams' mean
+\item For analyses with log or cloglog link function the outcome is plotted on a scale of the Williams' mean
 (mean of exp(log(x + 1))) - 1) }\cr\cr
 If \code{map = TRUE} a thematic map corresponding to the value of \code{fill} is generated.
 \itemize{

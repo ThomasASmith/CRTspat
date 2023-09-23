@@ -599,31 +599,8 @@ GEEanalysis <- function(analysis, resamples){
     int_ests <- analysis$int_ests
     method <- analysis$options$method
     cluster <- NULL
-    # GEE analysis of cluster effects
-    fterms <- c(switch(link,
-                       "identity" = "y1/y_off ~ 1",
-                       "log" = "y1 ~ 1 + offset(log(y_off))",
-                       "cloglog" = "cbind(y1, 1) ~ 1 + offset(log(y_off))",
-                       "logit" = "cbind(y1,y0) ~ 1"),
-                fterms)
-    formula <- stats::as.formula(paste(fterms, collapse = "+"))
-    if (link == "log") {
-        model_object <- geepack::geeglm(
-            formula = formula, id = cluster, data = trial, family = poisson(link = "log"),
-            corstr = "exchangeable", scale.fix = FALSE)
-    } else if (link == "cloglog") {
-            model_object <- geepack::geeglm(
-                formula = formula, id = cluster, data = trial, family = binomial(link = "cloglog"),
-                corstr = "exchangeable", scale.fix = FALSE)
-    } else if (link == "logit") {
-        model_object <- geepack::geeglm(
-            formula = formula, id = cluster, corstr = "exchangeable",
-            data = trial, family = binomial(link = "logit"))
-    } else if (link == "identity") {
-        model_object <- geepack::geeglm(
-            formula = formula, id = cluster, corstr = "exchangeable",
-            data = trial, family = gaussian)
-    }
+
+    model_object <- get_GEEmodel(trial = trial, link = link, fterms = fterms)
 
     summary.fit <- summary(model_object)
 
@@ -680,6 +657,34 @@ GEEanalysis <- function(analysis, resamples){
     analysis$int_ests <- int_ests
     return(analysis)
 }
+
+get_GEEmodel <- function(trial, link, fterms){
+    # GEE analysis of cluster effects
+    fterms <- c(switch(link,
+                       "identity" = "y1/y_off ~ 1",
+                       "log" = "y1 ~ 1 + offset(log(y_off))",
+                       "cloglog" = "cbind(y1, 1) ~ 1 + offset(log(y_off))",
+                       "logit" = "cbind(y1,y0) ~ 1"),
+                fterms)
+    formula <- stats::as.formula(paste(fterms, collapse = "+"))
+    if (link == "log") {
+        model_object <- geepack::geeglm(
+            formula = formula, id = cluster, data = trial, family = poisson(link = "log"),
+            corstr = "exchangeable", scale.fix = FALSE)
+    } else if (link == "cloglog") {
+        model_object <- geepack::geeglm(
+            formula = formula, id = cluster, data = trial, family = binomial(link = "cloglog"),
+            corstr = "exchangeable", scale.fix = FALSE)
+    } else if (link == "logit") {
+        model_object <- geepack::geeglm(
+            formula = formula, id = cluster, corstr = "exchangeable",
+            data = trial, family = binomial(link = "logit"))
+    } else if (link == "identity") {
+        model_object <- geepack::geeglm(
+            formula = formula, id = cluster, corstr = "exchangeable",
+            data = trial, family = gaussian)
+    }
+return(model_object)}
 
 LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     trial <- analysis$trial
@@ -1113,67 +1118,70 @@ MCMCanalysis <- function(analysis){
     return(analysis)
 }
 
-
 group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
     # define the limits of the curve both for control and intervention arms
-        trial <- analysis$trial
-        link <- analysis$options$link
-        alpha <- analysis$options$alpha
-        if (is.null(distance)) distance <- analysis$options$distance
-        y_off <- y1 <- average <- upper <- lower <- d <- NULL
-        cats <- NULL
-        breaks0 <- breaks1 <- rep(NA, times = 6)
-        # categorisation of trial data for plotting
-        if (identical(grouping, "quintiles")) {
-            groupvar <- ifelse(trial$arm == "intervention", 1000 + trial[[distance]], trial[[distance]])
-            breaks0 <-unique(c(-Inf, quantile(groupvar[trial$arm == "control"],
-                                    probs = seq(0.2, 1, by = 0.20))))
-            breaks1 <-unique(c(999, quantile(groupvar[trial$arm == "intervention"],
-                                   probs = seq(0.2, 1, by = 0.20))))
-            trial$cat <- cut(
-                groupvar, breaks=c(breaks0, breaks1),labels = FALSE)
-            arm <- c(rep("control", times = length(breaks0)-1), rep("intervention", times = length(breaks1)-1))
-        } else {
-            range_d <- max(trial[[distance]]) - min(trial[[distance]])
-            trial$cat <- cut(
-                trial[[distance]], breaks =
-                    c(-Inf, min(trial[[distance]]) + seq(1:9) * range_d/10, Inf),labels = FALSE)
-            arm <- NA
-        }
-        trial$d <- trial[[distance]]
-        # calculate for log link
+    trial <- analysis$trial
+    link <- analysis$options$link
+    alpha <- analysis$options$alpha
+    if (is.null(distance)) distance <- analysis$options$distance
+    y_off <- y1 <- average <- upper <- lower <- d <- NULL
+    cats <- NULL
+    breaks0 <- breaks1 <- rep(NA, times = 6)
+    # categorisation of trial data for plotting
+    if (identical(grouping, "quintiles")) {
+        groupvar <- ifelse(trial$arm == "intervention", 1000 + trial[[distance]], trial[[distance]])
+        breaks0 <-unique(c(-Inf, quantile(groupvar[trial$arm == "control"],
+                                probs = seq(0.2, 1, by = 0.20))))
+        breaks1 <-unique(c(999, quantile(groupvar[trial$arm == "intervention"],
+                               probs = seq(0.2, 1, by = 0.20))))
+        trial$cat <- cut(
+            groupvar, breaks=c(breaks0, breaks1),labels = FALSE)
+        arm <- c(rep("control", times = length(breaks0)-1), rep("intervention", times = length(breaks1)-1))
+    } else {
+        range_d <- max(trial[[distance]]) - min(trial[[distance]])
+        trial$cat <- cut(
+            trial[[distance]], breaks =
+                c(-Inf, min(trial[[distance]]) + seq(1:9) * range_d/10, Inf),labels = FALSE)
+        arm <- NA
+    }
+    trial$d <- trial[[distance]]
+    if (link %in% c('log', 'cloglog')) {
         data <- data.frame(
             trial %>%
-                group_by(cat) %>%
-                dplyr::summarize(
-                    positives = sum(y1),
-                    total = sum(y_off),
-                    d = median(d),
-                    average = Williams(x=y1/y_off, alpha=alpha, option = 'M'),
-                    lower = Williams(x=y1/y_off, alpha=alpha, option = 'L'),
-                    upper = Williams(x=y1/y_off, alpha=alpha, option = 'U')))
-        if (link == 'logit') {
-            # overwrite with proportions and binomial confidence intervals by category
-            data$average <- data$positives/data$total
-            data$upper <- with(data, average -
-                                   qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
-            data$lower <- with(data, average +
-                                   qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
-        }
-        if (link == 'identity') {
-            # overall means and t-based confidence intervals by category
-            data <- trial %>%
-                group_by(cat) %>%
-                dplyr::summarize(
-                    positives = sum(y1),
-                    total = sum(y_off),
-                    d = median(d),
-                    average = mean(x=y1/y_off),
-                    lower = Tinterval(y1/y_off, alpha = alpha, option = 'L'),
-                    upper = Tinterval(y1/y_off, alpha = alpha, option = 'U')
-                )
-        }
-        data$arm <- arm
+            group_by(cat) %>%
+            dplyr::summarize(
+                positives = sum(y1),
+                total = sum(y_off),
+                d = median(d),
+                average = Williams(x=y1/y_off, alpha=alpha, option = 'M'),
+                lower = Williams(x=y1/y_off, alpha=alpha, option = 'L'),
+                upper = Williams(x=y1/y_off, alpha=alpha, option = 'U')))
+    } else if (link == 'logit') {
+        data <- data.frame(
+            trial %>%
+            group_by(cat) %>%
+            dplyr::summarize(
+                positives = sum(y1),
+                total = sum(y_off)))
+        # overwrite with proportions and binomial confidence intervals by category
+        data$average <- data$positives/data$total
+        data$upper <- with(data, average -
+                               qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
+        data$lower <- with(data, average +
+                               qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
+    } else if (link == 'identity') {
+        # overall means and t-based confidence intervals by category
+        data <- trial %>%
+            group_by(cat) %>%
+            dplyr::summarize(
+                positives = sum(y1),
+                total = sum(y_off),
+                d = median(d),
+                average = mean(x=y1/y_off),
+                lower = Tinterval(y1/y_off, alpha = alpha, option = 'L'),
+                upper = Tinterval(y1/y_off, alpha = alpha, option = 'U'))
+    }
+    data$arm <- arm
 return(data)
 }
 

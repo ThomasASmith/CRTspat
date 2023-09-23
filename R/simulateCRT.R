@@ -256,53 +256,60 @@ get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
   decrementedPropensity <- smoothedPropensity * (1 - effect * (trial$arm == "intervention"))
   adjustedPropensity <- gauss(sd*sqrt(2), euclid) %*% decrementedPropensity
 
+  if (identical(scale, "continuous")) {
+    # Note that the sd here is logically different from the smoothing sd, but how to choose a value?
+    trial$num <- rnorm(n = nrow(trial),
+                       mean = adjustedPropensity * trial[[denominator]],
+                       sd = sd)
+  } else {
     # compute the total positives expected given the input effect size
-  npositives <- round(outcome0 * sum(trial[[denominator]]) * (1 - 0.5 * effect))
+    npositives <- round(outcome0 * sum(trial[[denominator]]) * (1 - 0.5 * effect))
 
-  if (!(denominator %in% colnames(trial))) trial[[denominator]] <- 1
+    if (!(denominator %in% colnames(trial))) trial[[denominator]] <- 1
 
-  # the denominator must be an integer; this changes the value if a non-integral value is input
-  trial[[denominator]] <- round(trial[[denominator]], digits = 0)
+    # the denominator must be an integer; this changes the value if a non-integral value is input
+    trial[[denominator]] <- round(trial[[denominator]], digits = 0)
 
-  # scale to input value of initial prevalence by assigning required number of infections with probabilities proportional
-  # to smoothed multiplied by the denominator
+    # scale to input value of initial prevalence by assigning required number of infections with probabilities proportional
+    # to smoothed multiplied by the denominator
 
-  expected_allocation <-  adjustedPropensity * trial[[denominator]]/sum(adjustedPropensity * trial[[denominator]])
+    expected_allocation <-  adjustedPropensity * trial[[denominator]]/sum(adjustedPropensity * trial[[denominator]])
 
-  trial$expected_ratio <- expected_allocation/trial[[denominator]]
-  trial$rowno <- seq(1:nrow(trial))
+    trial$expected_ratio <- expected_allocation/trial[[denominator]]
+    trial$rowno <- seq(1:nrow(trial))
 
     # expand the vector of locations to allow for denominators > 1
-  triallong <- trial %>%
-        tidyr::uncount(trial[[denominator]])
+    triallong <- trial %>%
+      tidyr::uncount(trial[[denominator]])
 
-  # To generate count data, records in triallong can be sampled multiple times. To generate proportions each record can
-  # only be sampled once.
-  replacement <- identical(scale, "count")
+    # To generate count data, records in triallong can be sampled multiple times. To generate proportions each record can
+    # only be sampled once.
+    replacement <- identical(scale, "count")
 
     # sample generates a multinomial sample and outputs the indices of the locations assigned
-  positives <- sample(x = nrow(triallong), size = npositives, replace = replacement, prob = triallong$expected_ratio)
-  triallong$num <- 0
+    positives <- sample(x = nrow(triallong), size = npositives, replace = replacement, prob = triallong$expected_ratio)
+    triallong$num <- 0
 
     # TODO: this needs to work also for count data (replace = TRUE above)
-  triallong$num[positives] <- 1
+    triallong$num[positives] <- 1
 
     # summarise the numerator values into the original set of locations
-  numdf <- dplyr::group_by(triallong, rowno) %>%
-        dplyr::summarise(sumnum = sum(num))
-  numdf[[numerator]] <- numdf$sumnum
+    numdf <- dplyr::group_by(triallong, rowno) %>%
+      dplyr::summarise(sumnum = sum(num))
+    numdf[[numerator]] <- numdf$sumnum
 
-  # use left_join to merge into the original data frame (records with zero denominator do not appear in numdf)
-  trial <- trial %>%
+    # use left_join to merge into the original data frame (records with zero denominator do not appear in numdf)
+    trial <- trial %>%
       dplyr::left_join(numdf, by = "rowno")
 
-  # remove temporary variables and replace missing numerators with zero (because the multinomial sampling algorithm leaves
-  # NA values where no events are assigned)
-  trial <- subset(trial, select = -c(rowno, expected_ratio, sumnum))
-  if (sum(is.na(trial[[numerator]])) > 0) {
+    # remove temporary variables and replace missing numerators with zero (because the multinomial sampling algorithm leaves
+    # NA values where no events are assigned)
+    trial <- subset(trial, select = -c(rowno, expected_ratio, sumnum))
+    if (sum(is.na(trial[[numerator]])) > 0) {
       cat("** Warning: some records have zero denominator after rounding **\n")
       cat("You may want to remove these records or rescale the denominators \n")
       trial[[numerator]][is.na(trial[[numerator]])] <- 0
+    }
   }
 return(trial)
 }
@@ -318,9 +325,14 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, 
 
     trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
                              outcome0 = outcome0, bw = bw, numerator = "num", denominator = "denom")
-    trial$neg <- trial$denom - trial$num
-    fit <- geepack::geeglm(cbind(num, neg) ~ arm, id = cluster, corstr = "exchangeable", data = trial, family = binomial(link = "logit"))
-    summary.fit <- summary(fit)
+    trial$y1 <- trial$num
+    trial$y_off <- trial$denom
+    trial$y0 <- trial$denom - trial$num
+    link <- map_scale_to_link(scale)
+
+    model_object <- get_GEEmodel(trial = trial, link = link, fterms = 'arm')
+
+    summary.fit <- summary(model_object)
     # Intracluster correlation
     ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
     # cat("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")

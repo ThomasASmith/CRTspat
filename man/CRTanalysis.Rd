@@ -66,7 +66,7 @@ options are:
 \tabular{ll}{
 \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
 \code{"log"}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).\cr
-\code{"cloglog"} \tab \code{numerator} is binomially distributed with an offset of log(\code{denominator}).\cr
+\code{"cloglog"} \tab \code{numerator} is Bernoulli distributed with an offset of log(\code{denominator}).\cr
 \code{"identity"}\tab The outcome is \code{numerator/denominator} with a normally distributed error function.\cr
 }}
 
@@ -128,9 +128,9 @@ For \code{link = "cloglog"} (\href{https://doi.org/10.1016/S1047-2797(97)00106-3
 the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1. The
 \code{denominator} field is used as a rate multiplier.\cr
 
-With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr\cr
+With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr
 
-\code{scale_par} specifies the contamination parameter. If \code{distance = "disc"} then this is the disc radius in km.
+\code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}.\cr\cr
 }
 \examples{
 {example <- readdata('exampleCRT.txt')
