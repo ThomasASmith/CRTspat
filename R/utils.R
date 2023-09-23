@@ -644,10 +644,12 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     rownames(output)[14] <- switch(link,
             "identity" = "Expected variance of outcome:     ",
                  "log" = "Expected overdispersion:          ",
+              "cloglog" = "Expected overdispersion:          ",
                "logit" = "Mean denominator:                 ")
     output[14, 1] <- switch(link,
                     "identity" =  object$design$sigma2,
                     "log" = object$design$phi,
+                    "cloglog" = object$design$phi,
                     "logit" = object$design$N)
     if (identical(object$design$outcome_type, 'd')) output[14, 1] <- ""
     rownames(output)[15] <- "Required effect size:             "

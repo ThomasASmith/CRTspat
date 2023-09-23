@@ -4,7 +4,7 @@
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome data (see details).
 #' @param method statistical method with options:
-#'  \tabular{ll}{
+#' \tabular{ll}{
 #' \code{"EMP"} \tab simple averages of the data   \cr
 #' \code{"T"}   \tab comparison of cluster means by t-test \cr
 #' \code{"GEE"} \tab Generalised Estimating Equations \cr
@@ -35,8 +35,8 @@
 #' @param link link function. options are:
 #' \tabular{ll}{
 #' \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
-#' \code{"log"}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).
-#' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr
+#' \code{"log"}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).\cr
+#' \code{"cloglog"} \tab \code{numerator} is Bernoulli distributed with an offset of log(\code{denominator}).\cr
 #' \code{"identity"}\tab The outcome is \code{numerator/denominator} with a normally distributed error function.\cr
 #' }
 #' @param numerator string: name of numerator variable for outcome
@@ -73,9 +73,15 @@
 #' The key results of the analyses can be extracted using a \code{summary()} of the output list.
 #' The \code{model_object} in the output list is the usual output from the statistical analysis routine,
 #' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
-#' for purposes of evaluation of model fit etc..\cr \cr
+#' for purposes of evaluation of model fit etc..\cr
 #'
-#' \code{scale_par} specifies the contamination parameter. If \code{distance = "disc"} then this is the disc radius in km.
+#' For \code{link = "cloglog"} ([Complementary log-log](https://doi.org/10.1016/S1047-2797(97)00106-3))
+#' the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1. The
+#' \code{denominator} field is used as a rate multiplier.\cr
+#'
+#' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr
+#'
+#' \code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}.\cr\cr
 #' @importFrom grDevices rainbow
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
 #' @importFrom utils head read.csv
@@ -247,7 +253,7 @@ CRTanalysis <- function(
     }
     if (identical(method, "INLA")){
         if (spatialEffects) fterms <- c(fterms, "f(s, model = spde)")
-        if (identical(link,"log")) fterms <- c(fterms, "f(id, model = \'iid\')")
+        if (link %in% c("log", "cloglog")) fterms <- c(fterms, "f(id, model = \'iid\')")
     }
     ftext <- paste(fterms, collapse = " + ")
 
@@ -472,7 +478,8 @@ Tanalysis <- function(analysis) {
     clusterSum$lp <- switch(link,
                             "identity" = clusterSum$y/clusterSum$total,
                             "log" = log(clusterSum$y/clusterSum$total),
-                            "logit" = logit(clusterSum$y/clusterSum$total))
+                            "logit" = logit(clusterSum$y/clusterSum$total),
+                            "cloglog" = log(clusterSum$y/clusterSum$total))
     formula <- stats::as.formula("lp ~ arm")
 
     # Trap any non-finite values
@@ -503,7 +510,7 @@ Tanalysis <- function(analysis) {
             analysis$pt_ests$interventionY
         analysis$int_ests$effect_size <- unlist(model_object$conf.int)
     }
-    if (link %in% c("logit","log")){
+    if (link %in% c("logit", "log", "cloglog")){
         analysis$pt_ests$effect_size <- 1 - analysis$pt_ests$interventionY/
             analysis$pt_ests$controlY
         analysis$int_ests$effect_size <- 1 - exp(-unlist(model_object$conf.int))
@@ -534,6 +541,7 @@ wc_analysis <- function(analysis, design) {
     fterms <- switch(link,
                        "identity" = "y1/y_off ~ 1 + d",
                        "log" = "y1 ~ 1 + d + offset(log(y_off))",
+                       "cloglog" = "y1 ~ 1 + d + offset(log(y_off))",
                        "logit" = "cbind(y1,y0) ~ 1 + d")
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
     pe <- matrix(nrow = 0, ncol = 2)
@@ -595,6 +603,7 @@ GEEanalysis <- function(analysis, resamples){
     fterms <- c(switch(link,
                        "identity" = "y1/y_off ~ 1",
                        "log" = "y1 ~ 1 + offset(log(y_off))",
+                       "cloglog" = "cbind(y1, 1) ~ 1 + offset(log(y_off))",
                        "logit" = "cbind(y1,y0) ~ 1"),
                 fterms)
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
@@ -602,6 +611,10 @@ GEEanalysis <- function(analysis, resamples){
         model_object <- geepack::geeglm(
             formula = formula, id = cluster, data = trial, family = poisson(link = "log"),
             corstr = "exchangeable", scale.fix = FALSE)
+    } else if (link == "cloglog") {
+            model_object <- geepack::geeglm(
+                formula = formula, id = cluster, data = trial, family = binomial(link = "cloglog"),
+                corstr = "exchangeable", scale.fix = FALSE)
     } else if (link == "logit") {
         model_object <- geepack::geeglm(
             formula = formula, id = cluster, corstr = "exchangeable",
@@ -687,6 +700,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     fterms = switch(link,
                     "identity" = c("y1/y_off ~ 1", fterms),
                     "log" = c("y1 ~ 1", fterms, "offset(log(y_off))"),
+                    "cloglog" = c("y1 ~ 1", fterms, "offset(log(y_off))"),
                     "logit" = c("cbind(y1,y0) ~ 1", fterms))
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
     if (!identical(distance_type, "No fixed effects of distance ")) {
@@ -724,7 +738,9 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
                            "log" = lme4::glmer(formula = formula, data = trial,
                                                family = poisson),
                            "logit" = lme4::glmer(formula = formula, data = trial,
-                                                 family = binomial))
+                                               family = binomial),
+                           "cloglog" = lme4::glmer(formula = formula, data = trial,
+                                               family = binomial))
     analysis$pt_ests$scale_par <- exp(log_scale_par)
     analysis$pt_ests$deviance <- unname(summary(model_object)$AICtab["deviance"])
     analysis$pt_ests$AIC <- unname(summary(model_object)$AICtab["AIC"])
@@ -898,6 +914,15 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
             control.predictor = list(compute = TRUE, link = 1,
                                      A = INLA::inla.stack.A(stk.full)),
             control.compute = list(dic = TRUE))
+    } else if (link == "cloglog") {
+        model_object <- INLA::inla(
+            formula, family = "binomial", Ntrials = 1, lincomb = lc,
+            control.family = list(link = "cloglog"),
+            data = INLA::inla.stack.data(stk.full),
+            control.fixed = list(correlation.matrix = TRUE),
+            control.predictor = list(compute = TRUE, link = 1,
+                                     A = INLA::inla.stack.A(stk.full)),
+            control.compute = list(dic = TRUE))
     }
 
     analysis$pt_ests$scale_par <- scale_par
@@ -1023,7 +1048,10 @@ MCMCanalysis <- function(analysis){
                                   y1[i] ~ dpois(Expect_y[i]) \n",
                     "logit" = "logitp[i] <- lp[i]  \n
                                    p[i] <- 1/(1 + exp(-logitp[i])) \n
-                                   y1[i] ~ dbin(p[i],y_off[i]) \n"
+                                   y1[i] ~ dbin(p[i],y_off[i]) \n",
+                    "cloglog" = "gamma1[i] ~ dnorm(0,tau1) \n
+                                   Expect_p[i] <- 1 - exp(- exp(lp[i] + gamma1[i]) * y_off[i]) \n
+                                   y1[i] ~ dbern(Expect_p[i]) \n"
     )
 
     # construct JAGS code for the linear predictor
@@ -1056,6 +1084,8 @@ MCMCanalysis <- function(analysis){
                     "identity" = "tau1 <- 1/(sigma1 * sigma1) \n
                                   sigma1 ~ dunif(0, 2) } \n",
                     "log" = "tau1 <- 1/(sigma1 * sigma1) \n
+                             sigma1 ~ dunif(0, 2) } \n",
+                    "cloglog" = "tau1 <- 1/(sigma1 * sigma1) \n
                              sigma1 ~ dunif(0, 2) } \n",
                     "logit" = "} \n")
 
@@ -1180,6 +1210,7 @@ get_description <- function(trial, link, baselineOnly)
         effect_size <- switch(link,
                "identity" = ratio[2] - ratio[1],
                "log" = 1 - ratio[2]/ratio[1],
+               "cloglog" = 1 - ratio[2]/ratio[1],
                "logit" =  1 - ratio[2]/ratio[1])
         description <- list(
             sum.numerators = sum.numerators,
@@ -1300,8 +1331,15 @@ estimateContaminationINLA <- function(
             data = INLA::inla.stack.data(stk.e),
             control.predictor = list(compute = TRUE, link = 1,
                                      A = INLA::inla.stack.A(stk.e)),
-            control.compute = list(dic = TRUE)
-        )
+            control.compute = list(dic = TRUE))
+    } else if (link == "cloglog") {
+            result.e <- INLA::inla(
+                formula, family = "binomial", Ntrials = 1,
+                control.family = list(link = "cloglog"),
+                data = INLA::inla.stack.data(stk.e),
+                control.predictor = list(compute = TRUE, link = 1,
+                                         A = INLA::inla.stack.A(stk.e)),
+                control.compute = list(dic = TRUE))
     }
     # The DIC is penalised to allow for estimation of scale_par
     loss <- result.e$dic$family.dic + 2
@@ -1326,7 +1364,9 @@ estimateContaminationLME4 <- function(
                 "log" = lme4::glmer(formula = formula, data = trial,
                                    family = poisson),
                 "logit" = lme4::glmer(formula = formula, data = trial,
-                                   family = binomial))
+                                   family = binomial),
+                "cloglog" = lme4::glmer(formula = formula, data = trial,
+                                  family = binomial))
     )
     loss <- ifelse (is.null(model_object),999999, unlist(summary(model_object)$AICtab["AIC"]))
     # The AIC is used as a loss function
@@ -1567,13 +1607,18 @@ logit <- function(p = p)
     return(log(p/(1 - p)))
 }
 
+# cloglog transformation
+cloglog = function(p) log(-log(1-p))
+
+
 # link transformation
 link_tr <- function(link = link, x = x)
 {
     value <- switch(link,
                     "identity" = x,
                     "log" = log(x),
-                    "logit" =  log(x/(1 - x)))
+                    "logit" =  log(x/(1 - x)),
+                    "cloglog" =  log(-log(1 - x)))
     return(value)
 }
 
@@ -1583,7 +1628,8 @@ invlink <- function(link = link, x = x)
     value <- switch(link,
                     "identity" = x,
                     "log" = exp(x),
-                    "logit" =  1/(1 + exp(-x)))
+                    "logit" =  1/(1 + exp(-x)),
+                    "cloglog" = 1 - exp(-exp(x)))
     return(value)
 }
 

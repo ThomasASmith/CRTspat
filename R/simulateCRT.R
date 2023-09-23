@@ -278,7 +278,7 @@ get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
 
   # To generate count data, records in triallong can be sampled multiple times. To generate proportions each record can
   # only be sampled once.
-  replacement <- identical(scale, "log")
+  replacement <- identical(scale, "count")
 
     # sample generates a multinomial sample and outputs the indices of the locations assigned
   positives <- sample(x = nrow(triallong), size = npositives, replace = replacement, prob = triallong$expected_ratio)
