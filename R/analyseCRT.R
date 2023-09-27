@@ -1161,6 +1161,7 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
             trial %>%
             group_by(cat) %>%
             dplyr::summarize(
+                d = median(d),
                 positives = sum(y1),
                 total = sum(y_off)))
         # overwrite with proportions and binomial confidence intervals by category

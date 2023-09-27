@@ -153,7 +153,7 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
             }
             # Plot of frequency by distance
             if (is.null(cpalette)) cpalette <- c("#D55E00", "#0072A7")
-            outcome <- positives <- negatives <- frequency <- dcat <- NULL
+                outcome <- positives <- negatives <- frequency <- dcat <- NULL
             if (is.null(object$trial$num)) {
                 return(plot(object$trial))
             }
@@ -178,9 +178,7 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
             analysis <- object
             contamination_limits <- analysis$contamination$contamination_limits
              if(!(fill %in% c("arms", "clusters"))){
-                # raster map
-
-                # raster images derived from inla analysis
+                # raster map derived from inla analysis
                 x <- y <- prediction <- nearestDiscord <- NULL
                 g <- ggplot2::ggplot() + ggplot2::theme(aspect.ratio = 1)
                 if (!identical(analysis$options$method, "INLA")) {
