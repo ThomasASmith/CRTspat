@@ -112,7 +112,7 @@ list of class \code{CRTanalysis} containing the following results of the analysi
 \code{CRTanalysis} is a wrapper for the statistical analysis packages:
 \href{https://www.jstatsoft.org/article/view/v015i02}{geepack},
 \href{https://www.r-inla.org/}{INLA},
-\href{https://cran.r-project.org/web/packages/jagsUI/index.html}{jagsUI},
+\href{https://github.com/kenkellner/jagsUI}{jagsUI},
 and the \href{https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test}{t.test}
 function of package \code{stats}.
 The wrapper does not provide an interface to the full functionality of these packages.

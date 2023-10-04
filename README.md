@@ -21,6 +21,13 @@ where the contamination is assumed to arise as a result of mosquito
 movement, with mosquito dispersal approximated with a simple diffusion
 model.
 
+## Code of Conduct
+
+Please note that the CRTspat project is released with a [Contributor
+Code of
+Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html).
+By contributing to this project, you agree to abide by its terms.
+
 ## Installation
 
 `CRTspat` is on [github](https://github.com/ThomasASmith/CRTspat/) and
