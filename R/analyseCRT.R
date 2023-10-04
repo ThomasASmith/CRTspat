@@ -63,7 +63,7 @@
 #' @details \code{CRTanalysis} is a wrapper for the statistical analysis packages:
 #' [geepack](https://www.jstatsoft.org/article/view/v015i02),
 #' [INLA](https://www.r-inla.org/),
-#' [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html),
+#' [jagsUI](https://github.com/kenkellner/jagsUI),
 #' and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test)
 #' function of package \code{stats}.
 #' The wrapper does not provide an interface to the full functionality of these packages.
@@ -353,7 +353,7 @@ CRTanalysis <- function(
 #' example <- readdata('exampleCRT.txt')
 #' exampleMesh=compute_mesh(example, pixel = 0.5)
 #' }
-#' \dontrun{
+#' \donttest{
 #' # 50m mesh for analyses of test dataset using \code{distance = "nearestDiscord"}.
 #' library(Matrix)
 #' example <- readdata('exampleCRT.txt')
@@ -660,6 +660,7 @@ GEEanalysis <- function(analysis, resamples){
 
 get_GEEmodel <- function(trial, link, fterms){
     # GEE analysis of cluster effects
+    cluster <- NULL
     fterms <- c(switch(link,
                        "identity" = "y1/y_off ~ 1",
                        "log" = "y1 ~ 1 + offset(log(y_off))",
@@ -1150,6 +1151,7 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
             trial %>%
             group_by(cat) %>%
             dplyr::summarize(
+                locations = dplyr::n(),
                 positives = sum(y1),
                 total = sum(y_off),
                 d = median(d),
@@ -1161,6 +1163,7 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
             trial %>%
             group_by(cat) %>%
             dplyr::summarize(
+                locations = dplyr::n(),
                 d = median(d),
                 positives = sum(y1),
                 total = sum(y_off)))
@@ -1175,6 +1178,7 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
         data <- trial %>%
             group_by(cat) %>%
             dplyr::summarize(
+                locations = dplyr::n(),
                 positives = sum(y1),
                 total = sum(y_off),
                 d = median(d),

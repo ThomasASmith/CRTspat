@@ -25,6 +25,6 @@ The package was developed with CRTs of malaria interventions in mind, where the 
 
 ## Installation
 
-There is so far no formally released version of `CRTspat`. 
+`CRTspat` can be installed from CRAN. 
 
 

@@ -39,7 +39,7 @@ Table 5.1. Available statistical methods
 | `GEE` | [geepack](https://www.jstatsoft.org/article/view/v015i02) | Interval estimates for efficacy and Intra-cluster correlations | No analysis of contamination or degree of clustering |
 | `LME4`| [lme4](https://cran.r-project.org/web/packages/lme4/lme4.pdf) | Analysis of contamination | No geostatistical analysis |
 | `INLA` | [INLA](https://www.r-inla.org/) | Analysis of contamination, geostatistical analysis and spatially structured outputs | Computationally intensive |
-| `MCMC` | [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html) | Interval estimates for contamination parameters | Identifiability issues and slow convergence are possible |
+| `MCMC` | [jagsUI](https://cran.r-project.org/web/packages/spatstat.random/citation.html) | Interval estimates for contamination parameters | Identifiability issues and slow convergence are possible |
 
 For the analysis of proportions, the outcome in the control arm is estimated as: $\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$, in the intervention arm as $\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$, and the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$ where $\beta_1$ is the intercept term and $\beta_2$ the incremental effect associated with the intervention.
 
@@ -152,11 +152,11 @@ add them to a `trial` data frame and specify them using `distance`. `CRTanalysis
 
 ```{r example5c.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
 examples <- compute_distance(example, distance = "hdep")
-examples <- compute_distance(examples, distance = "disc", scale_par = 0.5)
-examples <- compute_distance(examples, distance = "kern", scale_par = 0.5)
 ps1 <- plotCRT(examples, distance = "hdep", legend.position = c(0.6, 0.8))
 ps2 <- plotCRT(examples, distance = "sdep")
+examples <- compute_distance(examples, distance = "disc", scale_par = 0.5)
 ps3 <- plotCRT(examples, distance = "disc")
+examples <- compute_distance(examples, distance = "kern", scale_par = 0.5)
 ps4 <- plotCRT(examples, distance = "kern")
 plot_grid(ps1, ps2, ps3, ps4, labels = c('hdep', 'sdep', 'disc', 'kern'), label_size = 10, ncol = 2)
 ```

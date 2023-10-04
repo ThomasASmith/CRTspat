@@ -151,25 +151,26 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
             if (is.null(object$trial[[distance]])) {
                 stop(paste0("*** First use compute_distance() to calculate ", distance, "***"))
             }
-            # Plot of frequency by distance
-            if (is.null(cpalette)) cpalette <- c("#D55E00", "#0072A7")
-                outcome <- positives <- negatives <- frequency <- dcat <- NULL
+            # Plot of data by distance
+            dcat <- value <- NULL
             if (is.null(object$trial$num)) {
                 return(plot(object$trial))
             }
             analysis <- CRTanalysis(trial = object$trial, method = "EMP")
             data <- group_data(analysis = analysis, distance = distance, grouping = "equalwidth")
-            data$negatives <- with(data, total - positives)
             data$dcat <- with(analysis, min(trial[[distance]]) +
                                  (data$cat - 0.5) * (max(trial[[distance]]) - min(trial[[distance]]))/10)
-            data <- tidyr::gather(data[, c("dcat", "negatives",
-                                "positives")], outcome, frequency, positives:negatives, factor_key = TRUE)
-            g <- ggplot2::ggplot(data = data, aes(x = dcat, y = frequency, fill = outcome)) +
-                ggplot2::theme_bw() + ggplot2::geom_bar(stat = "identity") +
-                ggplot2::scale_fill_manual(values = cpalette, labels = c("Positive",
-                                "Negative")) + ggplot2::geom_vline(xintercept = 0, linewidth = 1,
-                                linetype = "dashed") + ggplot2::xlab(distanceText) +
-                ggplot2::ylab("Frequency") + ggplot2::theme(legend.position = legend.position)
+            data <- tidyr::gather(data[, c("dcat", "locations", "total",
+                           "positives")], key = 'variable', value = 'value', -dcat, factor_key = TRUE)
+            levels(data$variable) <- c("Locations", "Sum of denominators", "Sum of numerators")
+            g <- ggplot2::ggplot(data = data) +
+                ggplot2::theme_bw() +
+                ggplot2::geom_bar(aes(x = dcat, y = value), colour = NA, fill = "lightgrey", stat = "identity") +
+                ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed") +
+                ggplot2::xlab(distanceText) +
+                ggplot2::ylab(ggplot2::element_blank()) +
+                ggplot2::facet_wrap( ~ variable, ncol = 1, scales = "free")
+
         }
     } else {
         colourClusters <- identical(fill, "clusters")
@@ -379,7 +380,7 @@ return(sf_objects)
 #'
 #' \code{CRTwrite} exports a simple features object in a GIS format
 #' @param object object of class \code{'CRTsp'}
-#' @param dsn dataset name for output objects
+#' @param dsn dataset name (relative path) for output objects
 #' @param feature feature to be exported, options are:
 #' \tabular{ll}{
 #' \code{'cluster'}\tab cluster assignments \cr
@@ -405,20 +406,24 @@ return(sf_objects)
 #' extend outwards to an external rectangle. The \code{'mask'} is used to mask out the areas of
 #' these polygons that are at a distance > \code{maskbuffer} from the nearest location.
 #' @examples
-#' \dontrun{CRTwrite(readdata('exampleCRT.txt'), dsn = 'arms', feature = 'arms',
-#'          driver = 'ESRI Shapefile', maskbuffer = 0.2)}
+#' \donttest{
+#'         tmpdir = tempdir()
+#'         dsn <- paste0(tmpdir,'/arms')
+#'         CRTwrite(readdata('exampleCRT.txt'), dsn = dsn, feature = 'arms',
+#'         driver = 'ESRI Shapefile', maskbuffer = 0.2)
+#'     }
 #' @export
 CRTwrite <- function(object, dsn, feature = 'clusters', buffer_width, maskbuffer = 0.2, ...){
+    contamination_limits <- NULL
     if (isa(object, what = 'CRTanalysis')) {
-        centroid <- object$geom_full$centroid
-        contamination_limits = contamination_limits
-    } else {
-       object <- CRTsp(object)
-       centroid <- list()
-       contamination_limits = contamination_limits
+        contamination_limits <- ifelse(is.null(object$contamination$contamination_limits), NULL,
+                                       object$contamination$contamination_limits)
+        object <- object$trial
     }
+    object <- CRTsp(object)
+    centroid <- object$geom_full$centroid
     trial <- object$trial
-    if (identical(feature("buffer"))) {
+    if (identical(feature,"buffer")) {
         trial <- modifyBuffer(trial = trial, buffer_width = buffer_width,
                   contamination_limits = contamination_limits)
         if (is.null(trial$buffer)) stop("No buffer available for export")

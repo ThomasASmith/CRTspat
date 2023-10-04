@@ -54,7 +54,7 @@ If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"}
 a description of the geography is computed and power calculations are carried out.\cr\cr
 If \code{geoscale, locations, kappa} and \code{mu} are specified then a new trial dataframe is constructed
 corresponding to a novel simulated human settlement pattern. This is generated using the
-Thomas algorithm (\code{rThomas}) in \href{http://spatstat.org/}{\code{spatstat}}
+Thomas algorithm (\code{rThomas}) in \href{https://cran.r-project.org/web/packages/spatstat.random/citation.html}{\code{spatstat.random}}
 allowing the user to defined the density of locations and degree of spatial clustering.
 The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
 }

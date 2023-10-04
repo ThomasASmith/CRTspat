@@ -233,7 +233,7 @@ plt <- function(object) {
 #' a description of the geography is computed and power calculations are carried out.\cr\cr
 #' If \code{geoscale, locations, kappa} and \code{mu} are specified then a new trial dataframe is constructed
 #' corresponding to a novel simulated human settlement pattern. This is generated using the
-#' Thomas algorithm (\code{rThomas}) in [\code{spatstat}](http://spatstat.org/)
+#' Thomas algorithm (\code{rThomas}) in [\code{spatstat.random}](https://cran.r-project.org/web/packages/spatstat.random/citation.html)
 #' allowing the user to defined the density of locations and degree of spatial clustering.
 #' The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
 #' @export
@@ -378,7 +378,7 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 #' Convert lat long co-ordinates to x,y
 #'
 #' \code{latlong_as_xy} converts co-ordinates expressed as decimal degrees into x,y
-#' @param trial A list of class \code{"CRTsp"} containing latitudes and longitudes in decimal degrees
+#' @param trial A trial dataframe or list of class \code{"CRTsp"} containing latitudes and longitudes in decimal degrees
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
 #' @details The output object contains the input locations replaced with Cartesian
@@ -397,13 +397,8 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 #' examplexy <- latlong_as_xy(readdata("example_latlong.csv"))
 #'
 latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
-  if (identical(class(trial),"data.frame")){
-    CRT <- list(trial = trial, design = NULL)
-    class(CRT) <- "CRTsp"
-  } else {
-    CRT <- trial
-    trial <- CRT$trial
-  }
+  CRT <- CRTsp(trial)
+  trial <- CRT$trial
   colnames(trial)[colnames(trial) == latvar] <- "lat"
   colnames(trial)[colnames(trial) == longvar] <- "long"
   # scalef is the number of degrees per kilometer
@@ -783,6 +778,6 @@ kmeans_ClusterDefinition <- function(coordinates, nclusters) {
 
 map_scale_to_link <- function(scale) {
   scales <- c("proportion", "count", "continuous")
-  links <- c("logit","log","identity")
+  links <- c("logit", "log", "identity")
   link <-  links[which(scale == scales)]
 return(link)}

@@ -64,7 +64,7 @@ plotCRT(exampleCRT, map = TRUE, fill = 'arms', showBuffer=TRUE,
   <em>Fig 6.4 Arms with 500m buffer zone shaded </em>
   </p>
 
-  Once data have been collected, `plotCRT()` can be used to generate a stacked bar plot to illustrate
+  Once data have been collected, `plotCRT()` can be used to generate a bar plot to illustrate
 how much of the data are found close to the boundary between the arms.
 
 ```{r example6d.r, fig.keep = 'none', echo = TRUE}

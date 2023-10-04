@@ -7,7 +7,7 @@
 latlong_as_xy(trial, latvar = "lat", longvar = "long")
 }
 \arguments{
-\item{trial}{A list of class \code{"CRTsp"} containing latitudes and longitudes in decimal degrees}
+\item{trial}{A trial dataframe or list of class \code{"CRTsp"} containing latitudes and longitudes in decimal degrees}
 
 \item{latvar}{name of column containing latitudes in decimal degrees}
 
