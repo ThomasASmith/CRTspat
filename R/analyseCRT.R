@@ -1456,7 +1456,11 @@ Tinterval <- function(x, alpha, option){
 #' @param ... other arguments used by summary
 #' @method summary CRTanalysis
 #' @export
-#'
+#' @examples
+#' {example <- readdata('exampleCRT.txt')
+#' exampleT <- CRTanalysis(example, method = "T")
+#' summary(exampleT)
+#' }
 summary.CRTanalysis <- function(object, ...) {
     defaultdigits <- getOption("digits")
     options(digits = 3)
@@ -1925,6 +1929,11 @@ return(analysis)}
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @examples
+#' {example <- readdata('exampleCRT.txt')
+#' exampleGEE <- CRTanalysis(example, method = "GEE")
+#' fitted_values <- fitted(exampleGEE)
+#' }
 fitted.CRTanalysis <- function(object, ...){
     value = fitted(object = object$model_object, ...)
     return(value)
@@ -1936,6 +1945,11 @@ fitted.CRTanalysis <- function(object, ...){
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @examples
+#' {example <- readdata('exampleCRT.txt')
+#' exampleGEE <- CRTanalysis(example, method = "GEE")
+#' coef(exampleGEE)
+#' }
 coef.CRTanalysis <- function(object, ...){
     value = coef(object = object$model_object, ...)
     return(value)
@@ -1947,6 +1961,11 @@ coef.CRTanalysis <- function(object, ...){
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @examples
+#' {example <- readdata('exampleCRT.txt')
+#' exampleGEE <- CRTanalysis(example, method = "GEE")
+#' residuals <- residuals(exampleGEE)
+#' }
 residuals.CRTanalysis <- function(object, ...){
     value = residuals(object = object$model_object, ...)
     return(value)
@@ -1958,6 +1977,11 @@ residuals.CRTanalysis <- function(object, ...){
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @examples
+#' {example <- readdata('exampleCRT.txt')
+#' exampleGEE <- CRTanalysis(example, method = "GEE")
+#' predictions <- predict(exampleGEE)
+#' }#'
 predict.CRTanalysis <- function(object, ...){
     value = predict(object = object$model_object, ...)
     return(value)

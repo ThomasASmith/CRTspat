@@ -14,3 +14,9 @@
 \description{
 \code{summary.CRTanalysis} generates a summary of a \code{CRTanalysis} including the main results
 }
+\examples{
+{example <- readdata('exampleCRT.txt')
+exampleT <- CRTanalysis(example, method = "T")
+summary(exampleT)
+}
+}

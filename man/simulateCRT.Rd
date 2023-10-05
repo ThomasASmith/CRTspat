@@ -95,7 +95,7 @@ the value of \code{'ICC_inp'} by searching for an appropriate value of the kerne
 }
 \code{num[i]}, the synthetic outcome for location \code{i}
 is simulated with expectation: \cr
-\deqn{\code{E(num[i]) = outcome0[i] * propensity[i] * denom[i] * (1 - effect*I[i])/mean(outcome0[] * propensity[])}} \cr
+\deqn{E(num[i]) = outcome0[i] * propensity[i] * denom[i] * (1 - effect*I[i])/mean(outcome0[] * propensity[])} \cr
 The sampling distribution of \code{num[i]} depends on the value of \code{scale} as follows: \cr
 \tabular{llll}{
 \code{scale}=’continuous’ \tab Values of \code{num} are sampled from a

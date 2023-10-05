@@ -488,6 +488,9 @@ anonymize_site <- function(trial, ID = NULL, latvar = "lat", longvar = "long") {
 #' @details The input file name should include the extension (either .csv or .txt).
 #' The resulting object is a data frame if the extension is .csv.
 #' @export
+#' @examples
+#' exampleCRT <- readdata('exampleCRT.txt')
+#'
 readdata <- function(filename) {
     fname <- eval(filename)
     extdata <- system.file("extdata", package = "CRTspat")
@@ -526,7 +529,8 @@ is_CRTsp <- function(x) {
 #' @param ... other arguments used by summary
 #' @method summary CRTsp
 #' @export
-#'
+#' @examples
+#' summary(CRTsp(readdata('exampleCRT.txt')))
 summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
   defaultdigits <- getOption("digits")
   options(digits = 3)

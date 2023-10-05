@@ -19,3 +19,7 @@ R object corresponding to the text file
 The input file name should include the extension (either .csv or .txt).
 The resulting object is a data frame if the extension is .csv.
 }
+\examples{
+exampleCRT <- readdata('exampleCRT.txt')
+
+}
