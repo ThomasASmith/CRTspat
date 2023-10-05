@@ -33,7 +33,10 @@ By contributing to this project, you agree to abide by its terms.
 `CRTspat` is on [github](https://github.com/ThomasASmith/CRTspat/) and
 can be installed using:
 
-`install.packages("devtools")` `library(devtools)`
-`install_github("thomasasmith/CRTspat")`
+``` r
+install.packages("devtools")
+library(devtools)
+install_github("thomasasmith/CRTspat")
+```
 
 `CRTspat` has also been submitted to CRAN.
