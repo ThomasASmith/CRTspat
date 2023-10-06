@@ -27,10 +27,12 @@ Imports:
     sf,
     Matrix,
     spatstat.geom,
-    spatstat.random
+    spatstat.random,
+    INLA, 
+    jagsUI, 
+    TSP
 Suggests: 
-    knitr, rmarkdown, INLA, jagsUI, 
-    TSP, aod, ggthemes, gstat, methods, mvtnorm, plyr, qpdf, 
+    knitr, rmarkdown,  
     testthat (>= 2.0.0)
 Config/testthat/edition: 2
 Depends: 
