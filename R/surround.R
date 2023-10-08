@@ -8,7 +8,7 @@
 #' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 #' \code{"disc"} \tab disc \cr
 #' \code{"kern"} \tab kernel-based measure \cr
-#' \code{"hdep"} \tab Tukey's half space depth\cr
+#' \code{"hdep"} \tab Tukey half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' }
 #' @param scale_par scale parameter equal to the disc radius in km if \code{distance = "disc"}
@@ -31,19 +31,20 @@
 #' If \code{distance = "kern"} is specified, the Normal curve with standard deviation
 #' \code{scale_par} is used to simulate diffusion of the intervention effect by Euclidean
 #' distance. For each location in the trial, the contributions of all intervened locations are
-#' summed. As with \code{distance = "disc"} when \code{distance = "kern"} the surround calculated
+#' summed. As with \code{distance = "disc"}, when \code{distance = "kern"} the surround calculated
 #' based on intervened locations is divided by the value of the surround calculated on the basis of all locations, so the
 #' value returned is a proportion.\cr\cr
 #' If either \code{distance = "hdep"} or \code{distance = "sdep"} is specified then both the simplicial depth and
-#' Tukey's half space depth are calculated using the algorithm of
+#' Tukey half space depth are calculated using the algorithm of
 #' [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073). The half-depth probability within the intervention cloud (di) is computed
 #' with respect to other locations in the intervention arm ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)). The half-depth within
 #' the half-depth within the control cloud (dc) is also computed. \code{CRTspat} returns the proportion di/(dc + di). \cr
 #' @export
-#' @examples
-#' #Calculate the disc with a radius of 0.5 km
-#' {exampletrial <- compute_distance(trial = readdata('exampleCRT.txt'),
-#'   distance = 'disc', scale_par = 0.5)}
+#' @examples{
+#' # Calculate the disc with a radius of 0.5 km
+#' exampletrial <- compute_distance(trial = readdata('exampleCRT.txt'),
+#' distance = 'disc', scale_par = 0.5)
+#' }
 compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NULL) {
   CRT <- CRTsp(trial)
   trial <- CRT$trial

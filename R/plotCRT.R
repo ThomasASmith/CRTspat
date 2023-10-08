@@ -18,9 +18,9 @@
 #' \code{'cluster'} \tab cluster assignment \cr
 #' \code{'arms'}   \tab arm assignment \cr
 #' \code{'nearestDiscord'} \tab distance to the nearest discordant location\cr
-#' \code{"disc"} \tab disc measure of surround\cr
-#' \code{"hdep"} \tab Tukey's half space depth\cr
-#' \code{"sdep"} \tab simplicial depth\cr
+#' \code{'disc'} \tab disc measure of surround\cr
+#' \code{'hdep'} \tab Tukey's half space depth\cr
+#' \code{'sdep'} \tab simplicial depth\cr
 #' \code{'prediction'}\tab model prediction of the outcome \cr
 #' \code{'none'}\tab No fill \cr
 #' }
@@ -43,16 +43,18 @@
 #' If \code{map = FALSE} and the input is a trial data frame or a \code{CRTsp} object,
 #' containing a randomisation to arms, a stacked bar chart of the outcome
 #' grouped by the specified \code{distance} is produced. If the specified \code{distance}
-#' has not yet been calculated an error is returned\cr
-#' If \code{map = FALSE} and the input is a \code{CRTanalysis} object plot of the
-#' estimated contamination function is generated. The fitted contamination function is plotted as a continuous blue line against the measure of distance
-#' from the nearest discordant location or of surround. Using the same axes, data summaries are plotted for
+#' has not yet been calculated an error is returned.\cr\cr
+#' If \code{map = FALSE} and the input is a \code{CRTanalysis} object a plot of the
+#' estimated contamination function is generated. The fitted contamination function is plotted
+#' as a continuous blue line against the measure
+#' the surround or of the distance to the nearest discordant location. Using the same axes, data summaries are plotted for
 #' ten categories of distance from the boundary. Both the
 #' average of the outcome and confidence intervals are plotted.
-#'  \itemize{
+#' \itemize{
 #' \item For analyses with logit link function the outcome is plotted as a proportion. \cr
-#' \item For analyses with log or cloglog link function the outcome is plotted on a scale of the Williams' mean
-#' (mean of exp(log(x + 1))) - 1) }\cr\cr
+#' \item For analyses with log or cloglog link function the outcome is plotted on a scale of the Williams mean
+#' (mean of exp(log(x + 1))) - 1)\cr
+#' }
 #' If \code{map = TRUE} a thematic map corresponding to the value of \code{fill} is generated.
 #' \itemize{
 #' \item \code{fill = 'clusters'} or leads to thematic map showing the locations of the clusters
@@ -87,12 +89,14 @@
 #' #show clusters in colour
 #' plotCRT(example, map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
 #'           labelsize=2, maskbuffer=0.2)
-#' #show arms
-#' plotCRT(example, map = TRUE,
+#' \dontrun{
+#'     #show arms
+#'     plotCRT(example, map = TRUE,
 #'         fill = 'arms', maskbuffer=0.2, legend.position=c(0.8,0.8))
+#' }
 #' #contamination plot
-#' analysis <- CRTanalysis(example)
-#' plotCRT(analysis, map = FALSE)
+#'     analysis <- CRTanalysis(example)
+#'     plotCRT(analysis, map = FALSE)
 #' }
 #' @export
 plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "arms", showLocations = FALSE,

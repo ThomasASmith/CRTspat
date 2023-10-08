@@ -27,17 +27,19 @@ matched-pair randomization)}
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
-\tabular{llll}{
-\code{geom_full}   \tab list: \tab summary statistics describing the site,
-cluster assignments, and randomization.\tab\cr
-\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-\tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-\tab \code{pair} \tab factor \tab assigned matched pair of each location
-(if \code{matchedPair} randomisation was carried out) \cr
-\tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-\tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+\tabular{lll}{
+\code{design}   \tab list: \tab parameters required for power calculations\cr
+\code{geom_full}   \tab list: \tab summary statistics describing the site \cr
+\code{geom_core}   \tab list: \tab summary statistics describing the core area
+(when a buffer is specified)\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+\tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+\tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
+\tab \code{pair} \tab factor: assigned matched pair of each location
+(for \code{matchedPair} randomisations) \cr
+\tab \code{arm} \tab factor: assignments to \code{"control"} or \code{"intervention"} for each location \cr
+\tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 }
 }
 \description{

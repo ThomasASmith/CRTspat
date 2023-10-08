@@ -32,10 +32,10 @@
 #' If geolocations are not input power and sample size calculations are based on the scalar input parameters.\cr\cr
 #' If a trial dataframe or \code{'CRTsp'} object containing a pre-existing randomization is input then the
 #' numbers and sizes of clusters are in the input data are used to estimate the power. If buffer zones have been specified
-#' then separate calculations are made for the core area and for the full site\cr\cr
+#' then separate calculations are made for the core area and for the full site\cr
 #' The output is an object of class \code{'CRTsp'} containing any input trial data.frame and values for:
-#' - The required numbers of clusters to achieve the specified power.\cr
-#' - The design effect based on the input ICC.\cr
+#' - The required numbers of clusters to achieve the specified power.
+#' - The design effect based on the input ICC.
 #' - Calculations of the nominal power (ignoring any bias caused by contamination effects)\cr
 #' @examples
 #' {# Example without input geolocations

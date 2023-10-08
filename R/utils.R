@@ -57,18 +57,18 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #' @param buffer_width minimum distance between locations in
 #'   opposing arms for them to qualify to be included in the core area (km)
 #' @returns A list of class \code{"CRTsp"} containing the following components:
-#'  \tabular{llll}{
+#'  \tabular{lll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site,
-#'  cluster assignments, and randomization.\tab\cr
-#'  \code{geom_core}   \tab list: \tab summary statistics describing the core area \tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-#'  \tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
-#'  \tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+#'  cluster assignments, and randomization.\cr
+#'  \code{geom_core}   \tab list: \tab summary statistics describing the core area \cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+#'  \tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+#'  \tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
+#'  \tab \code{arm} \tab factor: assignments to \code{"control"} or \code{"intervention"} for each location \cr
+#'  \tab \code{nearestDiscord} \tab numeric vector: Euclidean distance to nearest discordant location (km) \cr
+#'  \tab \code{buffer} \tab logical: indicator of whether the point is within the buffer \cr
+#'  \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -103,17 +103,19 @@ specify_buffer <- function(trial, buffer_width = 0) {
 #' @param baselineDenominator name of denominator variable for baseline data (required for
 #'   matched-pair randomization)
 #' @returns A list of class \code{"CRTsp"} containing the following components:
-#'  \tabular{llll}{
-#'  \code{geom_full}   \tab list: \tab summary statistics describing the site,
-#'  cluster assignments, and randomization.\tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \tab \code{pair} \tab factor \tab assigned matched pair of each location
-#'  (if \code{matchedPair} randomisation was carried out) \cr
-#'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+#'  \tabular{lll}{
+#'  \code{design}   \tab list: \tab parameters required for power calculations\cr
+#'  \code{geom_full}   \tab list: \tab summary statistics describing the site \cr
+#'  \code{geom_core}   \tab list: \tab summary statistics describing the core area
+#'  (when a buffer is specified)\cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+#'  \tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+#'  \tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
+#'  \tab \code{pair} \tab factor: assigned matched pair of each location
+#'  (for \code{matchedPair} randomisations) \cr
+#'  \tab \code{arm} \tab factor: assignments to \code{"control"} or \code{"intervention"} for each location \cr
+#'  \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -123,9 +125,7 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
     baselineDenominator = "base_denom") {
 
     CRT <- CRTsp(trial)
-
     CRT$design <- NULL
-
     trial <- CRT$trial
 
     # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
@@ -214,26 +214,26 @@ plt <- function(object) {
 #' @param mu mean  number of points per settlement cluster (for new objects)
 #' @export
 #' @returns A list of class \code{"CRTsp"} containing the following components:
-#'  \tabular{llll}{
-#'  \code{design}   \tab list: \tab parameters required for power calculations\tab\cr
-#'  \code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
+#'  \tabular{lll}{
+#'  \code{design}   \tab list: \tab parameters required for power calculations\cr
+#'  \code{geom_full}   \tab list: \tab summary statistics describing the site \cr
 #'  \code{geom_core}   \tab list: \tab summary statistics describing the core area
-#'  (when a buffer is specified)\tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-#'  \tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
-#'  \tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+#'  (when a buffer is specified)\cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+#'  \tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+#'  \tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
+#'  \tab \code{arm} \tab factor: assignments to \code{"control"} or \code{"intervention"} for each location \cr
+#'  \tab \code{nearestDiscord} \tab numeric vector: Euclidean distance to nearest discordant location (km) \cr
+#'  \tab \code{buffer} \tab logical: indicator of whether the point is within the buffer \cr
+#'  \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @details
 #' If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"} object is validated,
 #' a description of the geography is computed and power calculations are carried out.\cr\cr
 #' If \code{geoscale, locations, kappa} and \code{mu} are specified then a new trial dataframe is constructed
 #' corresponding to a novel simulated human settlement pattern. This is generated using the
-#' Thomas algorithm (\code{rThomas}) in [\code{spatstat.random}](https://cran.r-project.org/web/packages/spatstat.random/citation.html)
+#' Thomas algorithm (\code{rThomas}) in [\code{spatstat.random}](https://CRAN.R-project.org/package=spatstat.random)
 #' allowing the user to defined the density of locations and degree of spatial clustering.
 #' The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
 #' @export
@@ -305,29 +305,29 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #'   households
 #' @param k integer: number of clusters in each arm
 #' @param h integer: number of locations per cluster
-#' @param algorithm algorithm for cluster boundaries, options are:
-#' \code{NN} (the default),  \code{kmeans},  \code{TSP}
+#' @param algorithm algorithm for cluster boundaries, with options:
+#' \tabular{ll}{
+#' \code{NN}\tab Nearest neighbour: assigns equal numbers of locations to each cluster \cr
+#' \code{kmeans}\tab kmeans clustering: aims to partition locations so that each
+#' belongs to the cluster with the nearest centroid.\cr
+#' \code{TSP}\tab travelling salesman problem heuristic: Assigns locations sequentially
+#' along a travelling salesman path.\cr
+#' }
 #' @param reuseTSP logical: indicator of whether a pre-existing path should be used by
 #'   the TSP algorithm
 #' @returns A list of class \code{"CRTsp"} containing the following components:
-#'  \tabular{llll}{
+#'  \tabular{lll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site,
-#'  and cluster assignments.\tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+#'  and cluster assignments.\cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+#'  \tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+#'  \tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
+#'  \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
-#' @details Clustering is carried out using one of three algorithms:
-#' \tabular{lll}{
-#' \code{NN}\tab Nearest neighbour:\tab assigns equal numbers of locations to each cluster \cr
-#' \code{kmeans}\tab kmeans clustering  :\tab aims to partition locations so that each
-#' belongs to the cluster with the nearest centroid \cr
-#' \code{TSP} \tab travelling salesman problem heuristic :\tab Assigns locations sequentially
-#' along a travelling salesman path.The \code{reuseTSP} parameter is used to allow the path to be reused
-#' for creating alternative allocations with different cluster sizes. \cr
-#' }
+#' @details
+#' The \code{reuseTSP} parameter is used to allow the path to be reused
+#' for creating alternative allocations with different cluster sizes.\cr\cr
 #' Either \code{k} or \code{h} must be specified. If both are specified
 #' the input value of \code{k} is ignored.\cr
 #' @export
@@ -370,6 +370,8 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
         stop("unknown method")
     }
 
+    # remove any pre-existing arm assignments
+    trial$arm <- NULL
     CRT$trial <- trial
     return(CRTsp(CRT))
 }
@@ -385,12 +387,12 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
 #'   coordinates in units of km, centred on (0,0), corresponding to using the equirectangular projection
 #'   (valid for small areas). Other data are unchanged.
 #' @returns A list of class \code{"CRTsp"} containing the following components:
-#'  \tabular{llll}{
-#'  \code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
-#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-#'  \tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-#'  \tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-#'  \tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+#'  \tabular{lll}{
+#'  \code{geom_full}   \tab list: \tab summary statistics describing the site \cr
+#'  \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+#'  \tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+#'  \tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+#'  \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @export
 #' @examples
@@ -417,25 +419,24 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
 
 #' Anonymize locations of a trial site
 #'
-#' \code{anonymize_site} Transforms coordinates to maintain confidentiality
-#' @param trial \code{"CRTsp"} object or trial data frame with co-ordinates of
-#'   households
+#' \code{anonymize_site} transforms coordinates to remove potential identification information.
+#' @param trial \code{"CRTsp"} object or trial data frame with co-ordinates of households
 #' @param ID name of column used as an identifier for the points
 #' @param latvar name of column containing latitudes in decimal degrees
 #' @param longvar name of column containing longitudes in decimal degrees
-#' @returns A list of class \code{"CRTsp"} containing the following components:
+#' @returns A list of class \code{"CRTsp"}.
 #' @export
 #' @details
-#' The coordinates are transformed in order to obscure geographical information, to support confidentiality of
-#' information linked to households. The input may have either \code{lat long} or \code{x,y} coordinates.
+#' The coordinates are transformed to support confidentiality of
+#' information linked to households by replacing precise geo-locations with transformed co-ordinates which preserve distances
+#' but not positions. The input may have either \code{lat long} or \code{x,y} coordinates.
 #' The function first searches for any \code{lat long} co-ordinates and converts these to \code{x,y}
 #' Cartesian coordinates. These are then are rotated by a random angle about a random origin. The returned object
-#' has transformed co-ordinates re-centred at the origin.\cr
-#' Any centroid information stored in the \code{"CRTsp"} object is removed. Other data are unchanged.
+#' has transformed co-ordinates re-centred at the origin. Centroids stored in the \code{"CRTsp"} object are removed.
+#' Other data are unchanged.
 #' @examples
 #' #Rotate and reflect test site locations
 #' transformedTestlocations <- anonymize_site(trial =  readdata("exampleCRT.txt"))
-
 anonymize_site <- function(trial, ID = NULL, latvar = "lat", longvar = "long") {
     # Local data from study area (ground survey and/or satellite
     # images) random rotation angle

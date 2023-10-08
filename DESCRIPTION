@@ -1,12 +1,19 @@
 Package: CRTspat
 Title: Design and Analysis of Cluster Randomized Trials of Health Interventions with Spatial Contamination
 Version: 1.0.0
-Authors@R: person("Thomas", "Smith", email = "thomas-a.smith@unibas.ch",
-  role = c("aut", "cre", "cph"),
-  comment = c(ORCID = "0000-0002-3650-9381"))
-Author: Lea Multerer, Mariah Silkey
-Maintainer: Thomas Smith <Thomas-A.Smith@unibas.ch>
-Description: functions to support design, workflow and analysis for Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms. cluster size and sample size for cluster randomized controls of interventions with geographical contamination, and for carrying out randomizations for such trials.  The methods are described in Multerer et al. (in preparation). The package takes as inputs a table of geolocations of experimental units. Example datasets are provided taken from field trials of malaria interventions. 
+Authors@R: c(person(given = "Thomas",
+                    family = "Smith", 
+                    email = "Thomas-a.Smith@unibas.ch",
+                    role = c("aut", "cre", "cph"),
+                    comment = c(ORCID = "0000-0002-3650-9381")),
+            person(given = "Lea",
+                   family = "Multerer",
+                   role = "ctb"),
+            person(given = "Mariah",
+                   family = "Silkey",
+                   role = "ctb"))
+Maintainer: Thomas Smith <Thomas-a.Smith@unibas.ch>
+Description: Supports design, workflow and analysis of Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms. 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -28,11 +35,10 @@ Imports:
     Matrix,
     spatstat.geom,
     spatstat.random,
-    INLA, 
     jagsUI, 
     TSP
 Suggests: 
-    knitr, rmarkdown,  
+    knitr, rmarkdown, INLA,  
     testthat (>= 2.0.0)
 Config/testthat/edition: 2
 Depends: 

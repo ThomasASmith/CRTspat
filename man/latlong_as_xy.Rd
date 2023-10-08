@@ -15,12 +15,12 @@ latlong_as_xy(trial, latvar = "lat", longvar = "long")
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
-\tabular{llll}{
-\code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
-\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-\tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+\tabular{lll}{
+\code{geom_full}   \tab list: \tab summary statistics describing the site \cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+\tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+\tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 }
 }
 \description{

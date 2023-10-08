@@ -27,3 +27,6 @@ detach("package:CRTspat", unload = TRUE)
 # to build package website
 usethis::use_pkgdown()
 pkgdown::build_site()
+
+# To write pdf manual
+shell('R CMD Rd2pdf . --output=man/figures/manual.pdf --force --no-preview')

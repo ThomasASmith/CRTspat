@@ -45,24 +45,24 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 \code{"disc"} \tab disc\cr
 \code{"kern"} \tab surround based on sum of normal kernels\cr
-\code{"hdep"} \tab Tukey's half space depth\cr
+\code{"hdep"} \tab Tukey half space depth\cr
 \code{"sdep"} \tab simplicial depth\cr
 }}
 
 \item{scale_par}{numeric: pre-specified value of contamination parameter or disc radius}
 
-\item{cfunc}{transformation defining the contamination function. \cr
-options are:
+\item{cfunc}{transformation defining the contamination function with options:
 \tabular{llll}{
 \code{"Z"} \tab\tab arm effects not considered\tab reference model\cr
 \code{"X"} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
 \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
+\code{"E"} \tab\tab estimation of scale factor\tab only available with \code{distance = "disc"} or \code{distance = "kern"}\cr
 \code{"R"} \tab\tab rescaled linear\tab \cr
 }}
 
-\item{link}{link function. options are:
+\item{link}{link function with options:
 \tabular{ll}{
 \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
 \code{"log"}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).\cr
@@ -110,30 +110,26 @@ list of class \code{CRTanalysis} containing the following results of the analysi
 }
 \details{
 \code{CRTanalysis} is a wrapper for the statistical analysis packages:
-\href{https://www.jstatsoft.org/article/view/v015i02}{geepack},
+\href{https://CRAN.R-project.org/package=geepack}{geepack},
 \href{https://www.r-inla.org/}{INLA},
-\href{https://github.com/kenkellner/jagsUI}{jagsUI},
+\href{https://CRAN.R-project.org/package=jagsUI}{jagsUI},
 and the \href{https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test}{t.test}
-function of package \code{stats}.
+function of package \code{stats}.\cr\cr
 The wrapper does not provide an interface to the full functionality of these packages.
-It is specific for typical analyses of cluster randomized trials with geographical clustering. Details
-are provided in the \href{https://thomasasmith.github.io/articles/Usecase5.html}{vignette} \cr \cr
-
+It is specific for typical analyses of cluster randomized trials with geographical clustering. Further details
+are provided in the \href{https://thomasasmith.github.io/articles/Usecase5.html}{vignette}.\cr\cr
 The key results of the analyses can be extracted using a \code{summary()} of the output list.
 The \code{model_object} in the output list is the usual output from the statistical analysis routine,
 and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
-for purposes of evaluation of model fit etc..\cr
-
-For \code{link = "cloglog"} (\href{https://doi.org/10.1016/S1047-2797(97)00106-3}{Complementary log-log})
-the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1. The
-\code{denominator} field is used as a rate multiplier.\cr
-
-With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr
-
-\code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}.\cr\cr
+for purposes of evaluation of model fit etc..\cr\cr
+\code{link = "cloglog"} specifies a complementary log-log link function for which the numerator must be coded as 0 or 1.
+Technically the binomial denominator is then 1. The value of \code{denominator} is used as a rate multiplier.\cr\cr
+With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr\cr
+\code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}).\cr
 }
 \examples{
-{example <- readdata('exampleCRT.txt')
+\donttest{
+example <- readdata('exampleCRT.txt')
 # Analysis of test dataset by t-test
 exampleT <- CRTanalysis(example, method = "T")
 summary(exampleT)

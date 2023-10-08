@@ -73,5 +73,5 @@ library(devtools)
 install_github("thomasasmith/CRTspat")
 ```
 
-You may need to install other packages on which `CRTspat` depends. In particular, some of the functionality depends on [R-INLA](https://www.r-inla.org/) and [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html)
+You may need to install other packages on which `CRTspat` depends. In particular, some of the functionality depends on [R-INLA](https://www.r-inla.org/) and [jagsUI](https://CRAN.R-project.org/package=jagsUI)
 however much of `CRTspat` will run without these packages.

@@ -55,22 +55,22 @@ using pair-matching on the baseline data (see details)}
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
-\tabular{llll}{
+\tabular{lll}{
 \code{geom_full}\tab list: \tab summary statistics describing the site
-cluster assignments, and randomization \tab\cr
-\code{design}\tab list: \tab values of input parameters to the design \tab\cr
-\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-\tab\code{cluster} \tab factor: \tab assignments to cluster of each location  \cr
-\tab\code{arm} \tab factor: \tab assignments to \code{control} or \code{intervention} for each location \cr
-\tab\code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
-\tab\code{propensity} \tab numeric vector: \tab propensity for each location \cr
-\tab\code{base_denom} \tab numeric vector: \tab denominator for baseline \cr
-\tab\code{base_num} \tab numeric vector: \tab numerator for baseline \cr
-\tab\code{denom} \tab numeric vector: \tab denominator for the outcome \cr
-\tab\code{num} \tab numeric vector: \tab numerator for the outcome \cr
-\tab\code{...} \tab\tab other objects included in the input \code{"CRTsp"} object
+cluster assignments, and randomization \cr
+\code{design}\tab list: \tab values of input parameters to the design \cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+\tab \code{x} \tab numeric vector:  x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector:  y-coordinates of locations \cr
+\tab\code{cluster} \tab factor:  assignments to cluster of each location  \cr
+\tab\code{arm} \tab factor:  assignments to \code{control} or \code{intervention} for each location \cr
+\tab\code{nearestDiscord} \tab numeric vector:  Euclidean distance to nearest discordant location (km) \cr
+\tab\code{propensity} \tab numeric vector:  propensity for each location \cr
+\tab\code{base_denom} \tab numeric vector:  denominator for baseline \cr
+\tab\code{base_num} \tab numeric vector:  numerator for baseline \cr
+\tab\code{denom} \tab numeric vector:  denominator for the outcome \cr
+\tab\code{num} \tab numeric vector:  numerator for the outcome \cr
+\tab\code{...} \tab other objects included in the input \code{"CRTsp"} object
 or \code{data.frame}\cr
 }
 }
@@ -97,15 +97,16 @@ the value of \code{'ICC_inp'} by searching for an appropriate value of the kerne
 is simulated with expectation: \cr
 \deqn{E(num[i]) = outcome0[i] * propensity[i] * denom[i] * (1 - effect*I[i])/mean(outcome0[] * propensity[])} \cr
 The sampling distribution of \code{num[i]} depends on the value of \code{scale} as follows: \cr
-\tabular{llll}{
-\code{scale}=’continuous’ \tab Values of \code{num} are sampled from a
+\itemize{
+\item \code{scale}=’continuous’: Values of \code{num} are sampled from a
 Normal distributions with means \code{E(num[i])}
 and variance determined by the fitting to \code{ICC_inp}.\cr
-\code{scale}=’count’ \tab Simulated events are allocated to locations via multivariate hypergeometric distributions
+\item \code{scale}=’count’: Simulated events are allocated to locations via multivariate hypergeometric distributions
 parameterised with \code{E(num[i])}.\cr
-\code{scale}=’proportion’\tab Simulated events are allocated to locations via multinomial distributions
+\item \code{scale}=’proportion’: Simulated events are allocated to locations via multinomial distributions
 parameterised with \code{E(num[i])}.\cr
 }
+
 \code{denominator} may specify a vector of numeric (non-zero) values
 in the input \code{"CRTsp"} or \code{data.frame} which is returned
 as variable \code{denom}. It acts as a scale-factor for continuous outcomes, rate-multiplier
@@ -131,8 +132,8 @@ Contamination is simulated as arising from a diffusion-like process.
 For further details see \href{https://edoc.unibas.ch/85228/}{Multerer (2021)}
 }
 \examples{
-{exampleCRT <- readdata('exampleCRT.txt')
- simulation <- simulateCRT(exampleCRT,
+{smalltrial <- readdata('smalltrial.csv')
+ simulation <- simulateCRT(smalltrial,
   effect = 0.25,
   ICC_inp = 0.05,
   outcome0 = 0.5,
@@ -140,5 +141,6 @@ For further details see \href{https://edoc.unibas.ch/85228/}{Multerer (2021)}
   scale = 'proportion',
   sd = 0.6,
   tol = 0.05)
- summary(simulation) }
+ summary(simulation)
+ }
 }

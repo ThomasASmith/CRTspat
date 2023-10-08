@@ -18,21 +18,21 @@
 #' \code{"nearestDiscord"} \tab distance to nearest discordant location (km)\cr
 #' \code{"disc"} \tab disc\cr
 #' \code{"kern"} \tab surround based on sum of normal kernels\cr
-#' \code{"hdep"} \tab Tukey's half space depth\cr
+#' \code{"hdep"} \tab Tukey half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' }
 #' @param scale_par numeric: pre-specified value of contamination parameter or disc radius
-#' @param cfunc transformation defining the contamination function. \cr
-#' options are:
+#' @param cfunc transformation defining the contamination function with options:
 #' \tabular{llll}{
 #' \code{"Z"} \tab\tab arm effects not considered\tab reference model\cr
 #' \code{"X"} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
 #' \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 #' \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
 #' \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
+#' \code{"E"} \tab\tab estimation of scale factor\tab only available with \code{distance = "disc"} or \code{distance = "kern"}\cr
 #' \code{"R"} \tab\tab rescaled linear\tab \cr
 #' }
-#' @param link link function. options are:
+#' @param link link function with options:
 #' \tabular{ll}{
 #' \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
 #' \code{"log"}  \tab \code{numerator} is Poisson distributed with an offset of log(\code{denominator}).\cr
@@ -60,34 +60,30 @@
 #' \item \code{model_object} : object returned by the fitting routine
 #' \item \code{contamination} : function values and statistics describing the estimated contamination
 #' }
-#' @details \code{CRTanalysis} is a wrapper for the statistical analysis packages:
-#' [geepack](https://www.jstatsoft.org/article/view/v015i02),
-#' [INLA](https://www.r-inla.org/),
-#' [jagsUI](https://github.com/kenkellner/jagsUI),
-#' and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test)
-#' function of package \code{stats}.
-#' The wrapper does not provide an interface to the full functionality of these packages.
-#' It is specific for typical analyses of cluster randomized trials with geographical clustering. Details
-#' are provided in the [vignette](https://thomasasmith.github.io/articles/Usecase5.html) \cr \cr
-#'
-#' The key results of the analyses can be extracted using a \code{summary()} of the output list.
-#' The \code{model_object} in the output list is the usual output from the statistical analysis routine,
-#' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
-#' for purposes of evaluation of model fit etc..\cr
-#'
-#' For \code{link = "cloglog"} ([Complementary log-log](https://doi.org/10.1016/S1047-2797(97)00106-3))
-#' the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1. The
-#' \code{denominator} field is used as a rate multiplier.\cr
-#'
-#' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr
-#'
-#' \code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}.\cr\cr
 #' @importFrom grDevices rainbow
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
 #' @importFrom utils head read.csv
+#' @details \code{CRTanalysis} is a wrapper for the statistical analysis packages:
+#' [geepack](https://CRAN.R-project.org/package=geepack),
+#' [INLA](https://www.r-inla.org/),
+#' [jagsUI](https://CRAN.R-project.org/package=jagsUI),
+#' and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test)
+#' function of package \code{stats}.\cr\cr
+#' The wrapper does not provide an interface to the full functionality of these packages.
+#' It is specific for typical analyses of cluster randomized trials with geographical clustering. Further details
+#' are provided in the [vignette](https://thomasasmith.github.io/articles/Usecase5.html).\cr\cr
+#' The key results of the analyses can be extracted using a \code{summary()} of the output list.
+#' The \code{model_object} in the output list is the usual output from the statistical analysis routine,
+#' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
+#' for purposes of evaluation of model fit etc..\cr\cr
+#' \code{link = "cloglog"} specifies a complementary log-log link function for which the numerator must be coded as 0 or 1.
+#' Technically the binomial denominator is then 1. The value of \code{denominator} is used as a rate multiplier.\cr\cr
+#' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr\cr
+#' \code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}).\cr
 #' @export
 #' @examples
-#' {example <- readdata('exampleCRT.txt')
+#' \donttest{
+#' example <- readdata('exampleCRT.txt')
 #' # Analysis of test dataset by t-test
 #' exampleT <- CRTanalysis(example, method = "T")
 #' summary(exampleT)
@@ -121,7 +117,10 @@ CRTanalysis <- function(
         stop("*** Invalid value for statistical method ***")
         return(NULL)
     }
-
+    if (identical(method, "INLA") & identical(system.file(package='INLA'), "")){
+        cat("*** INLA package is not installed. Running lme4 analysis instead. ***")
+        method <- "LME4"
+    }
     # Some statistical methods do not allow for contamination
     if (method %in% c("EMP", "T", "GEE")) cfunc <- "X"
 
@@ -324,8 +323,8 @@ CRTanalysis <- function(
 #' \code{compute_mesh} create objects required for INLA analysis of an object of class \code{"CRTsp"}.
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome.
-#' @param offset (see \code{inla.mesh.2d} documentation)
-#' @param max.edge  (see \code{inla.mesh.2d} documentation)
+#' @param offset see \code{inla.mesh.2d} documentation
+#' @param max.edge see \code{inla.mesh.2d} documentation
 #' @param inla.alpha parameter related to the smoothness (see \code{inla} documentation)
 #' @param maskbuffer numeric: width of buffer around points (km)
 #' @param pixel numeric: size of pixel (km)
@@ -339,12 +338,12 @@ CRTanalysis <- function(
 #' \item \code{pixel} pixel size (km)
 #' }
 #' @details \code{compute_mesh} carries out the computationally intensive steps required for setting-up an
-#' INLA analysis of an object of class \code{"CRTsp"}, creating the preface_validitytion mesh and the projection matrices.
+#' INLA analysis of an object of class \code{"CRTsp"}, creating the prediction mesh and the projection matrices.
 #' The mesh can be reused for different models fitted to the same
 #' geography. The computational resources required depend largely on the resolution of the prediction mesh.
 #' The prediction mesh is thinned to include only pixels centred at a distance less than
 #' \code{maskbuffer} from the nearest point.\cr
-#' A warning may be generated unless the \code{Matrix} library is loaded.
+#' A warning may be generated if the \code{Matrix} library is not loaded.
 #' @export
 #' @examples
 #' {
@@ -353,99 +352,98 @@ CRTanalysis <- function(
 #' example <- readdata('exampleCRT.txt')
 #' exampleMesh=compute_mesh(example, pixel = 0.5)
 #' }
-#' \donttest{
-#' # 50m mesh for analyses of test dataset using \code{distance = "nearestDiscord"}.
-#' library(Matrix)
-#' example <- readdata('exampleCRT.txt')
-#' exampleMesh=compute_mesh(example, pixel = 0.05)
-#' }
 compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
                          inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
 {
-    # extract the trial data frame from the "CRTsp" object
-    if (identical(class(trial),"CRTsp")) trial <- trial$trial
-    # create an id variable if this does not exist
-    if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
+    if (identical(system.file(package='INLA'), "")){
+        cat("*** INLA package is not installed ***")
+        return("Mesh not created as INLA package is not installed")
+    } else {
+        # extract the trial data frame from the "CRTsp" object
+        if (identical(class(trial),"CRTsp")) trial <- trial$trial
+        # create an id variable if this does not exist
+        if(is.null(trial$id)) trial <- dplyr::mutate(trial, id =  dplyr::row_number())
 
-    # create buffer around area of points
-    trial.coords <- base::matrix(
-        c(trial$x, trial$y),
-        ncol = 2
-    )
+        # create buffer around area of points
+        trial.coords <- base::matrix(
+            c(trial$x, trial$y),
+            ncol = 2
+        )
 
-    tr <- sf::st_as_sf(trial, coords = c("x","y"))
-    buf1 <- sf::st_buffer(tr, maskbuffer)
-    buf2 <- sf::st_union(buf1)
-    # determine pixel size
-    area <- sf::st_area(buf2)
-    buffer <- sf::as_Spatial(buf2)
+        tr <- sf::st_as_sf(trial, coords = c("x","y"))
+        buf1 <- sf::st_buffer(tr, maskbuffer)
+        buf2 <- sf::st_union(buf1)
+        # determine pixel size
+        area <- sf::st_area(buf2)
+        buffer <- sf::as_Spatial(buf2)
 
-    # estimation mesh construction
-    # dummy call to Matrix. This miraculously allows the loading of the "dgCMatrix" in the mesh to pass the test
-    dummy <- Matrix::as.matrix(c(1,1,1,1))
+        # estimation mesh construction
+        # dummy call to Matrix. This miraculously allows the loading of the "dgCMatrix" in the mesh to pass the test
+        dummy <- Matrix::as.matrix(c(1,1,1,1))
 
-    mesh <- INLA::inla.mesh.2d(
-        boundary = buffer, offset = offset, cutoff = 0.05, max.edge = max.edge
-    )
+        mesh <- INLA::inla.mesh.2d(
+            boundary = buffer, offset = offset, cutoff = 0.05, max.edge = max.edge
+        )
 
-    # set up SPDE (Stochastic Partial Differential Equation) model
-    spde <- INLA::inla.spde2.matern(mesh = mesh, alpha = inla.alpha, constr = TRUE)
-    indexs <- INLA::inla.spde.make.index("s", spde$n.spde)
-    A <- INLA::inla.spde.make.A(mesh = mesh, loc = trial.coords)
+        # set up SPDE (Stochastic Partial Differential Equation) model
+        spde <- INLA::inla.spde2.matern(mesh = mesh, alpha = inla.alpha, constr = TRUE)
+        indexs <- INLA::inla.spde.make.index("s", spde$n.spde)
+        A <- INLA::inla.spde.make.A(mesh = mesh, loc = trial.coords)
 
-    # 8.3.6 Prediction data from https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html
-    bb <- sf::st_bbox(buffer)
+        # 8.3.6 Prediction data from https://www.paulamoraga.com/book-geospatial/sec-geostatisticaldatatheory.html
+        bb <- sf::st_bbox(buffer)
 
-    # create a raster that is slightly larger than the buffered area
-    xpixels <- round((bb$xmax - bb$xmin)/pixel) + 2
-    ypixels <- round((bb$ymax - bb$ymin)/pixel) + 2
-    x <- bb$xmin + (seq(1:xpixels) - 1.5)*pixel
-    y <- bb$ymin + (seq(1:ypixels) - 1.5)*pixel
-    all.coords <- as.data.frame(expand.grid(x, y), ncol = 2)
-    colnames(all.coords) <- c("x", "y")
-    all.coords <- sf::st_as_sf(all.coords, coords = c("x", "y"))
-    pred.coords <- sf::st_filter(all.coords, sf::st_as_sf(buf2))
-    pred.coords <- t(base::matrix(
-        unlist(pred.coords),
-        nrow = 2
-    ))
-    # projection matrix for the prediction locations
-    Ap <- INLA::inla.spde.make.A(mesh = mesh, loc = pred.coords)
+        # create a raster that is slightly larger than the buffered area
+        xpixels <- round((bb$xmax - bb$xmin)/pixel) + 2
+        ypixels <- round((bb$ymax - bb$ymin)/pixel) + 2
+        x <- bb$xmin + (seq(1:xpixels) - 1.5)*pixel
+        y <- bb$ymin + (seq(1:ypixels) - 1.5)*pixel
+        all.coords <- as.data.frame(expand.grid(x, y), ncol = 2)
+        colnames(all.coords) <- c("x", "y")
+        all.coords <- sf::st_as_sf(all.coords, coords = c("x", "y"))
+        pred.coords <- sf::st_filter(all.coords, sf::st_as_sf(buf2))
+        pred.coords <- t(base::matrix(
+            unlist(pred.coords),
+            nrow = 2
+        ))
+        # projection matrix for the prediction locations
+        Ap <- INLA::inla.spde.make.A(mesh = mesh, loc = pred.coords)
 
-    # Distance matrix calculations for the prediction stack Create all pairwise comparisons
-    pairs <- tidyr::crossing(
-        row = seq(1:nrow(pred.coords)),
-        col = seq(1:nrow(trial))
-    )
-    # Calculate the distances
-    calcdistP <- function(row, col) sqrt(
-        (trial$x[col] - pred.coords[row, 1])^2 + (trial$y[col] - pred.coords[row,
-                                                                             2])^2
-    )
-    distP <- apply(pairs, 1, function(y) calcdistP(y["row"], y["col"]))
-    distM <- base::matrix(
-        distP, nrow = nrow(pred.coords),
-        ncol = nrow(trial),
-        byrow = TRUE
-    )
-    nearestNeighbour <- apply(distM, 1, function(x) return(array(which.min(x))))
-    prediction <- data.frame(
-        x = pred.coords[, 1], y = pred.coords[, 2],
-        nearestNeighbour = nearestNeighbour)
-    prediction$id <- trial$id[nearestNeighbour]
-    if (!is.null(trial$arm)) prediction$arm <- trial$arm[nearestNeighbour]
-    if (!is.null(trial$cluster)) prediction$cluster <- trial$cluster[nearestNeighbour]
-    prediction <- with(prediction, prediction[order(y, x), ])
-    prediction$shortestDistance <- apply(distM, 1, min)
-    rows <- seq(1:nrow(prediction))
-    inla_mesh <- list(
-        prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde,
-        pixel = pixel)
+        # Distance matrix calculations for the prediction stack Create all pairwise comparisons
+        pairs <- tidyr::crossing(
+            row = seq(1:nrow(pred.coords)),
+            col = seq(1:nrow(trial))
+        )
+        # Calculate the distances
+        calcdistP <- function(row, col) sqrt(
+            (trial$x[col] - pred.coords[row, 1])^2 + (trial$y[col] - pred.coords[row,
+                                                                                 2])^2
+        )
+        distP <- apply(pairs, 1, function(y) calcdistP(y["row"], y["col"]))
+        distM <- base::matrix(
+            distP, nrow = nrow(pred.coords),
+            ncol = nrow(trial),
+            byrow = TRUE
+        )
+        nearestNeighbour <- apply(distM, 1, function(x) return(array(which.min(x))))
+        prediction <- data.frame(
+            x = pred.coords[, 1], y = pred.coords[, 2],
+            nearestNeighbour = nearestNeighbour)
+        prediction$id <- trial$id[nearestNeighbour]
+        if (!is.null(trial$arm)) prediction$arm <- trial$arm[nearestNeighbour]
+        if (!is.null(trial$cluster)) prediction$cluster <- trial$cluster[nearestNeighbour]
+        prediction <- with(prediction, prediction[order(y, x), ])
+        prediction$shortestDistance <- apply(distM, 1, min)
+        rows <- seq(1:nrow(prediction))
+        inla_mesh <- list(
+            prediction = prediction, A = A, Ap = Ap, indexs = indexs, spde = spde,
+            pixel = pixel)
 
-    if (nrow(prediction) > 20){
-        cat("Mesh of ", nrow(prediction), " pixels of size ", pixel," km \n")
-    }
-    return(inla_mesh)
+        if (nrow(prediction) > 20){
+            cat("Mesh of ", nrow(prediction), " pixels of size ", pixel," km \n")
+        }
+        return(inla_mesh)
+        }
 }
 
 EMPanalysis <- function(analysis){
@@ -960,7 +958,8 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     } else {
         analysis$pt_ests$controlY <- invlink(link, model_object$summary.fixed[["0.5quant"]])
     }
-return(analysis)}
+return(analysis)
+}
 
 MCMCanalysis <- function(analysis){
     trial <- analysis$trial
@@ -1992,7 +1991,7 @@ getDistanceText <- function(distance = "nearestDiscord", scale_par = NULL) {
                     "nearestDiscord" = "Signed distance to other arm (km)",
                     "disc" = paste0("disc of radius ", round(scale_par, digits = 3), " km"),
                     "kern" = paste0("kern with kernel s.d. ", round(scale_par, digits = 3), " km"),
-                    "hdep" = "Tukey's half-depth ",
+                    "hdep" = "Tukey half-depth ",
                     "sdep" = "Simplicial depth ",
                     distance)
     return(value)

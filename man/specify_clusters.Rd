@@ -20,37 +20,36 @@ households}
 
 \item{h}{integer: number of locations per cluster}
 
-\item{algorithm}{algorithm for cluster boundaries, options are:
-\code{NN} (the default),  \code{kmeans},  \code{TSP}}
+\item{algorithm}{algorithm for cluster boundaries, with options:
+\tabular{ll}{
+\code{NN}\tab Nearest neighbour: assigns equal numbers of locations to each cluster \cr
+\code{kmeans}\tab kmeans clustering: aims to partition locations so that each
+belongs to the cluster with the nearest centroid.\cr
+\code{TSP}\tab travelling salesman problem heuristic: Assigns locations sequentially
+along a travelling salesman path.\cr
+}}
 
 \item{reuseTSP}{logical: indicator of whether a pre-existing path should be used by
 the TSP algorithm}
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
-\tabular{llll}{
+\tabular{lll}{
 \code{geom_full}   \tab list: \tab summary statistics describing the site,
-and cluster assignments.\tab\cr
-\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-\tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-\tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+and cluster assignments.\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+\tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+\tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
+\tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 }
 }
 \description{
 \code{specify_clusters} algorithmically assigns locations to clusters by grouping them geographically
 }
 \details{
-Clustering is carried out using one of three algorithms:
-\tabular{lll}{
-\code{NN}\tab Nearest neighbour:\tab assigns equal numbers of locations to each cluster \cr
-\code{kmeans}\tab kmeans clustering  :\tab aims to partition locations so that each
-belongs to the cluster with the nearest centroid \cr
-\code{TSP} \tab travelling salesman problem heuristic :\tab Assigns locations sequentially
-along a travelling salesman path.The \code{reuseTSP} parameter is used to allow the path to be reused
-for creating alternative allocations with different cluster sizes. \cr
-}
+The \code{reuseTSP} parameter is used to allow the path to be reused
+for creating alternative allocations with different cluster sizes.\cr\cr
 Either \code{k} or \code{h} must be specified. If both are specified
 the input value of \code{k} is ignored.\cr
 }

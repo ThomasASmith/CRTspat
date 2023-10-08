@@ -30,19 +30,19 @@ any other variables required for subsequent analysis.}
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
-\tabular{llll}{
-\code{design}   \tab list: \tab parameters required for power calculations\tab\cr
-\code{geom_full}   \tab list: \tab summary statistics describing the site \tab\cr
+\tabular{lll}{
+\code{design}   \tab list: \tab parameters required for power calculations\cr
+\code{geom_full}   \tab list: \tab summary statistics describing the site \cr
 \code{geom_core}   \tab list: \tab summary statistics describing the core area
-(when a buffer is specified)\tab\cr
-\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\tab\cr
-\tab \code{x} \tab numeric vector: \tab x-coordinates of locations \cr
-\tab \code{y} \tab numeric vector: \tab y-coordinates of locations \cr
-\tab \code{cluster} \tab factor \tab assignments to cluster of each location  \cr
-\tab \code{arm} \tab factor: \tab assignments to \code{"control"} or \code{"intervention"} for each location \cr
-\tab \code{nearestDiscord} \tab numeric vector: \tab Euclidean distance to nearest discordant location (km) \cr
-\tab \code{buffer} \tab logical: \tab indicator of whether the point is within the buffer \cr
-\tab \code{...} \tab \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
+(when a buffer is specified)\cr
+\code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr
+\tab \code{x} \tab numeric vector: x-coordinates of locations \cr
+\tab \code{y} \tab numeric vector: y-coordinates of locations \cr
+\tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
+\tab \code{arm} \tab factor: assignments to \code{"control"} or \code{"intervention"} for each location \cr
+\tab \code{nearestDiscord} \tab numeric vector: Euclidean distance to nearest discordant location (km) \cr
+\tab \code{buffer} \tab logical: indicator of whether the point is within the buffer \cr
+\tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 }
 }
 \description{
@@ -54,7 +54,7 @@ If a data frame or \code{"CRTsp"} object is input then the output \code{"CRTsp"}
 a description of the geography is computed and power calculations are carried out.\cr\cr
 If \code{geoscale, locations, kappa} and \code{mu} are specified then a new trial dataframe is constructed
 corresponding to a novel simulated human settlement pattern. This is generated using the
-Thomas algorithm (\code{rThomas}) in \href{https://cran.r-project.org/web/packages/spatstat.random/citation.html}{\code{spatstat.random}}
+Thomas algorithm (\code{rThomas}) in \href{https://CRAN.R-project.org/package=spatstat.random}{\code{spatstat.random}}
 allowing the user to defined the density of locations and degree of spatial clustering.
 The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
 }

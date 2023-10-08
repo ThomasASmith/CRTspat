@@ -25,8 +25,8 @@ The options that can be specified using the `method` parameter in the function c
 
 + `method = "T"` summarises the outcome at the level of the cluster, and uses 2-sample t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size. The [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) function in the `stats` package is used.
 +	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [geepack](https://www.jstatsoft.org/article/view/v015i02) package.
-+	`method = "LME4"` fits linear (for continuous data) or generalized linear (for counts and proportions) mixed models with iid random effects for clusters in [lme4](https://cran.r-project.org/web/packages/lme4/lme4.pdf).
-+ `method = "MCMC"` uses Markov chain Monte Carlo simulation in package [jagsUI](https://cran.r-project.org/web/packages/jagsUI/index.html), which calls r-JAGS.
++	`method = "LME4"` fits linear (for continuous data) or generalized linear (for counts and proportions) mixed models with iid random effects for clusters in [lme4](https://CRAN.R-project.org/package=lme4).
++ `method = "MCMC"` uses Markov chain Monte Carlo simulation in package [jagsUI](https://CRAN.R-project.org/package=jagsUI), which calls r-JAGS.
 + `method = "INLA"` uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. This can be generated using [`CRTspat::new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
 
 All these analysis methods can be used to carry out a simple comparision of outcomes between trial arms. Each offers different additional functionality, and has its own limitations (see Table 5.1). Some of these limitations are specific to the options offered within `CRTanalysis()`, which does not embrace the full range of options of the packages that are 'wrapped'. These are specified using the `method` argument of the function.
@@ -37,9 +37,9 @@ Table 5.1. Available statistical methods
 |----------|---------|------------------------------------------------|-----------------------------|
 | `T`| [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) | P-values and confidence intervals for efficacy based on comparison of cluster means | No analysis of contamination or degree of clustering |
 | `GEE` | [geepack](https://www.jstatsoft.org/article/view/v015i02) | Interval estimates for efficacy and Intra-cluster correlations | No analysis of contamination or degree of clustering |
-| `LME4`| [lme4](https://cran.r-project.org/web/packages/lme4/lme4.pdf) | Analysis of contamination | No geostatistical analysis |
+| `LME4`| [lme4](https://CRAN.R-project.org/package=lme4) | Analysis of contamination | No geostatistical analysis |
 | `INLA` | [INLA](https://www.r-inla.org/) | Analysis of contamination, geostatistical analysis and spatially structured outputs | Computationally intensive |
-| `MCMC` | [jagsUI](https://cran.r-project.org/web/packages/spatstat.random/citation.html) | Interval estimates for contamination parameters | Identifiability issues and slow convergence are possible |
+| `MCMC` | [jagsUI](https://CRAN.R-project.org/package=jagsUI) | Interval estimates for contamination parameters | Identifiability issues and slow convergence are possible |
 
 For the analysis of proportions, the outcome in the control arm is estimated as: $\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$, in the intervention arm as $\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$, and the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$ where $\beta_1$ is the intercept term and $\beta_2$ the incremental effect associated with the intervention.
 
@@ -138,7 +138,7 @@ Table 5.3. Available surround functions
 | `distance` | Description | Details |
 |----------------|------------------|--------------------------------------------------------------|
 |`nearestDiscord`| Distance to nearest discordant location | The default. This is used for analyses by distance (see above) |
-|`hdep`| Tukey's half-depth | Algorithm of [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073)   |
+|`hdep`| Tukey half-depth | Algorithm of [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073)   |
 |`sdep`| Simplicial depth| Algorithm of [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073)    |
 |`disc`| disc | The number of intervened locations within the specified radius (excluding the location itself) as described by [Anaya-Izquierdo & Alexander(2021)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316) |
 |`kern`| Sum of kernels | The sum of normal kernels |
