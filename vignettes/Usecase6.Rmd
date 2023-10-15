@@ -59,7 +59,7 @@ plotCRT(exampleCRT, map = TRUE, fill = 'arms', showBuffer=TRUE,
 ```
 
 ```
-## Buffer includes locations within  500 m of the opposing arm
+## Buffer includes locations within 500m of the opposing arm
 ```
 <p>
   <img src="example6c.r-1.png" > <br>

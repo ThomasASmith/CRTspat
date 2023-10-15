@@ -52,13 +52,6 @@ output from the statistical procedure that is called, try `<analysis>$model_obje
 library(CRTspat)
 example <- readdata("exampleCRT.txt")
 analysisT <- CRTanalysis(example, method = "T")
-```
-
-```
-## No non-linear parameter.  No fixed effects of distance -
-```
-
-```r
 summary(analysisT)
 ```
 
@@ -138,13 +131,6 @@ plot corresponds to the contamination interval in those cases where this is esti
 
 ```r
 analysisLME4_Z <- CRTanalysis(example, method = "LME4", cfunc = "Z")
-```
-
-```
-## No non-linear parameter.  No fixed effects of distance -
-```
-
-```r
 summary(analysisLME4_Z)
 ```
 
@@ -162,13 +148,6 @@ summary(analysisLME4_Z)
 
 ```r
 analysisLME4_X <- CRTanalysis(example, method = "LME4", cfunc = "X")
-```
-
-```
-## No non-linear parameter.  No fixed effects of distance -
-```
-
-```r
 summary(analysisLME4_X)
 ```
 
@@ -188,13 +167,6 @@ summary(analysisLME4_X)
 
 ```r
 analysisLME4_P <- CRTanalysis(example, method = "LME4", cfunc = "P")
-```
-
-```
-## Estimated scale parameter: 0.45 Signed distance -Signed distance to other arm (km)
-```
-
-```r
 summary(analysisLME4_P)
 ```
 
@@ -221,13 +193,6 @@ summary(analysisLME4_P)
 
 ```r
 analysisLME4_L <- CRTanalysis(example, method = "LME4", cfunc = "L")
-```
-
-```
-## Estimated scale parameter: 0.249 Signed distance -Signed distance to other arm (km)
-```
-
-```r
 summary(analysisLME4_L)
 ```
 
@@ -254,13 +219,6 @@ summary(analysisLME4_L)
 
 ```r
 analysisLME4_S <- CRTanalysis(example, method = "LME4", cfunc = "S")
-```
-
-```
-## Estimated scale parameter: 1.674 Signed distance -Signed distance to other arm (km)
-```
-
-```r
 summary(analysisLME4_S)
 ```
 
@@ -287,13 +245,6 @@ summary(analysisLME4_S)
 
 ```r
 analysisLME4_R <- CRTanalysis(example, method = "LME4", cfunc = "R")
-```
-
-```
-## No non-linear parameter.  Signed distance -Signed distance to other arm (km)
-```
-
-```r
 summary(analysisLME4_R)
 ```
 
@@ -383,13 +334,6 @@ scale parameter estimated in the same way as in the scale parameter in other mod
 
 ```r
 examples_hdep <- CRTanalysis(examples, method = "LME4", distance = "hdep", cfunc = 'R')
-```
-
-```
-## *** Surrounds must have cfunc 'E' or 'R': using cfunc = 'R' ***No non-linear parameter.  Surround: -Tukey half-depth
-```
-
-```r
 summary(examples_hdep)
 ```
 
@@ -417,13 +361,6 @@ summary(examples_hdep)
 ```r
 ps4 <- plotCRT(examples_hdep,legend.position = c(0.8, 0.8))
 examples_sdep <- CRTanalysis(examples, method = "LME4", distance = "sdep", cfunc = 'R')
-```
-
-```
-## *** Surrounds must have cfunc 'E' or 'R': using cfunc = 'R' ***No non-linear parameter.  Surround: -Simplicial depth
-```
-
-```r
 summary(examples_sdep)
 ```
 
@@ -451,13 +388,6 @@ summary(examples_sdep)
 ```r
 ps5 <- plotCRT(examples_sdep)
 examples_disc <- CRTanalysis(examples, method = "LME4", distance = "disc", cfunc = 'R', scale_par = 0.15)
-```
-
-```
-## *** Surrounds must have cfunc 'E' or 'R': using cfunc = 'R' ***Precalculated scale parameter: 0.15 Surround: -disc of radius 0.15 km
-```
-
-```r
 summary(examples_disc)
 ```
 
@@ -485,13 +415,6 @@ summary(examples_disc)
 ```r
 ps6 <- plotCRT(examples_disc)
 examples_kern <- CRTanalysis(examples, method = "LME4", distance = "kern", cfunc = 'R', scale_par = 0.15)
-```
-
-```
-## *** Surrounds must have cfunc 'E' or 'R': using cfunc = 'R' ***Precalculated scale parameter: 0.15 Surround: -kern with kernel s.d. 0.15 km
-```
-
-```r
 summary(examples_kern)
 ```
 

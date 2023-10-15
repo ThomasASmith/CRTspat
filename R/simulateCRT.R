@@ -30,7 +30,7 @@
 #' \tab \code{y} \tab numeric vector:  y-coordinates of locations \cr
 #' \tab\code{cluster} \tab factor:  assignments to cluster of each location  \cr
 #' \tab\code{arm} \tab factor:  assignments to \code{control} or \code{intervention} for each location \cr
-#' \tab\code{nearestDiscord} \tab numeric vector:  Euclidean distance to nearest discordant location (km) \cr
+#' \tab\code{nearestDiscord} \tab numeric vector:  signed Euclidean distance to nearest discordant location (km) \cr
 #' \tab\code{propensity} \tab numeric vector:  propensity for each location \cr
 #' \tab\code{base_denom} \tab numeric vector:  denominator for baseline \cr
 #' \tab\code{base_num} \tab numeric vector:  numerator for baseline \cr
@@ -108,18 +108,18 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
                         denominator = NULL, ICC_inp = NULL, kernels = 200, sd = NULL, theta_inp = NULL, tol = 5e-03) {
 
     # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
-    cat("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
+    message("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
     bw <- NULL
     if (!is.null(trial)) CRT <- CRTsp(trial)
     trial <- CRT$trial
 
     if (is.null(trial$cluster)){
-      cat("*** Clusters not yet assigned ***")
+      message("*** Clusters not yet assigned ***")
       return()
     }
     trial$cluster <- as.factor(trial$cluster)
     if (is.null(trial$arm)){
-        cat("*** No randomization available ***")
+        message("*** No randomization available ***")
         return()
     }
     trial$arm <- as.factor(trial$arm)
@@ -138,9 +138,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
         sd <- theta_inp/(2 * qnorm(0.975))
     }
     if (is.null(sd)) {
-        print("Error: contamination range or s.d. of contamination must be provided")
-        trial <- NULL
-        return(trial)
+        stop("Contamination range or s.d. of contamination must be provided")
     }
 
     # compute distances to nearest discordant locations if they do not exist
@@ -204,7 +202,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     if (is.null(ICC_inp)) {
       stop("*** A target ICC must be specified ***")
     }
-    cat("Estimating the smoothing required to achieve the target ICC of", ICC_inp, "\n")
+    message("Estimating the smoothing required to achieve the target ICC of ", ICC_inp)
 
     # determine the required smoothing bandwidth by fitting to the pre-specified ICC
     # random multiplier is used to prevent the random number stream being reset to the same value for any given bw value
@@ -222,7 +220,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     }
     logbw <- ICC.loss$par
     # overprint the output that was recording progress
-    cat("\r                                                         \n")
+    message("\r                                                         \n")
 
     # recover the seed that generated the best fitting trial and use this to regenerate this trial
     bw <- exp(logbw[1])
@@ -306,8 +304,8 @@ get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
     # NA values where no events are assigned)
     trial <- subset(trial, select = -c(rowno, expected_ratio, sumnum))
     if (sum(is.na(trial[[numerator]])) > 0) {
-      cat("** Warning: some records have zero denominator after rounding **\n")
-      cat("You may want to remove these records or rescale the denominators \n")
+      warning("*** Some records have zero denominator after rounding ***")
+      message("You may want to remove these records or rescale the denominators")
       trial[[numerator]][is.na(trial[[numerator]])] <- 0
     }
   }
@@ -335,7 +333,7 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, 
     summary.fit <- summary(model_object)
     # Intracluster correlation
     ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
-    # cat("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")
+    # message("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")
     loss <- (ICC - ICC_inp)^2
     return(loss)
 }

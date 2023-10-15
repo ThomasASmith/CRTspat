@@ -24,7 +24,7 @@ cluster assignments, and randomization.\cr
 \tab \code{y} \tab numeric vector: y-coordinates of locations \cr
 \tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
 \tab \code{arm} \tab factor: assignments to \code{"control"} or \code{"intervention"} for each location \cr
-\tab \code{nearestDiscord} \tab numeric vector: Euclidean distance to nearest discordant location (km) \cr
+\tab \code{nearestDiscord} \tab numeric vector: signed Euclidean distance to nearest discordant location (km) \cr
 \tab \code{buffer} \tab logical: indicator of whether the point is within the buffer \cr
 \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 }

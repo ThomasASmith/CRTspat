@@ -4,9 +4,9 @@
 \name{CRTspat-package}
 \alias{CRTspat}
 \alias{CRTspat-package}
-\title{CRTspat: Design and Analysis of Cluster Randomized Trials of Health Interventions with Spatial Contamination}
+\title{CRTspat: Workflow for Cluster Randomised Trials with Spillover}
 \description{
-Supports design, workflow and analysis of Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms.
+Design, workflow and statistical analysis of Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms (see \url{https://thomasasmith.github.io/articles/CRTspat.html}).
 }
 \author{
 \strong{Maintainer}: Thomas Smith \email{Thomas-a.Smith@unibas.ch} (\href{https://orcid.org/0000-0002-3650-9381}{ORCID}) [copyright holder]

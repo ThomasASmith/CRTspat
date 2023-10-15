@@ -60,29 +60,6 @@ results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
     buffer_width = 0.5)) %>%
     data.frame()
 ```
-
-```
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-## Analysis of baseline only, using GEE
-```
 Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (k). There is also variation in the estimated Intracluster Correlation (see [Use Case 3](Usecase3.html)) for any value of k.
 
 

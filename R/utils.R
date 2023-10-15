@@ -37,7 +37,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
           colnames(trial2) <- c('location',var)
           trial1 <- merge(trial1, trial2, by = 'location', all.x = FALSE, all.y = FALSE)
         } else {
-          cat('*** Variable', var,' not present in input data ***')
+          message('*** Variable', var,' not present in input data ***')
         }
       }
     }
@@ -66,7 +66,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #'  \tab \code{y} \tab numeric vector: y-coordinates of locations \cr
 #'  \tab \code{cluster} \tab factor: assignments to cluster of each location  \cr
 #'  \tab \code{arm} \tab factor: assignments to \code{"control"} or \code{"intervention"} for each location \cr
-#'  \tab \code{nearestDiscord} \tab numeric vector: Euclidean distance to nearest discordant location (km) \cr
+#'  \tab \code{nearestDiscord} \tab numeric vector: signed Euclidean distance to nearest discordant location (km) \cr
 #'  \tab \code{buffer} \tab logical: indicator of whether the point is within the buffer \cr
 #'  \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
@@ -78,8 +78,6 @@ specify_buffer <- function(trial, buffer_width = 0) {
   CRT <- CRTsp(trial)
   trial <- CRT$trial
   if (is.null(trial$arm)) return('*** Randomization is required before buffer specification ***')
-  # nearestDiscord: nearest coordinate in the discordant arm, for the
-  # control coordinates return the minimal distance with a minus sign
   if (is.null(trial$nearestDiscord)) trial <- compute_distance(trial, distance = "nearestDiscord")
   if (buffer_width > 0) {
     trial$buffer <- (abs(trial$nearestDiscord) < buffer_width)
@@ -130,7 +128,7 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
 
     # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
     if(is.null(trial[[baselineNumerator]]) & matchedPair) {
-        cat("** Warning: no baseline data for matching. Unmatched randomisation **\n")
+        warning("*** No baseline data for matching. Unmatched randomisation ***")
         matchedPair <- FALSE
     }
     trial$arm <- trial$pair <- trial$nearestDiscord <- trial$hdep <- trial$sdep <- trial$disc <- trial$kern <- NULL
@@ -140,7 +138,7 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
     # Randomization, assignment to arms
     nclusters <- length(unique(trial$cluster))
     if ((nclusters%%2) == 1 & matchedPair) {
-        cat("** Warning: odd number of clusters: assignments are not matched on baseline data **\n")
+        warning("*** odd number of clusters: assignments are not matched on baseline data ***")
         matchedPair <- FALSE
     }
     # uniformly distributed numbers, take mean and boolean of that
@@ -257,7 +255,7 @@ CRTsp <- function(x = NULL, design = NULL,
         trial <- simulate_site(geoscale = geoscale, locations=locations, kappa=kappa, mu=mu)
         CRT <- list(trial = trial, design = design)
     } else {
-        cat("*** All of geoscale, locations, kappa, mu needed to simulate a new site ***")
+        warning("*** All of geoscale, locations, kappa, mu needed to simulate a new site ***")
         CRT <- list(trial = data.frame(x=numeric(0),y=numeric(0)), design = design)
     }
   }
@@ -530,10 +528,12 @@ is_CRTsp <- function(x) {
 #' @param ... other arguments used by summary
 #' @method summary CRTsp
 #' @export
+#' @return No return value, write text to the console.
 #' @examples
 #' summary(CRTsp(readdata('exampleCRT.txt')))
 summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
   defaultdigits <- getOption("digits")
+  on.exit(options(digits = defaultdigits))
   options(digits = 3)
   cat("===============================CLUSTER RANDOMISED TRIAL ===========================\n")
   output <- matrix("  ", nrow = 22, ncol = 2)

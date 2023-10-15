@@ -90,22 +90,6 @@ the outcomes according to whether they represent either Type I errors or Type II
 
 ```r
 results_matrix <- apply(input, MARGIN = 1,  FUN = CRTscenario7)
-```
-
-```
-## 
-## =====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================
-## Estimating the smoothing required to achieve the target ICC of 0.05 
-##                                                          
-## No non-linear parameter.  No fixed effects of distance -
-## 
-## =====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================
-## Estimating the smoothing required to achieve the target ICC of 0.05 
-##                                                          
-## No non-linear parameter.  No fixed effects of distance -
-```
-
-```r
 results <- as.data.frame(t(results_matrix))
 
 results$significant_t <- ifelse((results$Pvalue_t < 0.05), 1, 0)

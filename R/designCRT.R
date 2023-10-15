@@ -69,9 +69,8 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
     design[parnames] <- ifelse(from_old, design[parnames], mget(parnames))
     missing <- lapply(design[parnames], FUN = is.null)
     if (TRUE %in% missing) {
-        cat("*** Value(s) must be supplied for: ", parnames[missing == TRUE],
+        stop("*** Value(s) must be supplied for: ", parnames[missing == TRUE],
             " ***")
-        return()
     }
     CRT <- CRTsp(CRT, design = design)
 }
@@ -132,15 +131,13 @@ get_geom <- function(trial = NULL, design = NULL) {
 
     if (!is.null(design$effect)) {
         if (is.null(geom$locations)) {
-            cat("*** Number of locations is a required input ***")
-            return("")
+            stop("*** Number of locations is a required input ***")
         }
         if (is.null(geom$k)) {
-            cat("*** Number of clusters is a required input ***")
-            return("")
+            stop("*** Number of clusters is a required input ***")
         }
         if (identical(geom$sd_h, 0)) {
-            cat("*** Assuming all clusters are the same size ***")
+            message("*** Assuming all clusters are the same size ***")
         }
         effect <- design$effect
         yC <- design$yC

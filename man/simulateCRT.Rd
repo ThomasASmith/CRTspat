@@ -64,7 +64,7 @@ cluster assignments, and randomization \cr
 \tab \code{y} \tab numeric vector:  y-coordinates of locations \cr
 \tab\code{cluster} \tab factor:  assignments to cluster of each location  \cr
 \tab\code{arm} \tab factor:  assignments to \code{control} or \code{intervention} for each location \cr
-\tab\code{nearestDiscord} \tab numeric vector:  Euclidean distance to nearest discordant location (km) \cr
+\tab\code{nearestDiscord} \tab numeric vector:  signed Euclidean distance to nearest discordant location (km) \cr
 \tab\code{propensity} \tab numeric vector:  propensity for each location \cr
 \tab\code{base_denom} \tab numeric vector:  denominator for baseline \cr
 \tab\code{base_num} \tab numeric vector:  numerator for baseline \cr

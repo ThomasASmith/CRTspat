@@ -118,7 +118,7 @@ CRTanalysis <- function(
         return(NULL)
     }
     if (identical(method, "INLA") & identical(system.file(package='INLA'), "")){
-        cat("*** INLA package is not installed. Running lme4 analysis instead. ***")
+        message("*** INLA package is not installed. Running lme4 analysis instead. ***")
         method <- "LME4"
     }
     # Some statistical methods do not allow for contamination
@@ -149,12 +149,12 @@ CRTanalysis <- function(
         }
         if (identical(distance_type, "Surround: ")) {
             if (!identical(cfunc,"E")) {
-                cat("*** Surrounds must have cfunc 'E' or 'R': using cfunc = 'R' ***")
+                message("*** Surrounds must have cfunc 'E' or 'R': using cfunc = 'R' ***")
                 cfunc <- "R"
             }
         } else {
             if (identical(cfunc,"E")) {
-                cat("*** Signed distances cannot have cfunc = 'E': using cfunc = 'R' ***")
+                message("*** Signed distances cannot have cfunc = 'E': using cfunc = 'R' ***")
                 cfunc <- "R"
             }
         }
@@ -173,7 +173,7 @@ CRTanalysis <- function(
         }
         else if(is.null(scale_par)) {
             if(identical(distance_type, "Surround: ") & identical(cfunc, "E")){
-                # cat("Estimated escape function )
+                # message("Estimated escape function )
             } else if (!cfunc %in% c("L", "P", "S")){
                 stop("*** Invalid contamination function ***")
                 return(NULL)
@@ -210,9 +210,9 @@ CRTanalysis <- function(
         if (method %in% c("EMP", "T", "GEE", "MCMC", "LME4", "WCA"))
             {
             method <- "GEE"
-            cat("Analysis of baseline only, using GEE\n")
+            message("Analysis of baseline only, using GEE\n")
         } else if (identical(method,"INLA")) {
-            cat("Analysis of baseline only, using INLA\n")
+            message("Analysis of baseline only, using INLA\n")
         }
         if (is.null(trial[[baselineNumerator]])) {
             stop("*** No baseline data provided ***")
@@ -308,7 +308,7 @@ CRTanalysis <- function(
         analysis <- tidyContamination(contamination, analysis, fittedCurve)
         if (!identical(method,"EMP")){
             scale_par <- analysis$options$scale_par
-            cat(paste0(linearity, ifelse(is.null(scale_par), "",
+            message(paste0(linearity, ifelse(is.null(scale_par), "",
             ifelse(identical(scale_par, 1), "", round(scale_par, digits = 3)))," ",
             distance_type, "-", ifelse(identical(distance_type, "No fixed effects of distance "),
             "", getDistanceText(distance = distance, scale_par = scale_par)), "\n"))
@@ -356,7 +356,7 @@ compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
                          inla.alpha = 2, maskbuffer = 0.5, pixel = 0.5)
 {
     if (identical(system.file(package='INLA'), "")){
-        cat("*** INLA package is not installed ***")
+        message("*** INLA package is not installed ***")
         return("Mesh not created as INLA package is not installed")
     } else {
         # extract the trial data frame from the "CRTsp" object
@@ -440,7 +440,7 @@ compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
             pixel = pixel)
 
         if (nrow(prediction) > 20){
-            cat("Mesh of ", nrow(prediction), " pixels of size ", pixel," km \n")
+            message("Mesh of ", nrow(prediction), " pixels of size ", pixel," km \n")
         }
         return(inla_mesh)
         }
@@ -565,6 +565,7 @@ wc_analysis <- function(analysis, design) {
 
 wc_summary <- function(analysis){
     defaultdigits <- getOption("digits")
+    on.exit(options(digits = defaultdigits))
     options(digits = 3)
     distance <- analysis$options$distance
     cat('\nDistance and surround statistics\n')
@@ -713,7 +714,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                    #cat("Estimating scale parameter for contamination range\n")
+                    #messag"Estimating scale parameter for contamination range\n")
                     log_scale_par <- stats::optimize(
                         f = estimateContaminationLME4, interval = log_sp_prior, maximum = FALSE,
                         tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance)$minimum
@@ -836,7 +837,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                    #cat("Estimating scale parameter for contamination range\n")
+                    #messag"Estimating scale parameter for contamination range\n")
                     log_scale_par <- stats::optimize(
                         f = estimateContaminationINLA, interval = log_sp_prior,
                         tol = 0.1, trial = trial, FUN = FUN, formula = formula,
@@ -1356,7 +1357,7 @@ estimateContaminationINLA <- function(
     # The DIC is penalised to allow for estimation of scale_par
     loss <- result.e$dic$family.dic + 2
     # Display the DIC here if necessary for debugging
-    #  cat("\rDIC: ", loss, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
+    #  messag"\rDIC: ", loss, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
     return(loss)
 }
 
@@ -1383,7 +1384,7 @@ estimateContaminationLME4 <- function(
     loss <- ifelse (is.null(model_object),999999, unlist(summary(model_object)$AICtab["AIC"]))
     # The AIC is used as a loss function
     # Display the AIC here if necessary for debugging
-    # cat("\rAIC: ", loss + 2, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
+    # messag"\rAIC: ", loss + 2, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
     return(loss)
 }
 
@@ -1455,6 +1456,7 @@ Tinterval <- function(x, alpha, option){
 #' @param ... other arguments used by summary
 #' @method summary CRTanalysis
 #' @export
+#' @return No return value, writes text to the console.
 #' @examples
 #' {example <- readdata('exampleCRT.txt')
 #' exampleT <- CRTanalysis(example, method = "T")
@@ -1462,6 +1464,7 @@ Tinterval <- function(x, alpha, option){
 #' }
 summary.CRTanalysis <- function(object, ...) {
     defaultdigits <- getOption("digits")
+    on.exit(options(digits = defaultdigits))
     options(digits = 3)
     scale_par <- object$options$scale_par
     cat("\n=====================CLUSTER RANDOMISED TRIAL ANALYSIS =================\n")
@@ -1928,6 +1931,7 @@ return(analysis)}
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @return the fitted values returned by the statistical model run within the \code{CRTanalysis} function
 #' @examples
 #' {example <- readdata('exampleCRT.txt')
 #' exampleGEE <- CRTanalysis(example, method = "GEE")
@@ -1944,6 +1948,7 @@ fitted.CRTanalysis <- function(object, ...){
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @return the model coefficients returned by the statistical model run within the \code{CRTanalysis} function
 #' @examples
 #' {example <- readdata('exampleCRT.txt')
 #' exampleGEE <- CRTanalysis(example, method = "GEE")
@@ -1960,6 +1965,7 @@ coef.CRTanalysis <- function(object, ...){
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @return the residuals from the statistical model run within the \code{CRTanalysis} function
 #' @examples
 #' {example <- readdata('exampleCRT.txt')
 #' exampleGEE <- CRTanalysis(example, method = "GEE")
@@ -1976,6 +1982,7 @@ residuals.CRTanalysis <- function(object, ...){
 #' @param object CRTanalysis object
 #' @param ... other arguments
 #' @export
+#' @return the model predictions returned by the statistical model run within the \code{CRTanalysis} function
 #' @examples
 #' {example <- readdata('exampleCRT.txt')
 #' exampleGEE <- CRTanalysis(example, method = "GEE")

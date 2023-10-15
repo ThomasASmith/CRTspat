@@ -11,6 +11,9 @@
 
 \item{...}{other arguments used by summary}
 }
+\value{
+No return value, writes text to the console.
+}
 \description{
 \code{summary.CRTanalysis} generates a summary of a \code{CRTanalysis} including the main results
 }

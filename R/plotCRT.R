@@ -89,14 +89,12 @@
 #' #show clusters in colour
 #' plotCRT(example, map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
 #'           labelsize=2, maskbuffer=0.2)
-#' \dontrun{
-#'     #show arms
-#'     plotCRT(example, map = TRUE,
-#'         fill = 'arms', maskbuffer=0.2, legend.position=c(0.8,0.8))
-#' }
+#' #show arms
+#' plotCRT(example, map = TRUE,
+#' fill = 'arms', maskbuffer=0.2, legend.position=c(0.8,0.8))
 #' #contamination plot
-#'     analysis <- CRTanalysis(example)
-#'     plotCRT(analysis, map = FALSE)
+#' analysis <- CRTanalysis(example)
+#'  plotCRT(analysis, map = FALSE)
 #' }
 #' @export
 plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "arms", showLocations = FALSE,
@@ -442,20 +440,20 @@ modifyBuffer <- function(trial, buffer_width, contamination_limits){
         if (!is.null(buffer_width)){
             trial$buffer <-  ifelse(dplyr::between(trial$nearestDiscord,
                                -buffer_width, buffer_width), TRUE, FALSE)
-cat("Buffer includes locations within ", buffer_width*1000, "m of the opposing arm")
+    message("Buffer includes locations within ", buffer_width*1000, "m of the opposing arm")
         } else if(!is.null(contamination_limits)) {
             trial$buffer <-  ifelse(dplyr::between(trial$nearestDiscord,
             contamination_limits[1], contamination_limits[2]), TRUE, FALSE)
-            cat("Buffer corresponds to estimated contamination zone")
+            message("Buffer corresponds to estimated contamination zone")
         } else {
             if (!is.null(trial$buffer)) {
-                cat("Buffer corresponds pre-specified buffer zone")
+                message("Buffer corresponds pre-specified buffer zone")
             } else {
-                cat("No buffer available")
+                message("No buffer available")
             }
         }
     } else {
-        cat("No buffer shown: distances to discordant locations are unavailable")
+        message("No buffer shown: distances to discordant locations are unavailable")
     }
 return(trial)
 }

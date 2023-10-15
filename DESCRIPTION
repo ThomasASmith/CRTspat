@@ -1,5 +1,5 @@
 Package: CRTspat
-Title: Design and Analysis of Cluster Randomized Trials of Health Interventions with Spatial Contamination
+Title: Workflow for Cluster Randomised Trials with Spillover
 Version: 1.0.0
 Authors@R: c(person(given = "Thomas",
                     family = "Smith", 
@@ -13,13 +13,14 @@ Authors@R: c(person(given = "Thomas",
                    family = "Silkey",
                    role = "ctb"))
 Maintainer: Thomas Smith <Thomas-a.Smith@unibas.ch>
-Description: Supports design, workflow and analysis of Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms. 
+Description: Design, workflow and statistical analysis of Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms (see <https://thomasasmith.github.io/articles/CRTspat.html>). 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 VignetteBuilder: knitr 
+Additional_repositories: https://inla.r-inla-download.org/R/stable/
 Imports:
     ggplot2,
     stats,

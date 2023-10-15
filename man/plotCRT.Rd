@@ -120,13 +120,11 @@ plotCRT(example, map = TRUE, fill ='none', showClusterBoundaries=TRUE,
 #show clusters in colour
 plotCRT(example, map = TRUE, fill = 'clusters', showClusterLabels = TRUE,
           labelsize=2, maskbuffer=0.2)
-\dontrun{
-    #show arms
-    plotCRT(example, map = TRUE,
-        fill = 'arms', maskbuffer=0.2, legend.position=c(0.8,0.8))
-}
+#show arms
+plotCRT(example, map = TRUE,
+fill = 'arms', maskbuffer=0.2, legend.position=c(0.8,0.8))
 #contamination plot
-    analysis <- CRTanalysis(example)
-    plotCRT(analysis, map = FALSE)
+analysis <- CRTanalysis(example)
+ plotCRT(analysis, map = FALSE)
 }
 }
