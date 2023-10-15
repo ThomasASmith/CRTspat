@@ -8,14 +8,6 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-<!--To build the vignette
-# since the vignette takes a long time to run, it is not run with every build
-# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
-# to Knit this vignette without this time consuming step being part of the default build
-knitr::knit("vignettes/Usecase4.Rmd.orig", output = "vignettes/Usecase4.Rmd")
-rmarkdown.html_vignette.check_title = FALSE
-devtools::install(build_vignettes = TRUE)
--->
 
 Both the number and size of clusters affect power calculations for CRTs:
 

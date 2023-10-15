@@ -8,14 +8,7 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-<!--To build the vignette
-# since the vignette takes a long time to run, it is not run with every build
-# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
-# to Knit this vignette without this time consuming step being part of the default build
-knitr::knit("vignettes/Usecase2.Rmd.orig", output = "vignettes/Usecase2.Rmd")
-rmarkdown.html_vignette.check_title = FALSE
-devtools::install(build_vignettes = TRUE)
--->
+
 Effects of settlement patterns, choices of cluster size and buffer widths, and the extent of contamination between arms on the outcomes of CRTs do not lend themselves to mathematical analysis. Simulations of trials are used to explore the effects of these variables on trial power and on the robustness of statistical methodologies.
 
 Trials can be simulated using the `simulateCRT` function, which augments a `trial` data frame (created externally) or object of class `CRTsp` (created by package functions) with simulated outcome data.  The input object must be given location information and both cluster and arm assignments (see [Use Case 1](Usecase1.html)) (or the package can generate these if the objective is purely simulation.

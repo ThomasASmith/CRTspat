@@ -8,14 +8,6 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-<!--To build the vignette
-# since the vignette takes a long time to run, it is not run with every build
-# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
-# to Knit this vignette without this time consuming step being part of the default build
-knitr::knit("vignettes/Usecase7.Rmd.orig", output = "vignettes/Usecase7.Rmd")
-rmarkdown.html_vignette.check_title = FALSE
-devtools::install(build_vignettes = TRUE)
--->
 
 The starting point for the analyses is the co-ordinates for the spatial units that are to be randomized. These can be provided as lat-long coordinates, or as Cartesian point co-ordinates. Geolocated data from completed field studies or trials in progress can be read into `CRTspat` in the form of data frames, preferably with one record for each location in the trial. Pre-existing data from the field should be
 coded as follows:

@@ -11,14 +11,6 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-<!--To build the vignette
-# since the vignette takes a long time to run, it is not run with every build
-# as suggested here https://ropensci.org/blog/2019/12/08/precompute-vignettes/
-# to Knit this vignette without this time consuming step being part of the default build
-knitr::knit("vignettes/CRTspat.Rmd.orig", output = "vignettes/CRTspat.Rmd")
-rmarkdown.html_vignette.check_title = FALSE
-devtools::install(build_vignettes = TRUE)
--->
 ## Summary
 
 The `CRTspat` package is intended to support the design and analysis of cluster-randomized trials (CRTs) where there is geographical contamination between the arms. It can also be used in simulation of such CRTs to support development of improved methodology. An important set of applications is in field trials of vector-control interventions against malaria.
