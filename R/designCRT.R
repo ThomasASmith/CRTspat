@@ -18,7 +18,7 @@
 #' @param phi numeric: overdispersion parameter (for \code{outcome_type = 'n'} or \code{outcome_type = 'e'})
 #' @param N numeric: mean of the denominator for proportions (for \code{outcome_type = 'p'})
 #' @param ICC numeric: Intra-Cluster Correlation
-#' @param k integer: number of clusters in each arm (required if \code{trial} is not specified)
+#' @param c integer: number of clusters in each arm (required if \code{trial} is not specified)
 #' @param sd_h standard deviation of number of units per cluster (required if \code{trial} is not specified)
 #' @returns A list of class \code{'CRTsp'} object comprising the input data, cluster and arm assignments,
 #' trial description and results of power calculations
@@ -40,16 +40,16 @@
 #' @examples
 #' {# Example without input geolocations
 #' examplePower1 = CRTpower(locations = 3000, ICC=0.10, effect=0.4, alpha = 0.05,
-#'     outcome_type = 'd', desiredPower = 0.8, yC=0.35, k = 20, sd_h=5)
+#'     outcome_type = 'd', desiredPower = 0.8, yC=0.35, c = 20, sd_h=5)
 #' summary(examplePower1)
 #' # Example with input geolocations and randomisation
 #' examplePower2 = CRTpower(trial = readdata('example_site.csv'), desiredPower = 0.8,
-#'     effect=0.4, yC=0.35, outcome_type = 'd', ICC = 0.05, k = 20)
+#'     effect=0.4, yC=0.35, outcome_type = 'd', ICC = 0.05, c = 20)
 #' summary(examplePower2)
 #' }
 CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower = 0.8,
     effect = NULL, yC = NULL, outcome_type = "d", sigma2 = NULL, phi = 1,
-    N = 1, ICC = NULL, k = NULL, sd_h = 0) {
+    N = 1, ICC = NULL, c = NULL, sd_h = 0) {
 
     CRT <- CRTsp(trial)
 
@@ -63,7 +63,7 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
     design <- ifelse(is.null(CRT$design$locations), list(), CRT$design)
     design$locations <- ifelse((nrow(CRT$trial) == 0), locations, nrow(CRT$trial))
     parnames <- c("alpha", "desiredPower", "effect", "yC", "outcome_type",
-        "sigma2", "phi", "N", "ICC", "k", "sd_h")
+        "sigma2", "phi", "N", "ICC", "c", "sd_h")
     # Identify which variables to retrieve from the pre-existing design
     from_old <- lapply(mget(parnames), FUN = is.null)
     design[parnames] <- ifelse(from_old, design[parnames], mget(parnames))
@@ -85,14 +85,14 @@ get_geom <- function(trial = NULL, design = NULL) {
     if(!is.null(design)) {
         locations <- design$locations
         sd_h <- design$sd_h
-        k <- design$k
-        mean_h = locations/(2 * k)
+        c <- design$c
+        mean_h = locations/(2 * c)
     } else {
-        mean_h <- k <- sd_h <- locations <- NULL
+        mean_h <- c <- sd_h <- locations <- NULL
     }
     geom <- list(locations = locations,
                  sd_h = sd_h,
-                 k= k,
+                 c= c,
                  records = 0,
                  mean_h = mean_h,
                  DE = NULL,
@@ -111,7 +111,7 @@ get_geom <- function(trial = NULL, design = NULL) {
             # clusters that are not present)
             trial$cluster <- as.factor(as.character(trial$cluster))
 
-            geom$k <- floor(nlevels(trial$cluster)/2)
+            geom$c <- floor(nlevels(trial$cluster)/2)
             # mean number of locations randomized in each cluster
             geom$mean_h <- mean(table(trial$cluster))
 
@@ -126,14 +126,14 @@ get_geom <- function(trial = NULL, design = NULL) {
         }
     }
     # cluster size
-    geom$k <- ifelse(is.null(geom$k), NA, round(geom$k))
-    geom$mean_h <- geom$locations/(2 * geom$k)
+    geom$c <- ifelse(is.null(geom$c), NA, round(geom$c))
+    geom$mean_h <- geom$locations/(2 * geom$c)
 
     if (!is.null(design$effect)) {
         if (is.null(geom$locations)) {
             stop("*** Number of locations is a required input ***")
         }
-        if (is.null(geom$k)) {
+        if (is.null(geom$c)) {
             stop("*** Number of clusters is a required input ***")
         }
         if (identical(geom$sd_h, 0)) {
@@ -175,7 +175,7 @@ get_geom <- function(trial = NULL, design = NULL) {
         Zsig <- -qnorm(design$alpha/2)
         Zpow <- qnorm(design$desiredPower)
 
-        # corresponding t values (not used) df <- k - 1 t_sig <- - qt(p
+        # corresponding t values (not used) df <- c - 1 t_sig <- - qt(p
         #                               = design$alpha/2, df = df) t_pow <- qt(p =
         #                               design$desiredPower, df = df)
 
@@ -203,12 +203,12 @@ get_geom <- function(trial = NULL, design = NULL) {
 
         # minimum total numbers of clusters required assuming varying
         # cluster sizes per arm (Hemming eqn 8)
-        geom$clustersRequired <- ceiling(2 * (n_ind * (1 + ((cv_eff + 1) *
-            mean_eff - 1) * design$ICC)/mean_eff))
+        geom$clustersRequired <- 2 * ceiling(n_ind * (1 + ((cv_eff + 1) *
+            mean_eff - 1) * design$ICC)/mean_eff)
 
-        # power with k clusters per arm and unequal cluster sizes
+        # power with c clusters per arm and unequal cluster sizes
         geom$power <- with(geom, stats::pnorm(
-            sqrt(k * mean_eff/(2 * geom$DE)) * d/sqrt(sigma2) - Zsig))
+            sqrt(c * mean_eff/(2 * geom$DE)) * d/sqrt(sigma2) - Zsig))
 
     }
     return(geom)

@@ -13,7 +13,7 @@ test_that("designCRT() creates the default trial", {
                             effect = 0.6,
                             ICC = 0.175,
                             yC = 0.4,
-                            k = 20,
+                            c = 20,
                             outcome_type ="d")
     design <- test_design$design
     # To recreate test file

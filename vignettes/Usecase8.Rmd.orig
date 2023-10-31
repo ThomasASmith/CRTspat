@@ -81,7 +81,7 @@ analyseReducedCRT <- function(x, CRT) {
 
 # randomization and trial simulation
 randomize_simulate <- function(theta) {
-  ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
+  ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
     randomizeCRT() %>%
     simulateCRT(effect = 0.4, generateBaseline = FALSE, outcome0 = outcome0,
                 ICC_inp = ICC, theta_inp = theta,

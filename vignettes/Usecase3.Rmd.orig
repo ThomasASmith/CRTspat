@@ -24,25 +24,25 @@ example <- CRTsp(example_locations) %>%
     aggregateCRT(auxiliaries = c("RDT_test_result", "base_denom"))
 summary(example)
 
-# randomly sample an array of values of k (use a small sample size for testing
+# randomly sample an array of values of c (use a small sample size for testing
 # the plots were produced with n=5000)
 set.seed(5)
-k_vec <- round(runif(50, min = 6, max = 150))
+c_vec <- round(runif(50, min = 6, max = 150))
 
 # a user function randomizes and analyses each simulated trial
-CRTscenario3 <- function(k, CRT) {
-    ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
+CRTscenario3 <- function(c, CRT) {
+    ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
         randomizeCRT()
       GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = FALSE,
           baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
     locations <- GEEanalysis$description$locations
     ICC <- GEEanalysis$pt_ests$ICC
-    value <- c(k = k, ICC = ICC, mean_h = locations/k)
+    value <- c(c = c, ICC = ICC, mean_h = locations/c)
     return(value)
 }
 
 # The results are collected in a data frame
-results <- t(sapply(k_vec, FUN = CRTscenario3, simplify = "array", CRT = example)) %>%
+results <- t(sapply(c_vec, FUN = CRTscenario3, simplify = "array", CRT = example)) %>%
     data.frame()
 ```
 

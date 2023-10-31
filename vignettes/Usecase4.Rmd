@@ -30,41 +30,41 @@ example <- aggregateCRT(exampleCRT,
       auxiliaries = c("RDT_test_result", "base_denom"))
 # randomly sample an array of numbers of clusters to allocate
 set.seed(5)
-k_vec <- round(runif(20, min = 6, max = 60))
+c_vec <- round(runif(20, min = 6, max = 60))
 
-CRTscenario <- function(k, CRT, buffer_width) {
-  ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
+CRTscenario <- function(c, CRT, buffer_width) {
+  ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
     randomizeCRT() %>%
     specify_buffer(buffer_width = buffer_width)
     GEEanalysis <- CRTanalysis(ex, method = "GEE", baselineOnly = TRUE, excludeBuffer = TRUE,
                                baselineNumerator = "RDT_test_result", baselineDenominator = "base_denom")
   locations <- GEEanalysis$description$locations
   ex_power <- CRTpower(trial = ex, effect = 0.3, yC = GEEanalysis$pt_ests$controlY,
-                    outcome_type = "p", N = GEEanalysis$description$sum.denominators/locations, k = k,
+                    outcome_type = "p", N = GEEanalysis$description$sum.denominators/locations, c = c,
                     ICC = GEEanalysis$pt_ests$ICC)
-  value <- c(k_full = k, k_core = ex_power$geom_core$k, clustersRequired = ex_power$geom_full$clustersRequired,
+  value <- c(c_full = c, c_core = ex_power$geom_core$c, clustersRequired = ex_power$geom_full$clustersRequired,
              power = ex_power$geom_full$power, mean_h = ex_power$geom_full$mean_h,
              locations = locations, ICC = GEEanalysis$pt_ests$ICC)
   return(value)
 }
 
-results <- t(sapply(k_vec, FUN = CRTscenario, simplify = "array", CRT = example,
+results <- t(sapply(c_vec, FUN = CRTscenario, simplify = "array", CRT = example,
     buffer_width = 0.5)) %>%
     data.frame()
 ```
-Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (k). There is also variation in the estimated Intracluster Correlation (see [Use Case 3](Usecase3.html)) for any value of k.
+Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (c). There is also variation in the estimated Intracluster Correlation (see [Use Case 3](Usecase3.html)) for any value of c.
 
 
 ```r
 total_locations <- example$geom_full$locations
-results$proportion_included <- results$k_core * results$mean_h * 2/total_locations
+results$proportion_included <- results$c_core * results$mean_h * 2/total_locations
 results$corelocations_required <- results$clustersRequired * results$mean_h
 results$totallocations_required <- with(results, total_locations/locations *
     corelocations_required)
 
 library(ggplot2)
 theme_set(theme_bw(base_size = 14))
-ggplot(data = results, aes(x = k_full, y = k_core)) + geom_smooth() + xlab("Clusters allocated (per arm)") +
+ggplot(data = results, aes(x = c_full, y = c_core)) + geom_smooth() + xlab("Clusters allocated (per arm)") +
     ylab("Clusters in core (per arm)") + geom_segment(aes(x = 5, xend = 35,
     y = 18.5, yend = 18.5), arrow = arrow(length = unit(1, "cm")), lwd = 2,
     color = "red")
@@ -77,19 +77,19 @@ ggplot(data = results, aes(x = k_full, y = k_core)) + geom_smooth() + xlab("Clus
 The number of clusters in the core area increases with the number of
 clusters allocated, until the cluster size becomes small enough for
 entire clusters to be swallowed by the buffer zones. This can be
-illustrated by the contrast in the core areas randomised with k = 6
-and k = 40 (Figures 4.2 and 4.3).
+illustrated by the contrast in the core areas randomised with c = 6
+and c = 40 (Figures 4.2 and 4.3).
 
 
 ```r
 set.seed(7)
 library(dplyr)
-example6 <- specify_clusters(example, k = 6, algo = "kmeans") %>%
+example6 <- specify_clusters(example, c = 6, algo = "kmeans") %>%
     randomizeCRT() %>%
     specify_buffer(buffer_width = 0.5)
 plotCRT(example6, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
     labelsize = 2, maskbuffer = 0.2)
-example40 <- specify_clusters(example, k = 40, algo = "kmeans") %>%
+example40 <- specify_clusters(example, c = 40, algo = "kmeans") %>%
     randomizeCRT() %>%
     specify_buffer(buffer_width = 0.5)
 plotCRT(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels = TRUE,
@@ -97,20 +97,20 @@ plotCRT(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels =
 ```
 <p>
     <img src="example4c.r-1.png"> <br>
-    <em>Fig 4.2 Map of clusters with k = 6</em>
+    <em>Fig 4.2 Map of clusters with c = 6</em>
 </p>
 <p>
     <img src="example4c.r-2.png"> <br>
-    <em>Fig 4.3 Map of clusters with k = 40</em>
+    <em>Fig 4.3 Map of clusters with c = 40</em>
 </p>
 
 Beyond this point, increasing the number of clusters allocated in the fixed area (by
 making them smaller) does not add to the total number of clusters. In this example the maximum is achieved when the
-input k is about 35 and the output k is 18.5.
+input c is about 35 and the output c is 18.5.
 
 
 ```r
-ggplot(data = results, aes(x = k_core, y = mean_h)) + geom_smooth() + xlab("Clusters in core (per arm)") +
+ggplot(data = results, aes(x = c_core, y = mean_h)) + geom_smooth() + xlab("Clusters in core (per arm)") +
     ylab("Mean cluster size")
 ```
 <p>
@@ -124,7 +124,7 @@ smaller clusters are likely to be absorbed into the buffer zones.
 
 
 ```r
-ggplot(data = results, aes(x = k_core, y = power)) + geom_smooth() + xlab("Clusters in core (per arm)") +
+ggplot(data = results, aes(x = c_core, y = power)) + geom_smooth() + xlab("Clusters in core (per arm)") +
     ylab("Power")
 ```
 <p>
@@ -141,7 +141,7 @@ achievable with a fixed area (Figure 4.6).
 
 
 ```r
-ggplot2::ggplot(data = results, aes(x = k_full, y = power)) + geom_smooth() +
+ggplot2::ggplot(data = results, aes(x = c_full, y = power)) + geom_smooth() +
     xlab("Clusters allocated (per arm)") + ylab("Power")
 ```
 <p>
@@ -158,7 +158,7 @@ the power estimated for the smaller, baseline site.
 
 
 ```r
-ggplot2::ggplot(data = results, aes(x = k_core, y = corelocations_required)) +
+ggplot2::ggplot(data = results, aes(x = c_core, y = corelocations_required)) +
     geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Required core locations")
 ```
 
@@ -176,7 +176,7 @@ the locations included in the core area reaches its minimum (Figure 4.8).
 
 
 ```r
-ggplot2::ggplot(data = results, aes(x = k_core, y = proportion_included)) +
+ggplot2::ggplot(data = results, aes(x = c_core, y = proportion_included)) +
     geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Proportion of locations in core") +
     geom_segment(aes(x = 18, xend = 18, y = 0, yend = 0.25), arrow = arrow(length = unit(1,
         "cm")), lwd = 2, color = "red")
@@ -194,7 +194,7 @@ would be in the core (sampled) parts of the clusters.
 
 
 ```r
-ggplot2::ggplot(data = results, aes(x = k_core, y = totallocations_required)) +
+ggplot2::ggplot(data = results, aes(x = c_core, y = totallocations_required)) +
     geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Total locations required") +
     geom_segment(aes(x = 18, xend = 18, y = 0, yend = 8000), arrow = arrow(length = unit(1,
         "cm")), lwd = 2, color = "red")

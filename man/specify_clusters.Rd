@@ -6,7 +6,7 @@
 \usage{
 specify_clusters(
   trial = trial,
-  k = NULL,
+  c = NULL,
   h = NULL,
   algorithm = "NN",
   reuseTSP = FALSE
@@ -16,7 +16,7 @@ specify_clusters(
 \item{trial}{A CRT object or data frame containing (x,y) coordinates of
 households}
 
-\item{k}{integer: number of clusters in each arm}
+\item{c}{integer: number of clusters in each arm}
 
 \item{h}{integer: number of locations per cluster}
 
@@ -50,8 +50,8 @@ and cluster assignments.\cr
 \details{
 The \code{reuseTSP} parameter is used to allow the path to be reused
 for creating alternative allocations with different cluster sizes.\cr\cr
-Either \code{k} or \code{h} must be specified. If both are specified
-the input value of \code{k} is ignored.\cr
+Either \code{c} or \code{h} must be specified. If both are specified
+the input value of \code{c} is ignored.\cr
 }
 \examples{
 #Assign clusters of average size h = 40 to a test set of co-ordinates, using the kmeans algorithm

@@ -37,7 +37,7 @@ CRT <- CRTsp(trial)
 library(dplyr)
 outcome0 <- 0.4
 ICC <- 0.05
-k <- 25
+c <- 25
 set.seed(7)
 effect <- runif(nsimulations,0,0.6)
 # Data frame of input range of contamination
@@ -50,7 +50,7 @@ A user function is defined for randomizing and analysing each simulated trial
 
 ```r
 CRTscenario7 <- function(input) {
-      ex <- specify_clusters(CRT, k = k, algo = "kmeans") %>%
+      ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
         randomizeCRT() %>%
         simulateCRT(effect = input[["effect"]], generateBaseline = FALSE, outcome0 = outcome0,
                     ICC_inp = ICC, theta_inp = input[["theta_inp"]],
@@ -61,7 +61,7 @@ CRTscenario7 <- function(input) {
     contaminate_pop_pr_sd <- sum(abs(ex$trial$nearestDiscord) <
               input[["theta_inp"]]/(2 * qnorm(0.975)))/nrow(ex$trial)
     examplePower = CRTpower(trial = ex, desiredPower = 0.8,
-                           effect=input[["effect"]], yC=outcome0, outcome_type = 'd', ICC = ICC, k = k)
+                           effect=input[["effect"]], yC=outcome0, outcome_type = 'd', ICC = ICC, c = c)
     nominalpower <-  examplePower$geom_full$power
     Tanalysis <- CRTanalysis(ex, method = "T")
     value <- c(

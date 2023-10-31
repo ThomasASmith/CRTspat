@@ -301,7 +301,7 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #'
 #' @param trial A CRT object or data frame containing (x,y) coordinates of
 #'   households
-#' @param k integer: number of clusters in each arm
+#' @param c integer: number of clusters in each arm
 #' @param h integer: number of locations per cluster
 #' @param algorithm algorithm for cluster boundaries, with options:
 #' \tabular{ll}{
@@ -326,15 +326,15 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #' @details
 #' The \code{reuseTSP} parameter is used to allow the path to be reused
 #' for creating alternative allocations with different cluster sizes.\cr\cr
-#' Either \code{k} or \code{h} must be specified. If both are specified
-#' the input value of \code{k} is ignored.\cr
+#' Either \code{c} or \code{h} must be specified. If both are specified
+#' the input value of \code{c} is ignored.\cr
 #' @export
 #'
 #' @examples
 #' #Assign clusters of average size h = 40 to a test set of co-ordinates, using the kmeans algorithm
 #' exampletrial <- specify_clusters(trial = readdata('exampleCRT.txt'),
 #'                             h = 40, algorithm = 'kmeans', reuseTSP = FALSE)
-specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN",
+specify_clusters <- function(trial = trial, c = NULL, h = NULL, algorithm = "NN",
     reuseTSP = FALSE) {
 
     CRT <- CRTsp(trial)
@@ -347,13 +347,13 @@ specify_clusters <- function(trial = trial, k = NULL, h = NULL, algorithm = "NN"
     # the number of clusters and the target cluster size must be integers.
     # cluster size can only be exactly equal to the input value of h if this is a factor of
     # the number of locations
-    if (is.null(k)) {
-        k <- ceiling(nrow(coordinates)/(2 * h))
+    if (is.null(c)) {
+        c <- ceiling(nrow(coordinates)/(2 * h))
     }
     if (is.null(h)) {
-        h <- ceiling(nrow(coordinates)/(2 * k))
+        h <- ceiling(nrow(coordinates)/(2 * c))
     }
-    nclusters <- 2 * k
+    nclusters <- 2 * c
     # derive cluster boundaries
 
     if (algorithm == "TSP") {
@@ -568,7 +568,7 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     }
   }
   rownames(output)[5] <- "Available clusters (across both arms)                 "
-  if (is.na(object$geom_full$k)) {
+  if (is.na(object$geom_full$c)) {
     output[5, 1] <- "Not assigned"
   } else {
     clustersAvailableFull <- with(object$geom_full, floor(locations/mean_h))
@@ -601,7 +601,7 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     if (!is.null(object$geom_core$sd_h))
       output[7, 2] <- round(object$geom_core$sd_h, digits = 1)
   }
-  if (!identical(object$trial$arm,character(0))) {
+  if (!is.null(object$trial$arm) & !identical(object$trial$arm,character(0))) {
     sd1 <- ifelse(is.null(object$geom_full$sd_distance), NA, object$geom_full$sd_distance)
     sd2 <- ifelse(is.null(object$geom_core$sd_distance), NA, object$geom_core$sd_distance)
     rownames(output)[8] <- "S.D. of distance to nearest discordant location (km): "
@@ -678,8 +678,8 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     output[18, 1] <- round(object$geom_full$DE, digits = 1)
     rownames(output)[19] <- "Nominal power (%)                      "
     output[19, 1] <- round(object$geom_full$power * 100, digits = 1)
-    rownames(output)[20] <- paste0("Clusters required for power of ",
-                                   object$design$desiredPower * 100, "%:     ")
+    rownames(output)[20] <- paste0("Total clusters required (power of ",
+                                   object$design$desiredPower * 100, "%):")
     output[20, 1] <- object$geom_full$clustersRequired
     rownames(output)[21] <- "Sufficient clusters for required power?"
     output[21, 1] <- sufficient
