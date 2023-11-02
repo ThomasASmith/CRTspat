@@ -45,6 +45,7 @@ CRTscenario <- function(c, CRT, buffer_width) {
   value <- c(c_full = c, c_core = ex_power$geom_core$c, clustersRequired = ex_power$geom_full$clustersRequired,
              power = ex_power$geom_full$power, mean_h = ex_power$geom_full$mean_h,
              locations = locations, ICC = GEEanalysis$pt_ests$ICC)
+  names(value) <- c("c_full", "c_core", "clustersRequired", "power", "mean_h", "locations", "ICC")
   return(value)
 }
 

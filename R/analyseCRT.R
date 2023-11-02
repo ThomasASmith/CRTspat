@@ -447,6 +447,7 @@ compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
 }
 
 EMPanalysis <- function(analysis){
+    lp <- arm <- NULL
     description <- analysis$description
     pt_ests <- list()
     pt_ests$controlY <- unname(description$controlY)
@@ -459,31 +460,11 @@ EMPanalysis <- function(analysis){
 }
 
 Tanalysis <- function(analysis) {
-    y1 <- arm <- cluster <- y_off <- NULL
     trial <- analysis$trial
     link <- analysis$options$link
     alpha <- analysis$options$alpha
-
-    clusterSum <- data.frame(
-        trial %>%
-            group_by(cluster) %>%
-            dplyr::summarize(
-                y = sum(y1),
-                total = sum(y_off),
-                arm = arm[1]
-            )
-    )
-    clusterSum$lp <- switch(link,
-                            "identity" = clusterSum$y/clusterSum$total,
-                            "log" = log(clusterSum$y/clusterSum$total),
-                            "logit" = logit(clusterSum$y/clusterSum$total),
-                            "cloglog" = log(clusterSum$y/clusterSum$total))
+    clusterSum <- clusterSummary(trial, link)
     formula <- stats::as.formula("lp ~ arm")
-
-    # Trap any non-finite values
-
-    clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
-
     model_object <- stats::t.test(
         formula = formula, data = clusterSum, alternative = "two.sided",
         conf.level = 1 - alpha, var.equal = TRUE
@@ -518,6 +499,30 @@ Tanalysis <- function(analysis) {
     analysis$pt_ests$p.value <- analysis$model_object$p.value
     return(analysis)
 }
+
+
+clusterSummary <- function(trial = trial, link = link){
+    y1 <- arm <- cluster <- y_off <- NULL
+    clusterSum <- data.frame(
+        trial %>%
+            dplyr::group_by(cluster) %>%
+            dplyr::summarize(
+                y = sum(y1),
+                total = sum(y_off),
+                arm = arm[1]
+            )
+    )
+    clusterSum$lp <- switch(link,
+                            "identity" = clusterSum$y/clusterSum$total,
+                            "log" = log(clusterSum$y/clusterSum$total),
+                            "logit" = logit(clusterSum$y/clusterSum$total),
+                            "cloglog" = log(clusterSum$y/clusterSum$total))
+    # Trap any non-finite values
+    clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
+    return(clusterSum)
+}
+
+
 
 wc_analysis <- function(analysis, design) {
     analysis$pt_ests <- analysis$int_ests <- y1 <- cluster <- y_off <- NULL
@@ -1149,7 +1154,7 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
     if (link %in% c('log', 'cloglog')) {
         data <- data.frame(
             trial %>%
-            group_by(cat) %>%
+            dplyr::group_by(cat) %>%
             dplyr::summarize(
                 locations = dplyr::n(),
                 positives = sum(y1),
@@ -1161,7 +1166,7 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
     } else if (link == 'logit') {
         data <- data.frame(
             trial %>%
-            group_by(cat) %>%
+            dplyr::group_by(cat) %>%
             dplyr::summarize(
                 locations = dplyr::n(),
                 d = median(d),
@@ -1176,7 +1181,7 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
     } else if (link == 'identity') {
         # overall means and t-based confidence intervals by category
         data <- trial %>%
-            group_by(cat) %>%
+            dplyr::group_by(cat) %>%
             dplyr::summarize(
                 locations = dplyr::n(),
                 positives = sum(y1),
@@ -1202,40 +1207,40 @@ namedCL <- function(limits, alpha = alpha)
 
 
 # Minimal data description and crude effect_size estimate
-get_description <- function(trial, link, baselineOnly)
-    {
-    if(baselineOnly){
-        sum.numerators = sum(trial$y1)
-        sum.denominators = sum(trial$y_off)
-        description <- list(
-            sum.numerators = sum.numerators,
-            sum.denominators = sum.denominators,
-            controlY = sum.numerators/sum.denominators,
-            interventionY = NULL,
-            effect_size = NULL,
-            nclusters = max(as.numeric(as.character(trial$cluster))),
-            locations = nrow(trial)
-        )
+get_description <- function(trial, link, baselineOnly) {
+    lp <- arm <- NULL
+    if(baselineOnly) trial$arm <- "control"
+    clusterSum <- clusterSummary(trial = trial, link = "identity")
+    sum.numerators <- tapply(trial$y1, trial$arm, FUN = sum)
+    sum.denominators <- tapply(trial$y_off, trial$arm, FUN = sum)
+    ratio <- sum.numerators/sum.denominators
+    if(baselineOnly) {
+        controlY <- ratio[1]
+        effect_size <- interventionY <- NULL
     } else {
-        sum.numerators <- tapply(trial$y1, trial$arm, FUN = sum)
-        sum.denominators <- tapply(trial$y_off, trial$arm, FUN = sum)
-        ratio <- sum.numerators/sum.denominators
+        controlY <- ratio[1]
+        interventionY <- ratio[2]
         effect_size <- switch(link,
-               "identity" = ratio[2] - ratio[1],
-               "log" = 1 - ratio[2]/ratio[1],
-               "cloglog" = 1 - ratio[2]/ratio[1],
-               "logit" =  1 - ratio[2]/ratio[1])
-        description <- list(
-            sum.numerators = sum.numerators,
-            sum.denominators = sum.denominators,
-            controlY = ratio[1],
-            interventionY = ratio[2],
-            effect_size = effect_size,
-            nclusters = max(as.numeric(as.character(trial$cluster))),
-            locations = nrow(trial)
-        )
+           "identity" = ratio[2] - ratio[1],
+           "log" = 1 - ratio[2]/ratio[1],
+           "cloglog" = 1 - ratio[2]/ratio[1],
+           "logit" =  1 - ratio[2]/ratio[1])
     }
-    return(description)
+    means <- clusterSum %>% group_by(arm) %>% dplyr::summarize(lp = mean(lp))
+    deviations <- ifelse(clusterSum$arm == "control", clusterSum$lp - means$lp[1], clusterSum$lp - means$lp[2])
+    meanlp <- mean(ifelse(clusterSum$arm == "control", means$lp[1], means$lp[2]), na.rm = TRUE)
+    cv_percent <- sd(deviations, na.rm = TRUE)/meanlp * 100
+    description <- list(
+        sum.numerators = sum.numerators,
+        sum.denominators = sum.denominators,
+        controlY = controlY,
+        interventionY = interventionY,
+        effect_size = effect_size,
+        nclusters = max(as.numeric(as.character(trial$cluster))),
+        cv_percent = cv_percent,
+        locations = nrow(trial)
+    )
+return(description)
 }
 
 
@@ -1550,6 +1555,8 @@ summary.CRTanalysis <- function(object, ...) {
                     CLtext, unlist(object$int_ests$contralateral_spillover),")\n")
             }
         }
+        if (!is.null(object$description$cv_percent))
+            cat("Coefficient of variation        : ", object$description$cv_percent,"%\n")
         if (!is.null(object$pt_ests$ICC))
         {
             cat(

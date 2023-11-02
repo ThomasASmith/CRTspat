@@ -14,12 +14,21 @@ analysis of cluster randomized trials (CRTs), where geographically
 structured contamination is anticipated and where geolocations are
 available. It includes functions for analysing baseline data, for
 defining clusters by algorithm, for power and sample size calculation,
-and for analysis of trial outcomes.
+and for analysis of trial outcomes. It is designed to function with
+outcomes that are proportions, count data, or continuous variables.
 
 The package was developed with CRTs of malaria interventions in mind,
 where the contamination is assumed to arise as a result of mosquito
 movement, with mosquito dispersal approximated with a simple diffusion
-model.
+model. This does not preclude its use in other fields of research. The
+anticipated use cases are described in the vignettes (articles)
+
+The package builds on the work of [Multerer *et al.*
+(2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8),
+[Multerer *et al.*
+(2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7)
+and [Anaya-Izquierdo &
+Alexander(2021)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316).
 
 ## Code of Conduct
 
@@ -30,8 +39,9 @@ By contributing to this project, you agree to abide by its terms.
 
 ## Installation
 
-`CRTspat` is on [github](https://github.com/ThomasASmith/CRTspat/) and
-can be installed using:
+`CRTspat` is on [CRAN](https://CRAN.R-project.org/package=CRTspat) and
+on [github](https://github.com/ThomasASmith/CRTspat/). It can be
+installed from CRAN or using:
 
 ``` r
 install.packages("devtools")
@@ -39,4 +49,5 @@ library(devtools)
 install_github("thomasasmith/CRTspat")
 ```
 
-`CRTspat` has also been submitted to CRAN.
+Markov chain Monte Carlo analysis using `CRTspat` also requires
+installation of [JAGS](http://mcmc-jags.sourceforge.net)

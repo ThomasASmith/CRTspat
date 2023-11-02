@@ -340,7 +340,7 @@ sf_objects <- function(trial, maskbuffer, crs = "Euclidean",
     if (!is.null(trial$arm)) {
         arms <- vor %>%
             sf::st_join(tr, sf::st_intersects) %>%
-            group_by(arm) %>%
+            dplyr::group_by(arm) %>%
             dplyr::summarize()
     }
     # buffer zone
