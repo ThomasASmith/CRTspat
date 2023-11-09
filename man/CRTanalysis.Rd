@@ -49,7 +49,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"sdep"} \tab simplicial depth\cr
 }}
 
-\item{scale_par}{numeric: pre-specified value of contamination parameter or disc radius}
+\item{scale_par}{numeric: pre-specified value of the contamination parameter or disc radius for models where this is fixed (\code{cfunc = "R"}).\cr\cr}
 
 \item{cfunc}{transformation defining the contamination function with options:
 \tabular{llll}{
@@ -88,9 +88,11 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 
 \item{clusterEffects}{logical: indicator of whether the model includes cluster random effects}
 
-\item{spatialEffects}{logical: indicator of whether the model includes spatial random effects}
+\item{spatialEffects}{logical: indicator of whether the model includes spatial random effects
+(available only for \code{method = "INLA"})}
 
-\item{requireMesh}{logical: indicator of whether spatial predictions are required}
+\item{requireMesh}{logical: indicator of whether spatial predictions are required
+(available only for \code{method = "INLA"})}
 
 \item{inla_mesh}{string: name of pre-existing INLA input object created by \code{compute_mesh()}}
 }
@@ -122,10 +124,12 @@ The key results of the analyses can be extracted using a \code{summary()} of the
 The \code{model_object} in the output list is the usual output from the statistical analysis routine,
 and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
 for purposes of evaluation of model fit etc..\cr\cr
-\code{link = "cloglog"} specifies a complementary log-log link function for which the numerator must be coded as 0 or 1.
-Technically the binomial denominator is then 1. The value of \code{denominator} is used as a rate multiplier.\cr\cr
+For models with a complementary log-log link function specified with \code{link = "cloglog"}.
+the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1.
+The value of \code{denominator} is used as a rate multiplier.\cr\cr
 With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr\cr
-\code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}).\cr
+Interval estimates for the coefficient of variation of the cluster level outcome are calculated using the method of
+\href{https://www.jstor.org/stable/2685039}{Vangel (1996)}.
 }
 \examples{
 \donttest{
