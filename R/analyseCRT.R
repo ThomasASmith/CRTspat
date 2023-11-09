@@ -21,7 +21,6 @@
 #' \code{"hdep"} \tab Tukey half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' }
-#' @param scale_par numeric: pre-specified value of contamination parameter or disc radius
 #' @param cfunc transformation defining the contamination function with options:
 #' \tabular{llll}{
 #' \code{"Z"} \tab\tab arm effects not considered\tab reference model\cr
@@ -32,6 +31,7 @@
 #' \code{"E"} \tab\tab estimation of scale factor\tab only available with \code{distance = "disc"} or \code{distance = "kern"}\cr
 #' \code{"R"} \tab\tab rescaled linear\tab \cr
 #' }
+#' @param scale_par numeric: pre-specified value of the contamination parameter or disc radius for models where this is fixed (\code{cfunc = "R"}).\cr\cr
 #' @param link link function with options:
 #' \tabular{ll}{
 #' \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
@@ -49,7 +49,9 @@
 #' @param personalProtection logical: indicator of whether the model includes local effects with no contamination
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
+#' (available only for \code{method = "INLA"})
 #' @param requireMesh logical: indicator of whether spatial predictions are required
+#' (available only for \code{method = "INLA"})
 #' @param inla_mesh string: name of pre-existing INLA input object created by \code{compute_mesh()}
 #' @return list of class \code{CRTanalysis} containing the following results of the analysis:
 #' \itemize{
@@ -76,10 +78,12 @@
 #' The \code{model_object} in the output list is the usual output from the statistical analysis routine,
 #' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
 #' for purposes of evaluation of model fit etc..\cr\cr
-#' \code{link = "cloglog"} specifies a complementary log-log link function for which the numerator must be coded as 0 or 1.
-#' Technically the binomial denominator is then 1. The value of \code{denominator} is used as a rate multiplier.\cr\cr
+#' For models with a complementary log-log link function specified with \code{link = "cloglog"}.
+#' the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1.
+#' The value of \code{denominator} is used as a rate multiplier.\cr\cr
 #' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr\cr
-#' \code{scale_par} specifies the contamination parameter for models where this is fixed (\code{cfunc = "R"}).\cr
+#' Interval estimates for the coefficient of variation of the cluster level outcome are calculated using the method of
+#' [Vangel (1996)](https://www.jstor.org/stable/2685039).
 #' @export
 #' @examples
 #' \donttest{
@@ -265,9 +269,12 @@ CRTanalysis <- function(
     )
 
     # store options here- noting that the model formula depends on allowable values of other options
-    options <- list(method = method, link = link,
-                    distance = distance, cfunc = cfunc,
-                    alpha = alpha, baselineOnly = baselineOnly,
+    options <- list(method = method,
+                    link = link,
+                    distance = distance,
+                    cfunc = cfunc,
+                    alpha = alpha,
+                    baselineOnly = baselineOnly,
                     fterms = fterms,
                     ftext = ftext,
                     CLnames = CLnames,
@@ -284,7 +291,7 @@ CRTanalysis <- function(
     pt_ests <- list(scale_par = NA, personal_protection = NA, contamination_interval = NA)
     int_ests <- list(controlY = NA, interventionY = NA, effect_size = NA)
     model_object <- list()
-    description <- get_description(trial=trial, link=link, baselineOnly)
+    description <- get_description(trial=trial, link=link, alpha=alpha, baselineOnly)
     analysis <- list(trial = trial,
                      pt_ests = pt_ests,
                      int_ests = int_ests,
@@ -1207,7 +1214,7 @@ namedCL <- function(limits, alpha = alpha)
 
 
 # Minimal data description and crude effect_size estimate
-get_description <- function(trial, link, baselineOnly) {
+get_description <- function(trial, link, alpha, baselineOnly) {
     lp <- arm <- NULL
     if(baselineOnly) trial$arm <- "control"
     clusterSum <- clusterSummary(trial = trial, link = "identity")
@@ -1230,6 +1237,7 @@ get_description <- function(trial, link, baselineOnly) {
     deviations <- ifelse(clusterSum$arm == "control", clusterSum$lp - means$lp[1], clusterSum$lp - means$lp[2])
     meanlp <- mean(ifelse(clusterSum$arm == "control", means$lp[1], means$lp[2]), na.rm = TRUE)
     cv_percent <- sd(deviations, na.rm = TRUE)/meanlp * 100
+    cv_intervals <- cv_interval(K = cv_percent/100, n = nrow(clusterSum), alpha = alpha)
     description <- list(
         sum.numerators = sum.numerators,
         sum.denominators = sum.denominators,
@@ -1238,11 +1246,24 @@ get_description <- function(trial, link, baselineOnly) {
         effect_size = effect_size,
         nclusters = max(as.numeric(as.character(trial$cluster))),
         cv_percent = cv_percent,
+        cv_lower = cv_intervals$lcl * 100,
+        cv_upper = cv_intervals$ucl * 100,
         locations = nrow(trial)
     )
 return(description)
 }
 
+cv_interval <- function(K, n, alpha) {
+    # Vangel (1996) method for interval estimates of the cv
+    # https://www.jstor.org/stable/2685039
+
+    u1 <- stats::qchisq(p = 1 - alpha/2, df = n - 1)
+    u2 <- stats::qchisq(p = alpha/2, df = n - 1)
+    lcl <- K/sqrt(((u1 + 2)/n - 1)* K^2 + u1/(n - 1))
+    ucl <- K/sqrt(((u2 + 2)/n - 1)* K^2 + u2/(n - 1))
+    value <- list(lcl = lcl, ucl = ucl)
+    return(value)
+}
 
 
 
@@ -1556,7 +1577,9 @@ summary.CRTanalysis <- function(object, ...) {
             }
         }
         if (!is.null(object$description$cv_percent))
-            cat("Coefficient of variation        : ", object$description$cv_percent,"%\n")
+            cat("Coefficient of variation: ", object$description$cv_percent,"%",
+                CLtext, object$description$cv_lower, object$description$cv_upper,")\n"
+            )
         if (!is.null(object$pt_ests$ICC))
         {
             cat(

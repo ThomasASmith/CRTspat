@@ -29,7 +29,7 @@ matched-pair randomization)}
 A list of class \code{"CRTsp"} containing the following components:
 \tabular{lll}{
 \code{design}   \tab list: \tab parameters required for power calculations\cr
-\code{geom_full}   \tab list: \tab summary statistics describing the site \cr
+\code{geom_full}   \tab list: \tab summary statistics describing the site\cr
 \code{geom_core}   \tab list: \tab summary statistics describing the core area
 (when a buffer is specified)\cr
 \code{trial} \tab data frame: \tab rows correspond to geolocated points, as follows:\cr

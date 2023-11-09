@@ -109,7 +109,7 @@ summary(analysis)
 ## Total effect            : 0.231  (95% CL:  0.116 0.347 )
 ## Ipsilateral Spillover   : 0.0234  (95% CL:  0.0129 0.0325 )
 ## Contralateral Spillover : 0.0417  (95% CL:  0.0195 0.0655 )
-## Coefficient of variation        :  41.6 %
+## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
 ## deviance:  1374.215 
 ## AIC     :  1382.215 including penalty for the contamination scale parameter
 ```
