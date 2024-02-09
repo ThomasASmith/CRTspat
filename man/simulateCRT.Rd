@@ -49,7 +49,7 @@ using pair-matching on the baseline data (see details)}
 
 \item{sd}{numeric. standard deviation of the normal kernel measuring spatial smoothing leading to contamination}
 
-\item{theta_inp}{numeric. input contamination range}
+\item{theta_inp}{numeric. input contamination interval}
 
 \item{tol}{numeric. tolerance of output ICC}
 }

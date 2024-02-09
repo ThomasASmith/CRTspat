@@ -726,7 +726,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                    #messag"Estimating scale parameter for contamination range\n")
+                    #messag"Estimating scale parameter for contamination interval\n")
                     log_scale_par <- stats::optimize(
                         f = estimateContaminationLME4, interval = log_sp_prior, maximum = FALSE,
                         tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance)$minimum
@@ -849,7 +849,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                    #messag"Estimating scale parameter for contamination range\n")
+                    #messag"Estimating scale parameter for contamination interval\n")
                     log_scale_par <- stats::optimize(
                         f = estimateContaminationINLA, interval = log_sp_prior,
                         tol = 0.1, trial = trial, FUN = FUN, formula = formula,
@@ -1554,7 +1554,7 @@ summary.CRTanalysis <- function(object, ...) {
             if (!identical(object$options$distance_type, "No fixed effects of distance ")){
                 if (!is.null(object$pt_ests$contamination_interval)){
                     cat(
-                        "Contamination range(km): ", object$pt_ests$contamination_interval,
+                        "contamination interval(km): ", object$pt_ests$contamination_interval,
                         CLtext, unlist(object$int_ests$contamination_interval),
                         ")\n"
                     )
@@ -1877,7 +1877,7 @@ get_curve <- function(x, analysis) {
 
 # This is called once for each row in the sample data frame (for obtaining interval estimates)
 get_contaminationStats <- function(fittedCurve, trial, distance) {
-    # Compute the contamination range
+    # Compute the contamination interval
     # The absolute values of the limits are used so that a positive range is
     # obtained even with negative effect_size
     limits <- fittedCurve$limits
@@ -1907,7 +1907,7 @@ get_contaminationStats <- function(fittedCurve, trial, distance) {
     if (is.na(thetaL))
         thetaL <- min(trial[[distance]])
 
-    # contamination range
+    # contamination interval
     contamination_limits <- c(thetaL, thetaU)
     if (thetaL > thetaU)
         contamination_limits <- c(thetaU, thetaL)

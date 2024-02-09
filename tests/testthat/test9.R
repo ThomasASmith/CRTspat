@@ -32,5 +32,5 @@ get_test9 = function(){
   }
 }
 test_that("Analysis using INLA option gives expected DIC", {
-  expect_equal(get_test9(), 1334)
+  expect_equal(get_test9(), 1353)
 })

@@ -52,8 +52,8 @@
 #' average of the outcome and confidence intervals are plotted.
 #' \itemize{
 #' \item For analyses with logit link function the outcome is plotted as a proportion. \cr
-#' \item For analyses with log or cloglog link function the outcome is plotted on a scale of the Williams mean
-#' (mean of exp(log(x + 1))) - 1)\cr
+#' \item For analyses with log or cloglog link function the data are plotted on a scale of the Williams mean
+#' (mean of exp(log(x + 1))) - 1) rescaled so that the median matches the fitted curve at the midpoint.\cr
 #' }
 #' If \code{map = TRUE} a thematic map corresponding to the value of \code{fill} is generated.
 #' \itemize{
@@ -127,17 +127,30 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
             range <- max(analysis$trial[[distance]]) - min(analysis$trial[[distance]])
             data <- group_data(analysis = analysis, grouping = "quintiles")
             FittedCurve <- analysis$contamination$FittedCurve
+            fitted_median <- median(c(FittedCurve$control_curve,FittedCurve$intervention_curve),na.rm = TRUE)
+            data_median <- median(data$average)
+            if (analysis$options$link %in% c('log', 'cloglog')) {
+                scale_factor <- fitted_median/data_median
+                data_scaled <- data.frame(
+                                    d = data$d,
+                                    arm = data$arm,
+                                    average = data$average * scale_factor,
+                                    lower = data$lower * scale_factor,
+                                    upper = data$upper * scale_factor)
+            } else {
+                data_scaled <- data
+            }
             g <- ggplot2::ggplot() + ggplot2::theme_bw()
             g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$control_curve), ],
                             ggplot2::aes(x = d, y = control_curve), linewidth = 2, colour = "#b2df8a")
             g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$intervention_curve), ],
                             ggplot2::aes(x = d, y = intervention_curve), linewidth = 2, colour = "#0072A7")
-            g <- g + ggplot2::geom_point(data = data, ggplot2::aes(x = d, y = average,
+            g <- g + ggplot2::geom_point(data = data_scaled, ggplot2::aes(x = d, y = average,
                                         shape=factor(arm)), size = 2)
             g <- g + ggplot2::scale_shape_manual(name = "Arms", values = c(0, 16),
                                                  labels = c("Control", "Intervention"))
             g <- g + ggplot2::theme(legend.position = legend.position)
-            g <- g + ggplot2::geom_errorbar(data = data, mapping = ggplot2::aes(x = d, ymin = upper,
+            g <- g + ggplot2::geom_errorbar(data = data_scaled, mapping = ggplot2::aes(x = d, ymin = upper,
                                         ymax = lower), linewidth = 0.5, width = range/50)
             if (identical(analysis$options$distance, "nearestDiscord")) {
                 g <- g + ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed")

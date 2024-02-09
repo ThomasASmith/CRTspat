@@ -134,7 +134,7 @@ fig8_1a <- ggplot(data = results, aes(x = observations, y = significant, color =
 fig8_1b <- ggplot(data = results, aes(x = theta_inp, y = significant, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
-    xlab('Simulated contamination range (km)') +
+    xlab('Simulated contamination interval (km)') +
     ylab('Power')
 fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
@@ -144,7 +144,7 @@ fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor
 fig8_1d <- ggplot(data = results, aes(x = theta_inp, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
-  xlab('Simulated contamination range (km)') +
+  xlab('Simulated contamination interval (km)') +
   ylab('Bias')
 library(cowplot)
 plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c('a', 'b', 'c', 'd'), label_size = 14, ncol = 2)
@@ -155,10 +155,10 @@ plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c('a', 'b', 'c', 'd'), la
 Figure 8.1. is are based on analysing 1000 simulated datasets (12,000 scenarios in all).
 The power is calculated as the proportion of significance tests with likelihood ratio p < 0.05.
 
-The fried-egg design suffers little loss of power with exclusion of observations until the sample size is less than about 750 (the suggestion that there is a maximum at a sample size of about 900 locations is presumably an effect of the smoothing of the results). The 'scrambled' egg trials lose power with each reduction in the number of observations (Figure 8.1a), but substantive loss of power occurs only with contamination range of 1 km or more
-in this dataset. The fried egg designs largely avoid this loss of power (Figure 8.1b) but are less powerful on average when the contamination range is less that 0.5 km.
+The fried-egg design suffers little loss of power with exclusion of observations until the sample size is less than about 750 (the suggestion that there is a maximum at a sample size of about 900 locations is presumably an effect of the smoothing of the results). The 'scrambled' egg trials lose power with each reduction in the number of observations (Figure 8.1a), but substantive loss of power occurs only with contamination interval of 1 km or more
+in this dataset. The fried egg designs largely avoid this loss of power (Figure 8.1b) but are less powerful on average when the contamination interval is less that 0.5 km.
 
-In these simulations, the lme4 estimates of the efficacy are biased slightly downwards (i.e. the bias has negative sign). The absolute bias was least when some of the locations were excluded (Figure 8.1c). There is less absolute bias with the fried-egg designs but the effect is small except when the simulated contamination range is very large (Figure 8.1d). The difference in bias between 'fried' and 'scrambled' egg designs is modest in relation to the scale of the overall bias.
+In these simulations, the lme4 estimates of the efficacy are biased slightly downwards (i.e. the bias has negative sign). The absolute bias was least when some of the locations were excluded (Figure 8.1c). There is less absolute bias with the fried-egg designs but the effect is small except when the simulated contamination interval is very large (Figure 8.1d). The difference in bias between 'fried' and 'scrambled' egg designs is modest in relation to the scale of the overall bias.
 
 <p>
     <img src="example8c.r-1.png" > <br>

@@ -18,7 +18,7 @@
 #' @param kernels number of kernels used to generate a de novo \code{propensity}
 #' @param ICC_inp numeric. Target intra cluster correlation, provided as input when baseline data are to be simulated
 #' @param sd numeric. standard deviation of the normal kernel measuring spatial smoothing leading to contamination
-#' @param theta_inp numeric. input contamination range
+#' @param theta_inp numeric. input contamination interval
 #' @param tol numeric. tolerance of output ICC
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #' \tabular{lll}{
@@ -110,6 +110,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
     message("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
     bw <- NULL
+    initial_bandwidth <- 0.3
     if (!is.null(trial)) CRT <- CRTsp(trial)
     trial <- CRT$trial
 
@@ -133,12 +134,12 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     # If the denominator has no values set, set to one
     if (is.null(trial$denom)) trial$denom <- 1
 
-    # use contamination range if this is available
+    # use contamination interval if this is available
     if (!is.null(theta_inp)) {
         sd <- theta_inp/(2 * qnorm(0.975))
     }
     if (is.null(sd)) {
-        stop("Contamination range or s.d. of contamination must be provided")
+        stop("contamination interval or s.d. of contamination must be provided")
     }
 
     # compute distances to nearest discordant locations if they do not exist
@@ -150,44 +151,17 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     # remove any pre-existing propensity if a new one is required
     if (generateBaseline) trial$propensity <- NULL
 
-    if (is.null(trial$propensity)){
-      # If baseline numerator data exist and propensity doesn't
-        if (baselineNumerator %in% colnames(trial)){
-          if (!(baselineDenominator %in% colnames(trial))){
-            trial[[baselineDenominator]] <- 1
-          }
-          # expand the vector of locations to allow for denominators > 1
-          trial <- dplyr::mutate(trial, kernelID = dplyr::row_number())
-          kernels  <- tidyr::uncount(trial, trial[[baselineNumerator]])
-          kernels$weight <- 1/kernels[[baselineDenominator]]
-          # sample the kernels if there are a lot (> 100) of them
-          if(nrow(kernels) > 100){
-             includedkernels <- sample(x = nrow(kernels), size = 100, replace = FALSE)
-             kernels <- kernels[includedkernels,c("x","y","weight")]
-          }
-          # force bandwidth to be scalar
-          bandwidth = 0.3
-          xdist <- with(trial, outer(x, kernels$x, "-"))
-          ydist <- with(trial, outer(y, kernels$y, "-"))
-          # distance matrix between the locations and the kernel midpoints
-          euclid <- sqrt(xdist * xdist + ydist * ydist)
-
-          # 2d normal kernels
-          f <- (1/(2 * pi * bandwidth^2)) * exp(-(euclid^2)/(2 * (bandwidth^2)))
-          totalf <- f %*% kernels$weight   #weighted sums over rows of matrix f (weighted by denominators)
-
-          # Scale propensity so that it is between zero and one
-          trial$propensity <- totalf/max(totalf)
-
-        } else {
-          # If propensity doesn't exist and there is no baseline
-          # create initial proposal for propensity (this will be smoothed)
-          # bw = 0.3 and kernels = 50 aims to ensure propensity is not very close to zero in sites a few
-          # km to tens of km across
-          trial$propensity <- createPropensity(trial, bandwidth = 0.3, kernels = kernels)
-        }
+    if (is.null(trial$propensity) & baselineNumerator %in% colnames(trial)){
+      # If baseline numerator data exist and propensity doesn't, use the baseline numerator to select kernel centers
+        trial[[baselineDenominator]] <- ifelse(is.null(trial[[baselineDenominator]]), 1, trial[[baselineDenominator]])
+        # expand the vector of locations to allow for denominators > 1
+        possible_kernels <- dplyr::mutate(trial, kernelID = dplyr::row_number())
+        possible_kernels$propensity <- round(10 * possible_kernels[[baselineNumerator]]/possible_kernels[[baselineDenominator]])
+        possible_kernels <- tidyr::uncount(possible_kernels, possible_kernels$propensity)
+        centers <- possible_kernels$kernelID[sample(x = nrow(possible_kernels), size = kernels, replace = FALSE)]
+    } else {
+        centers <- sample(1:nrow(trial), size = kernels, replace = TRUE)
     }
-
 
     # For the smoothing step compute contributions to the relative effect size from other locations as a function of
     # distance to the other locations
@@ -213,8 +187,8 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     # in testing, the number of iterations is reduced giving very approximate output
     while (loss > tol) {
         ICC.loss <- OOR::StoSOO(par = c(NA), fn = ICCdeviation, lower = -5, upper = 5, nb_iter = nb_iter,
-                                trial = trial, ICC_inp = ICC_inp, approx_diag = approx_diag, sd = sd,
-                                scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0,
+                                trial = trial, ICC_inp = ICC_inp, centers = centers, approx_diag = approx_diag,
+                                sd = sd, scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0,
                                 random_multiplier = random_multiplier)
         loss <- ICC.loss$value
     }
@@ -227,51 +201,68 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     set.seed(round(bw * random_multiplier))
 
     trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
-                    outcome0 = outcome0, bw = bw, numerator = "num", denominator = "denom")
+                    outcome0 = outcome0, bw = bw, centers = centers, numerator = "num", denominator = "denom")
     # create a baseline dataset using the optimized bandwidth
     if (generateBaseline) trial <- get_assignments(trial = trial, scale = scale,
-                    euclid = euclid, sd = sd, effect = 0,
-                    outcome0 = outcome0, bw = bw, numerator = baselineNumerator,
+                    euclid = euclid, sd = sd, effect = 0, outcome0 = outcome0, bw = bw,
+                    centers = centers, numerator = baselineNumerator,
                     denominator = baselineDenominator)
 
     CRT$trial <- trial
     return(CRTsp(CRT))
 }
 
+createPropensity <- function(trial, bandwidth, centers = centers){
+  xdist <- with(trial, outer(x, x[centers], "-"))
+  ydist <- with(trial, outer(y, y[centers], "-"))
+  # distance matrix between the locations and the kernel centers
+  euclid <- sqrt(xdist * xdist + ydist * ydist)  #is not a square matrix
+
+  # 2d normal kernels
+  f <- (1/(2 * pi * bandwidth^2)) * exp(-(euclid^2)/(2 * (bandwidth^2)))
+  totalf <- (1/ncol(euclid)) * rowSums(f)  #sums over rows of matrix f
+
+  # Scale propensity so that it is between zero and one
+  propensity <- totalf/max(totalf)
+return(propensity)
+}
+
 # Assign expected outcome to each location assuming a fixed effect size.
 get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
-                            bw = bw, numerator, denominator) {
+                            bw, centers, numerator, denominator) {
   expected_ratio <- num <- rowno <- sumnum <- NULL
   # remove any superseded numerator variable
   trial[[numerator]] <- NULL
 
-  # Smooth the propensity.  the s.d. in each dimension of the 2 d gaussian is bw/sqrt(2)
-  smoothedPropensity <- gauss(bw, euclid) %*% trial$propensity
+  # generate a pattern of propensity
 
-  # adjustedpropensity is the value of propensity decremented by the effect of intervention and smoothed
+  trial$propensity <- f_1 <- createPropensity(trial, bandwidth = bw, centers = centers)
+  # Smooth the propensity.  the s.d. in each dimension of the 2 d gaussian is bw/sqrt(2)
+
+  # f_2 is the value of propensity decremented by the effect of intervention and smoothed
   # by applying a further kernel smoothing step (trap the case with no contamination)
   if (sd < 0.001) sd <- 0.001
-  decrementedPropensity <- smoothedPropensity * (1 - effect * (trial$arm == "intervention"))
-  adjustedPropensity <- gauss(sd*sqrt(2), euclid) %*% decrementedPropensity
+  f_2 <- f_1 * (1 - effect * (trial$arm == "intervention"))
+  f_3 <- gauss(sd*sqrt(2), euclid) %*% f_2
 
   if (identical(scale, "continuous")) {
     # Note that the sd here is logically different from the smoothing sd, but how to choose a value?
     trial$num <- rnorm(n = nrow(trial),
-                       mean = adjustedPropensity * trial[[denominator]],
+                       mean = f_3 * trial[[denominator]],
                        sd = sd)
   } else {
-    # compute the total positives expected given the input effect size
-    npositives <- round(outcome0 * sum(trial[[denominator]]) * (1 - 0.5 * effect))
 
     if (!(denominator %in% colnames(trial))) trial[[denominator]] <- 1
-
     # the denominator must be an integer; this changes the value if a non-integral value is input
     trial[[denominator]] <- round(trial[[denominator]], digits = 0)
+
+    # compute the total positives expected given the input effect size
+    npositives <- round(outcome0 * sum(trial[[denominator]]) * (1 - 0.5 * effect))
 
     # scale to input value of initial prevalence by assigning required number of infections with probabilities proportional
     # to smoothed multiplied by the denominator
 
-    expected_allocation <-  adjustedPropensity * trial[[denominator]]/sum(adjustedPropensity * trial[[denominator]])
+    expected_allocation <-  f_3 * trial[[denominator]]/sum(f_3 * trial[[denominator]])
 
     trial$expected_ratio <- expected_allocation/trial[[denominator]]
     trial$rowno <- seq(1:nrow(trial))
@@ -313,7 +304,7 @@ return(trial)
 }
 
 # deviation of ICC from target as a function of bandwidth
-ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, effect, outcome0, random_multiplier) {
+ICCdeviation <- function(logbw, trial, ICC_inp, centers, approx_diag, sd, scale, euclid, effect, outcome0, random_multiplier) {
     cluster <- NULL
     # set the seed so that a reproducible result is obtained for a specific bandwidth
     if (!is.null(logbw)) {
@@ -322,7 +313,7 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, 
     }
 
     trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
-                             outcome0 = outcome0, bw = bw, numerator = "num", denominator = "denom")
+                             outcome0 = outcome0, bw = bw, centers = centers, numerator = "num", denominator = "denom")
     trial$y1 <- trial$num
     trial$y_off <- trial$denom
     trial$y0 <- trial$denom - trial$num
@@ -333,7 +324,7 @@ ICCdeviation <- function(logbw, trial, ICC_inp, approx_diag, sd, scale, euclid, 
     summary.fit <- summary(model_object)
     # Intracluster correlation
     ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
-    # message("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")
+    message("\rbandwidth: ", bw, "  ICC=", ICC, "        \r")
     loss <- (ICC - ICC_inp)^2
     return(loss)
 }
@@ -368,27 +359,6 @@ gauss <- function(bw, euclid) {
     totalf <- rowSums(f)  #sums over rows of matrix f
     # Careful here, totalf sums over very small numbers, consider replacing
     return(f/totalf)
-}
-
-# generate a de novo pattern of propensity
-createPropensity <- function(trial, bandwidth, kernels) {
-
-    # force bandwidth to be scalar
-    bandwidth <- bandwidth[1]
-
-    sam <- sample(1:nrow(trial), kernels, replace = TRUE)
-
-    xdist <- with(trial, outer(x, x[sam], "-"))
-    ydist <- with(trial, outer(y, y[sam], "-"))
-    euclid <- sqrt(xdist * xdist + ydist * ydist)  #is not a square matrix
-
-    f <- (1/(2 * pi * bandwidth^2)) * exp(-(euclid^2)/(2 * (bandwidth^2)))
-    totalf <- (1/ncol(euclid)) * rowSums(f)  #sums over rows of matrix f
-
-    # Scale propensity so that it is between zero and one
-    propensity <- totalf/max(totalf)
-
-    return(propensity)
 }
 
 

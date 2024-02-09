@@ -21,9 +21,9 @@ Information about the underlying spatial pattern of disease is used in the form 
 |:-------------------|:--------------------------|
 |`propensity` supplied by user|Baseline data are created by sampling around `propensity`|
 |Baseline data are supplied by user and `propensity` is not supplied |`propensity` is created from the baseline data|
-|Neither baseline data nor `propensity` are supplied |`propensity` is generated as a normal kernel, with the bandwidth adjusted to achieve the input value of the `ICC_inp` (after the further smoothing stage to simulate contamination (see below))|
+|Neither baseline data nor `propensity` are supplied |`propensity` is generated using normal kernels, with the bandwidth adjusted to achieve the input value of the `ICC_inp` (after the further smoothing stage to simulate contamination (see below))|
 
-The effect of intervention is simulated as a fixed percentage reduction in the `propensity`. Contamination or spillover between trial arms is then modelled as a additional smoothing process applied to the intervention-adjusted `propensity` via a further bivariate normal kernel. In the case of mosquito borne disease this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a contamination range with the `theta_inp` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. If both are provided then it is the value of `theta_inp` that is used.
+The effect of intervention is simulated as a fixed percentage reduction in the `propensity`. Contamination or spillover between trial arms is then modelled as a additional smoothing process applied to the intervention-adjusted `propensity` via a further bivariate normal kernel. In the case of mosquito borne disease this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a contamination interval with the `theta_inp` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. If both are provided then it is the value of `theta_inp` that is used.
 
 #### Example with baseline data provided as proportions
 ```{r example2a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}

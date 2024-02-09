@@ -50,4 +50,4 @@ install_github("thomasasmith/CRTspat")
 ```
 
 Markov chain Monte Carlo analysis using `CRTspat` also requires
-installation of [JAGS](http://mcmc-jags.sourceforge.net)
+installation of [JAGS](https://mcmc-jags.sourceforge.io/)
