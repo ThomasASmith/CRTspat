@@ -13,7 +13,7 @@ vignette: >
 enumeration of the trial population to data analysis. Graphical outputs are generated with `ggplot2()`. In addition there is a function, `CRTwrite()` to export the thematic layers and shapefiles to GIS formats.
 
 The same `plotCRT()` function is used at each stage in the trial (see below), with the functionality available
-expanding as more fields are populated in the `CRTsp` object. When applied to output from `CRTanalysis()` `plotCRT()` that analyse the contamination range, an expanded set of thematic maps are available, including overlay plots showing the contamination zone (i.e. the subset of the study area estimated to have effects of contamination) and thematic maps of spatial predictions.
+expanding as more fields are populated in the `CRTsp` object. When applied to output from `CRTanalysis()` `plotCRT()` that analyse the contamination interval, an expanded set of thematic maps are available, including overlay plots showing the contamination zone (i.e. the subset of the study area estimated to have effects of contamination) and thematic maps of spatial predictions.
 
 ```{r example6a.r, fig.keep = 'none', echo = TRUE}
 # using the same dataset as for Use Case 1.

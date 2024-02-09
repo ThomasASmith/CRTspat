@@ -128,7 +128,7 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
 
     # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
     if(is.null(trial[[baselineNumerator]]) & matchedPair) {
-        warning("*** No baseline data for matching. Unmatched randomisation ***")
+        message("*** No baseline data for matching. Unmatched randomisation ***")
         matchedPair <- FALSE
     }
     trial$arm <- trial$pair <- trial$nearestDiscord <- trial$hdep <- trial$sdep <- trial$disc <- trial$kern <- NULL
