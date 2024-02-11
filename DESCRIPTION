@@ -13,7 +13,7 @@ Authors@R: c(person(given = "Thomas",
                    family = "Silkey",
                    role = "ctb"))
 Maintainer: Thomas Smith <Thomas-a.Smith@unibas.ch>
-Description: Design, workflow and statistical analysis of Cluster Randomised Trials of (health) interventions where there may be spillover between the arms (see <https://thomasasmith.github.io/index.html>). 
+Description: Design, workflow and statistical analysis of Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms (see <https://thomasasmith.github.io/index.html>). 
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

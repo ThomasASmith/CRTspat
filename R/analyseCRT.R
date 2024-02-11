@@ -1,4 +1,4 @@
-#' Analysis of cluster randomized trial with spillover
+#' Analysis of cluster randomized trial with contamination
 #'
 #' \code{CRTanalysis} carries out a statistical analysis of a cluster randomized trial (CRT).
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
@@ -21,17 +21,17 @@
 #' \code{"hdep"} \tab Tukey half space depth\cr
 #' \code{"sdep"} \tab simplicial depth\cr
 #' }
-#' @param cfunc transformation defining the spillover function with options:
+#' @param cfunc transformation defining the contamination function with options:
 #' \tabular{llll}{
 #' \code{"Z"} \tab\tab arm effects not considered\tab reference model\cr
-#' \code{"X"} \tab\tab spillover not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
+#' \code{"X"} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
 #' \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 #' \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
 #' \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
 #' \code{"E"} \tab\tab estimation of scale factor\tab only available with \code{distance = "disc"} or \code{distance = "kern"}\cr
 #' \code{"R"} \tab\tab rescaled linear\tab \cr
 #' }
-#' @param scale_par numeric: pre-specified value of the spillover parameter or disc radius for models where this is fixed (\code{cfunc = "R"}).\cr\cr
+#' @param scale_par numeric: pre-specified value of the contamination parameter or disc radius for models where this is fixed (\code{cfunc = "R"}).\cr\cr
 #' @param link link function with options:
 #' \tabular{ll}{
 #' \code{"logit"}\tab (the default). \code{numerator} has a binomial distribution with denominator \code{denominator}.\cr
@@ -46,7 +46,7 @@
 #' @param baselineOnly logical: indicator of whether required analysis is of effect size or of baseline only
 #' @param baselineNumerator string: name of numerator variable for baseline data (if present)
 #' @param baselineDenominator string: name of denominator variable for baseline data (if present)
-#' @param personalProtection logical: indicator of whether the model includes local effects with no spillover
+#' @param personalProtection logical: indicator of whether the model includes local effects with no contamination
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
 #' (available only for \code{method = "INLA"})
@@ -60,7 +60,7 @@
 #' \item \code{pt_ests} : point estimates
 #' \item \code{int_ests} : interval estimates
 #' \item \code{model_object} : object returned by the fitting routine
-#' \item \code{spillover} : function values and statistics describing the estimated spillover
+#' \item \code{contamination} : function values and statistics describing the estimated contamination
 #' }
 #' @importFrom grDevices rainbow
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
@@ -91,10 +91,10 @@
 #' # Analysis of test dataset by t-test
 #' exampleT <- CRTanalysis(example, method = "T")
 #' summary(exampleT)
-#' # Standard GEE analysis of test dataset ignoring spillover
+#' # Standard GEE analysis of test dataset ignoring contamination
 #' exampleGEE <- CRTanalysis(example, method = "GEE")
 #' summary(exampleGEE)
-#' # LME4 analysis with error function spillover function
+#' # LME4 analysis with error function contamination function
 #' exampleLME4 <- CRTanalysis(example, method = "LME4", cfunc = "P")
 #' summary(exampleLME4)
 #' }
@@ -112,7 +112,7 @@ CRTanalysis <- function(
     resamples <- 1000
     penalty <- 0
     # The prior for the scale parameter should allow this to range from smaller than
-    # any plausible spillover zone, to larger than the study area
+    # any plausible contamination zone, to larger than the study area
     log_sp_prior <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)) + 2)
 
     # Test of validity of inputs
@@ -125,7 +125,7 @@ CRTanalysis <- function(
         message("*** INLA package is not installed. Running lme4 analysis instead. ***")
         method <- "LME4"
     }
-    # Some statistical methods do not allow for spillover
+    # Some statistical methods do not allow for contamination
     if (method %in% c("EMP", "T", "GEE")) cfunc <- "X"
 
     # cfunc='Z' is used to remove the estimation of effect size from the model
@@ -179,7 +179,7 @@ CRTanalysis <- function(
             if(identical(distance_type, "Surround: ") & identical(cfunc, "E")){
                 # message("Estimated escape function )
             } else if (!cfunc %in% c("L", "P", "S")){
-                stop("*** Invalid spillover function ***")
+                stop("*** Invalid contamination function ***")
                 return(NULL)
             }
             # the goodness-of-fit is penalised if scale_par needs to be estimated
@@ -288,7 +288,7 @@ CRTanalysis <- function(
                     penalty = penalty)
 
     # create scaffolds for lists
-    pt_ests <- list(scale_par = NA, personal_protection = NA, spillover_interval = NA)
+    pt_ests <- list(scale_par = NA, personal_protection = NA, contamination_interval = NA)
     int_ests <- list(controlY = NA, interventionY = NA, effect_size = NA)
     model_object <- list()
     description <- get_description(trial=trial, link=link, alpha=alpha, baselineOnly)
@@ -309,10 +309,10 @@ CRTanalysis <- function(
     )
     if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
         fittedCurve <- get_curve(x = analysis$pt_ests, analysis = analysis)
-        spillover <- get_spilloverStats(fittedCurve=fittedCurve,
+        contamination <- get_contaminationStats(fittedCurve=fittedCurve,
                                     trial=analysis$trial, distance = distance)
         # compute indirect effects here
-        analysis <- tidySpillover(spillover, analysis, fittedCurve)
+        analysis <- tidyContamination(contamination, analysis, fittedCurve)
         if (!identical(method,"EMP")){
             scale_par <- analysis$options$scale_par
             message(paste0(linearity, ifelse(is.null(scale_par), "",
@@ -460,7 +460,7 @@ EMPanalysis <- function(analysis){
     pt_ests$controlY <- unname(description$controlY)
     pt_ests$interventionY <- unname(description$interventionY)
     pt_ests$effect_size <- unname(description$effect_size)
-    pt_ests$spillover_interval <- NA
+    pt_ests$contamination_interval <- NA
     pt_ests$personal_protection <- NA
     analysis$pt_ests <- pt_ests
     return(analysis)
@@ -726,13 +726,13 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                    #messag"Estimating scale parameter for spillover interval\n")
+                    #messag"Estimating scale parameter for contamination interval\n")
                     log_scale_par <- stats::optimize(
-                        f = estimateSpilloverLME4, interval = log_sp_prior, maximum = FALSE,
+                        f = estimateContaminationLME4, interval = log_sp_prior, maximum = FALSE,
                         tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance)$minimum
                 },
                 error = function(e){
-                    message("*** Spillover scale parameter cannot be estimated ***")
+                    message("*** Contamination scale parameter cannot be estimated ***")
                     log_scale_par <- 0
                 })
             }
@@ -762,7 +762,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     analysis$pt_ests$deviance <- unname(summary(model_object)$AICtab["deviance"])
     analysis$pt_ests$AIC <- unname(summary(model_object)$AICtab["AIC"])
     analysis$pt_ests$df <- unname(summary(model_object)$AICtab["df.resid"])
-    # if the spillover parameter has been estimated then penalise the AIC and
+    # if the contamination parameter has been estimated then penalise the AIC and
     # adjust the degrees of freedom in the output
 
     cov <- q50 <- NULL
@@ -849,14 +849,14 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                    #messag"Estimating scale parameter for spillover interval\n")
+                    #messag"Estimating scale parameter for contamination interval\n")
                     log_scale_par <- stats::optimize(
-                        f = estimateSpilloverINLA, interval = log_sp_prior,
+                        f = estimateContaminationINLA, interval = log_sp_prior,
                         tol = 0.1, trial = trial, FUN = FUN, formula = formula,
                         link = link, inla_mesh = inla_mesh, distance = distance)$minimum
                 },
                 error = function(e){
-                    message("*** Spillover scale parameter cannot be estimated ***")
+                    message("*** Contamination scale parameter cannot be estimated ***")
                     log_scale_par <- 5
                 })
             }
@@ -1322,7 +1322,7 @@ calculate_singlevalue <- function(i, trial , prediction , distM, distance, scale
 }
 
 # Use profiling to estimate scale_par
-estimateSpilloverINLA <- function(
+estimateContaminationINLA <- function(
     log_scale_par = log_scale_par, trial = trial, FUN = FUN, inla_mesh = inla_mesh,
     formula = formula, link = link, distance = distance){
     y1 <- y0 <- y_off <- NULL
@@ -1383,12 +1383,12 @@ estimateSpilloverINLA <- function(
     # The DIC is penalised to allow for estimation of scale_par
     loss <- result.e$dic$family.dic + 2
     # Display the DIC here if necessary for debugging
-    #  messag"\rDIC: ", loss, " Spillover scale parameter: ", exp(log_scale_par), "  \n")
+    #  messag"\rDIC: ", loss, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
     return(loss)
 }
 
 # Use profiling to estimate scale_par
-estimateSpilloverLME4 <- function(
+estimateContaminationLME4 <- function(
     log_scale_par = log_scale_par, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance){
     if (distance %in% c('disc','kern')) {
         updated <- compute_distance(trial, distance = distance, scale_par = exp(log_scale_par))
@@ -1410,7 +1410,7 @@ estimateSpilloverLME4 <- function(
     loss <- ifelse (is.null(model_object),999999, unlist(summary(model_object)$AICtab["AIC"]))
     # The AIC is used as a loss function
     # Display the AIC here if necessary for debugging
-    # messag"\rAIC: ", loss + 2, " Spillover scale parameter: ", exp(log_scale_par), "  \n")
+    # messag"\rAIC: ", loss + 2, " Contamination scale parameter: ", exp(log_scale_par), "  \n")
     return(loss)
 }
 
@@ -1421,8 +1421,8 @@ add_estimates <- function(analysis, bounds, CLnames){
     for (variable in c("int", "arm", "pvar",
                       "controlY","interventionY","effect_size",
                       "personal_protection","scale_par",
-                      "deviance","spillover_interval","spillover_limit0",
-                      "spillover_limit1","contaminate_pop_pr",
+                      "deviance","contamination_interval","contamination_limit0",
+                      "contamination_limit1","contaminate_pop_pr",
                       "total_effect", "ipsilateral_spillover",
                       "contralateral_spillover")) {
         if (variable %in% colnames(bounds)) {
@@ -1511,11 +1511,11 @@ summary.CRTanalysis <- function(object, ...) {
             cat("Model formula: ", object$options$ftext, "\n")
         cat(switch(object$options$cfunc,
                    Z = "No comparison of arms \n",
-                   X = "No modelling of spillover \n",
-                   S = "Piecewise linear function for spillover\n",
-                   P = "Error function model for spillover\n",
-                   L = "Sigmoid (logistic) function for spillover\n",
-                   R = "Rescaled linear function for spillover\n"))
+                   X = "No modelling of contamination \n",
+                   S = "Piecewise linear function for contamination\n",
+                   P = "Error function model for contamination\n",
+                   L = "Sigmoid (logistic) function for contamination\n",
+                   R = "Rescaled linear function for contamination\n"))
         CLtext <- paste0(" (", 100 * (1 - object$options$alpha), "% CL: ")
         cat(
             "Estimates:       Control: ", object$pt_ests$controlY,
@@ -1552,17 +1552,17 @@ summary.CRTanalysis <- function(object, ...) {
                 }
             }
             if (!identical(object$options$distance_type, "No fixed effects of distance ")){
-                if (!is.null(object$pt_ests$spillover_interval)){
+                if (!is.null(object$pt_ests$contamination_interval)){
                     cat(
-                        "spillover interval(km): ", object$pt_ests$spillover_interval,
-                        CLtext, unlist(object$int_ests$spillover_interval),
+                        "contamination interval(km): ", object$pt_ests$contamination_interval,
+                        CLtext, unlist(object$int_ests$contamination_interval),
                         ")\n"
                     )
                 }
-                if (!is.null(object$spillover$contaminate_pop_pr)){
+                if (!is.null(object$contamination$contaminate_pop_pr)){
                     cat(
                         "% locations contaminated:",
-                        object$spillover$contaminate_pop_pr*100,
+                        object$contamination$contaminate_pop_pr*100,
                         CLtext, unlist(object$int_ests$contaminate_pop_pr)*100,
                         "%)\n")
                 }
@@ -1593,7 +1593,7 @@ summary.CRTanalysis <- function(object, ...) {
         if (!is.null(object$pt_ests$DIC)) cat("DIC     : ", object$pt_ests$DIC)
         if (!is.null(object$pt_ests$AIC)) cat("AIC     : ", object$pt_ests$AIC)
         if (object$options$penalty > 0) {
-            cat(" including penalty for the spillover scale parameter\n")
+            cat(" including penalty for the contamination scale parameter\n")
         } else {
             cat(" \n")
         }
@@ -1637,10 +1637,10 @@ extractEstimates <- function(analysis, sample) {
     if (!(analysis$options$cfunc %in% c("X", "Z"))) {
         if (is.null(sample$scale_par)) sample$scale_par <- scale_par
         if (is.null(sample$scale_par)) sample$scale_par <- 1
-        spillover_list <- apply(sample, MARGIN = 1, FUN = get_spillover,
+        contamination_list <- apply(sample, MARGIN = 1, FUN = get_contamination,
                                     analysis = analysis)
-        spillover_df <- as.data.frame(do.call(rbind, lapply(spillover_list, as.data.frame)))
-        sample <- cbind(sample, spillover_df)
+        contamination_df <- as.data.frame(do.call(rbind, lapply(contamination_list, as.data.frame)))
+        sample <- cbind(sample, contamination_df)
     }
     bounds <- (apply(
         sample, 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
@@ -1682,7 +1682,7 @@ invlink <- function(link = link, x = x)
     return(value)
 }
 
-# Contributions to the linear predictor for different spillover functions
+# Contributions to the linear predictor for different contamination functions
 
 StraightLine <- function(par, trial)
 {
@@ -1691,7 +1691,7 @@ StraightLine <- function(par, trial)
     return(lp)
 }
 
-# step function for the case with no spillover
+# step function for the case with no contamination
 
 StepFunction <- function(par, trial, distance)
 {
@@ -1790,12 +1790,12 @@ get_FUN <- function(cfunc, variant){
     return(FUN)
 }
 
-get_spillover <- function(x, analysis){
+get_contamination <- function(x, analysis){
         # define the limits of the curve both for control and intervention arms
     fittedCurve <- get_curve(x = x, analysis = analysis)
-    spillover <- get_spilloverStats(fittedCurve=fittedCurve, trial=analysis$trial,
+    contamination <- get_contaminationStats(fittedCurve=fittedCurve, trial=analysis$trial,
                                             distance = analysis$options$distance)
-return(spillover)
+return(contamination)
 }
 
 get_curve <- function(x, analysis) {
@@ -1876,8 +1876,8 @@ get_curve <- function(x, analysis) {
 }
 
 # This is called once for each row in the sample data frame (for obtaining interval estimates)
-get_spilloverStats <- function(fittedCurve, trial, distance) {
-    # Compute the spillover interval
+get_contaminationStats <- function(fittedCurve, trial, distance) {
+    # Compute the contamination interval
     # The absolute values of the limits are used so that a positive range is
     # obtained even with negative effect_size
     limits <- fittedCurve$limits
@@ -1907,52 +1907,52 @@ get_spilloverStats <- function(fittedCurve, trial, distance) {
     if (is.na(thetaL))
         thetaL <- min(trial[[distance]])
 
-    # spillover interval
-    spillover_limits <- c(thetaL, thetaU)
+    # contamination interval
+    contamination_limits <- c(thetaL, thetaU)
     if (thetaL > thetaU)
-        spillover_limits <- c(thetaU, thetaL)
+        contamination_limits <- c(thetaU, thetaL)
 
-    contaminate_pop_pr <- sum(trial[[distance]] > spillover_limits[1] &
-                                  trial[[distance]] < spillover_limits[2])/nrow(trial)
-    spillover_interval <- thetaU - thetaL
+    contaminate_pop_pr <- sum(trial[[distance]] > contamination_limits[1] &
+                                  trial[[distance]] < contamination_limits[2])/nrow(trial)
+    contamination_interval <- thetaU - thetaL
     if (identical(thetaU, thetaL)) {
-        spillover_interval <- 0
-        # To remove warnings from plotting ensure that spillover interval is non-zero
-        spillover_limits <- c(-1e-04, 1e-04)
+        contamination_interval <- 0
+        # To remove warnings from plotting ensure that contamination interval is non-zero
+        contamination_limits <- c(-1e-04, 1e-04)
     }
 
-    spillover <- list(
-        spillover_interval = spillover_interval,
-        spillover_limit0 = spillover_limits[1],
-        spillover_limit1 = spillover_limits[2],
+    contamination <- list(
+        contamination_interval = contamination_interval,
+        contamination_limit0 = contamination_limits[1],
+        contamination_limit1 = contamination_limits[2],
         contaminate_pop_pr = contaminate_pop_pr,
         total_effect = fittedCurve$total_effect,
         ipsilateral_spillover = fittedCurve$ipsilateral_spillover,
         contralateral_spillover = fittedCurve$contralateral_spillover)
-return(spillover)}
+return(contamination)}
 
 
-tidySpillover <- function(spillover, analysis, fittedCurve){
+tidyContamination <- function(contamination, analysis, fittedCurve){
 #    if (identical(analysis$options$distance,"nearestDiscord")) {
-        spillover$spillover_limits <-
-            with(spillover, c(spillover_limit0,spillover_limit1))
+        contamination$contamination_limits <-
+            with(contamination, c(contamination_limit0,contamination_limit1))
         if (analysis$options$cfunc %in% c("Z","X")) {
-            spillover$spillover_interval <- NULL
-            spillover$contaminate_pop_pr <- NULL
-            spillover$spillover_limits <- c(-1.0E-4,1.0E-4)
+            contamination$contamination_interval <- NULL
+            contamination$contaminate_pop_pr <- NULL
+            contamination$contamination_limits <- c(-1.0E-4,1.0E-4)
         } else {
             if (is.na(analysis$pt_ests$scale_par))
-                analysis$pt_ests$scale_par <- spillover$scale_par
-            if (is.na(analysis$pt_ests$spillover_interval))
-                analysis$pt_ests$spillover_interval <-
-                    spillover$spillover_interval
+                analysis$pt_ests$scale_par <- contamination$scale_par
+            if (is.na(analysis$pt_ests$contamination_interval))
+                analysis$pt_ests$contamination_interval <-
+                    contamination$contamination_interval
         }
-        spillover$spillover_limit0 <- spillover$spillover_limit1 <- NULL
+        contamination$contamination_limit0 <- contamination$contamination_limit1 <- NULL
 #    }
-    spillover$FittedCurve <- data.frame(d = fittedCurve$d,
+    contamination$FittedCurve <- data.frame(d = fittedCurve$d,
                                         intervention_curve = fittedCurve$intervention_curve,
                                         control_curve = fittedCurve$control_curve)
-    analysis$spillover <- spillover
+    analysis$contamination <- contamination
 return(analysis)}
 
 #' Extract model fitted values
