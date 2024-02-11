@@ -1,6 +1,6 @@
 Package: CRTspat
 Title: Workflow for Cluster Randomised Trials with Spillover
-Version: 1.1.0
+Version: 1.2.0
 Authors@R: c(person(given = "Thomas",
                     family = "Smith", 
                     email = "Thomas-a.Smith@unibas.ch",

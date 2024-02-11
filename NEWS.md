@@ -1,3 +1,5 @@
+# CRTspat 1.2.0
+
 # CRTspat 1.1.0
 
 * Added computation of coefficient of variation.
