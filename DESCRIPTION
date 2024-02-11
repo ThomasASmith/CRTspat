@@ -39,7 +39,7 @@ Imports:
     jagsUI, 
     TSP
 Suggests: 
-    knitr, rmarkdown, INLA,  
+    knitr, rmarkdown, INLA, 
     testthat (>= 2.0.0)
 Config/testthat/edition: 2
 Depends: 

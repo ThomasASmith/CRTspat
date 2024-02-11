@@ -726,7 +726,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
                 log_scale_par <- 2.0
             } else {
                 tryCatch({
-                    #messag"Estimating scale parameter for spillover interval\n")
+                    #message "Estimating scale parameter for spillover interval\n")
                     log_scale_par <- stats::optimize(
                         f = estimateSpilloverLME4, interval = log_sp_prior, maximum = FALSE,
                         tol = 0.1, trial = trial, FUN = FUN, formula = formula, link = link, distance = distance)$minimum
