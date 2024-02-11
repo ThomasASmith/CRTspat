@@ -9,15 +9,15 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-In trials of malaria interventions, a 'fried-egg' design is often used to avoid the downward bias in the estimates of efficacy caused by contamination. This entails estimating the outcome only from the cores of the clusters. However,
-the intervention must also be introduced in the buffer zone, so the trial may be very expensive if there are high per capita intervention costs. Since the buffer zone is excluded from data collection, there are usually no data on whether the buffer is large enough to avoid contamination effects. A precautionary approach with large buffer zones is therefore the norm. However with 'fried-eggs' there are no data on the scale of the contamination, so if the effect was swamped by unexpectedly large contamination, this would be indistinguishable from failure of the intervention.
+In trials of malaria interventions, a 'fried-egg' design is often used to avoid the downward bias in the estimates of efficacy caused by spillover. This entails estimating the outcome only from the cores of the clusters. However,
+the intervention must also be introduced in the buffer zone, so the trial may be very expensive if there are high per capita intervention costs. Since the buffer zone is excluded from data collection, there are usually no data on whether the buffer is large enough to avoid spillover effects. A precautionary approach with large buffer zones is therefore the norm. However with 'fried-eggs' there are no data on the scale of the spillover, so if the effect was swamped by unexpectedly large spillover, this would be indistinguishable from failure of the intervention.
 
-The alternative design is to sample in the buffer zones, accepting some degree of contamination. The data analysis
-might then be used to estimate the scale of contamination (see [Use Case 5](Usecase5.html)). The statistical model might be to adjust the estimate of effect size for the contamination effect, or to decide which contaminated areas to exclude
+The alternative design is to sample in the buffer zones, accepting some degree of spillover. The data analysis
+might then be used to estimate the scale of spillover (see [Use Case 5](Usecase5.html)). The statistical model might be to adjust the estimate of effect size for the spillover effect, or to decide which contaminated areas to exclude
 *post hoc* from the definitive analysis (based on pre-defined criteria). This is expected to lead to some loss of power, compared to collecting the same amount of outcome data from the core area alone (though this might be compensated for by increasing data collection), but is likely to be less complicated to organise, allowing the trial to be carried out over a much smaller area, with far fewer locations needing to be randomized (see [Use Case 4](Usecase4.html)).
 
 In this example, the effects of reducing the numbers of observations on power and bias are evaluated in simulated datasets. To compare 'fried-egg' strategies with comparable designs that sample the whole area, sets of locations are removed, either randomly from the whole area, or systematically depending on the distance from the boundary between arms.
-As in [Use Case 7](Usecase7.html), spatially homogeneous background disease rates are assigned, using `propensity <- 1`, fixed values are used for the outcome in the control arm, the target ICC of the simulations and the number of clusters in each arm of the trial. Efficacy is also fixed at 0.4. The contamination interval is sampled from a uniform(0, 1.5km) distribution.
+As in [Use Case 7](Usecase7.html), spatially homogeneous background disease rates are assigned, using `propensity <- 1`, fixed values are used for the outcome in the control arm, the target ICC of the simulations and the number of clusters in each arm of the trial. Efficacy is also fixed at 0.4. The spillover interval is sampled from a uniform(0, 1.5km) distribution.
 
 ```{r example8a.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
 library(CRTspat)
@@ -128,7 +128,7 @@ fig8_1a <- ggplot(data = results, aes(x = observations, y = significant, color =
 fig8_1b <- ggplot(data = results, aes(x = theta_inp, y = significant, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
-    xlab('Simulated contamination interval (km)') +
+    xlab('Simulated spillover interval (km)') +
     ylab('Power')
 fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
@@ -138,7 +138,7 @@ fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor
 fig8_1d <- ggplot(data = results, aes(x = theta_inp, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
-  xlab('Simulated contamination interval (km)') +
+  xlab('Simulated spillover interval (km)') +
   ylab('Bias')
 library(cowplot)
 plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c('a', 'b', 'c', 'd'), label_size = 14, ncol = 2)
@@ -149,10 +149,10 @@ plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c('a', 'b', 'c', 'd'), la
 Figure 8.1. is are based on analysing 1000 simulated datasets (12,000 scenarios in all).
 The power is calculated as the proportion of significance tests with likelihood ratio p < 0.05.
 
-The fried-egg design suffers little loss of power with exclusion of observations until the sample size is less than about 750 (the suggestion that there is a maximum at a sample size of about 900 locations is presumably an effect of the smoothing of the results). The 'scrambled' egg trials lose power with each reduction in the number of observations (Figure 8.1a), but substantive loss of power occurs only with contamination interval of 1 km or more
-in this dataset. The fried egg designs largely avoid this loss of power (Figure 8.1b) but are less powerful on average when the contamination interval is less that 0.5 km.
+The fried-egg design suffers little loss of power with exclusion of observations until the sample size is less than about 750 (the suggestion that there is a maximum at a sample size of about 900 locations is presumably an effect of the smoothing of the results). The 'scrambled' egg trials lose power with each reduction in the number of observations (Figure 8.1a), but substantive loss of power occurs only with spillover interval of 1 km or more
+in this dataset. The fried egg designs largely avoid this loss of power (Figure 8.1b) but are less powerful on average when the spillover interval is less that 0.5 km.
 
-In these simulations, the lme4 estimates of the efficacy are biased slightly downwards (i.e. the bias has negative sign). The absolute bias was least when some of the locations were excluded (Figure 8.1c). There is less absolute bias with the fried-egg designs but the effect is small except when the simulated contamination interval is very large (Figure 8.1d). The difference in bias between 'fried' and 'scrambled' egg designs is modest in relation to the scale of the overall bias.
+In these simulations, the lme4 estimates of the efficacy are biased slightly downwards (i.e. the bias has negative sign). The absolute bias was least when some of the locations were excluded (Figure 8.1c). There is less absolute bias with the fried-egg designs but the effect is small except when the simulated spillover interval is very large (Figure 8.1d). The difference in bias between 'fried' and 'scrambled' egg designs is modest in relation to the scale of the overall bias.
 
 <p>
     <img src="example8c.r-1.png" > <br>

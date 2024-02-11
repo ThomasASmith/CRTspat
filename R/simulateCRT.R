@@ -1,7 +1,7 @@
 
-#' Simulation of cluster randomized trial with contamination
+#' Simulation of cluster randomized trial with spillover
 #'
-#' \code{simulateCRT} generates simulated data for a cluster randomized trial (CRT) with geographic contamination between arms.
+#' \code{simulateCRT} generates simulated data for a cluster randomized trial (CRT) with geographic spillover between arms.
 #'
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Each location may also be
@@ -17,8 +17,8 @@
 #' @param denominator optional name of denominator variable for the outcome
 #' @param kernels number of kernels used to generate a de novo \code{propensity}
 #' @param ICC_inp numeric. Target intra cluster correlation, provided as input when baseline data are to be simulated
-#' @param sd numeric. standard deviation of the normal kernel measuring spatial smoothing leading to contamination
-#' @param theta_inp numeric. input contamination interval
+#' @param sd numeric. standard deviation of the normal kernel measuring spatial smoothing leading to spillover
+#' @param theta_inp numeric. input spillover interval
 #' @param tol numeric. tolerance of output ICC
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #' \tabular{lll}{
@@ -86,7 +86,7 @@
 #' Either \code{sd} or \code{theta_inp} must be provided. If both are provided then
 #' the value of \code{sd} is overwritten
 #' by the standard deviation implicit in the value of \code{theta_inp}.
-#' Contamination is simulated as arising from a diffusion-like process.
+#' Spillover is simulated as arising from a diffusion-like process.
 #'
 #' For further details see [Multerer (2021)](https://edoc.unibas.ch/85228/)
 #' @export
@@ -134,12 +134,12 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     # If the denominator has no values set, set to one
     if (is.null(trial$denom)) trial$denom <- 1
 
-    # use contamination interval if this is available
+    # use spillover interval if this is available
     if (!is.null(theta_inp)) {
         sd <- theta_inp/(2 * qnorm(0.975))
     }
     if (is.null(sd)) {
-        stop("contamination interval or s.d. of contamination must be provided")
+        stop("spillover interval or s.d. of spillover must be provided")
     }
 
     # compute distances to nearest discordant locations if they do not exist
@@ -243,7 +243,7 @@ get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
   # Smooth the propensity.  the s.d. in each dimension of the 2 d gaussian is bw/sqrt(2)
 
   # f_2 is the value of propensity decremented by the effect of intervention and smoothed
-  # by applying a further kernel smoothing step (trap the case with no contamination)
+  # by applying a further kernel smoothing step (trap the case with no spillover)
   if (sd < 0.001) sd <- 0.001
   f_2 <- f_1 * (1 - effect * (trial$arm == "intervention"))
   f_3 <- dispersal(bw = sd*sqrt(2), euclid = euclid) %*% f_2
@@ -374,7 +374,7 @@ assignkernels <- function(trial, baselineNumerator, baselineDenominator, kernels
   return(centers)
 }
 
-# contribution of l to i as a function of the Gaussian used in simulating contamination
+# contribution of l to i as a function of the Gaussian used in simulating spillover
 dispersal <- function(bw, euclid) {
     # bivariate normal kernel
     f <- (1/(2 * pi * bw^2)) * exp(-(euclid^2)/(2 * (bw^2)))

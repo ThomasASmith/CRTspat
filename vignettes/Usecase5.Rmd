@@ -1,10 +1,10 @@
 ---
-title: "Use Case 05: Analysis of trials (including methods for analysing contamination)"
+title: "Use Case 05: Analysis of trials (including methods for analysing spillover)"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 05: Analysis of trials (including methods for analysing contamination)}
+  %\VignetteIndexEntry{Use Case 05: Analysis of trials (including methods for analysing spillover)}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -27,11 +27,11 @@ Table 5.1. Available statistical methods
 
 | `method` | Package | What the `CRTanalysis()` implementation offers |Limitations (as implemented) |
 |----------|---------|------------------------------------------------|-----------------------------|
-| `T`| [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) | P-values and confidence intervals for efficacy based on comparison of cluster means | No analysis of contamination or degree of clustering |
-| `GEE` | [geepack](https://www.jstatsoft.org/article/view/v015i02) | Interval estimates for efficacy and Intra-cluster correlations | No analysis of contamination or degree of clustering |
-| `LME4`| [lme4](https://CRAN.R-project.org/package=lme4) | Analysis of contamination | No geostatistical analysis |
-| `INLA` | [INLA](https://www.r-inla.org/) | Analysis of contamination, geostatistical analysis and spatially structured outputs | Computationally intensive |
-| `MCMC` | [jagsUI](https://CRAN.R-project.org/package=jagsUI) | Interval estimates for contamination parameters | Identifiability issues and slow convergence are possible |
+| `T`| [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) | P-values and confidence intervals for efficacy based on comparison of cluster means | No analysis of spillover or degree of clustering |
+| `GEE` | [geepack](https://www.jstatsoft.org/article/view/v015i02) | Interval estimates for efficacy and Intra-cluster correlations | No analysis of spillover or degree of clustering |
+| `LME4`| [lme4](https://CRAN.R-project.org/package=lme4) | Analysis of spillover | No geostatistical analysis |
+| `INLA` | [INLA](https://www.r-inla.org/) | Analysis of spillover, geostatistical analysis and spatially structured outputs | Computationally intensive |
+| `MCMC` | [jagsUI](https://CRAN.R-project.org/package=jagsUI) | Interval estimates for spillover parameters | Identifiability issues and slow convergence are possible |
 
 For the analysis of proportions, the outcome in the control arm is estimated as: $\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$, in the intervention arm as $\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$, and the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$ where $\beta_1$ is the intercept term and $\beta_2$ the incremental effect associated with the intervention.
 
@@ -53,7 +53,7 @@ summary(analysisT)
 ## Analysis method:  T 
 ## Link function:  logit 
 ## Model formula:  arm + (1 | cluster) 
-## No modelling of contamination 
+## No modelling of spillover 
 ## Estimates:       Control:  0.364  (95% CL:  0.286 0.451 )
 ##             Intervention:  0.21  (95% CL:  0.147 0.292 )
 ##                 Efficacy:  0.423  (95% CL:  0.208 0.727 )
@@ -83,21 +83,21 @@ analysisT$model_object
 ## Assessing model fit
 
 The `model = "LME4"` option outputs the deviance of the model and the Akaike information criterion (AIC), which can be
-used to select the best fitting model. The deviance information criterion (DIC) and Bayesian information criterion (BIC) perform the same role for the Bayesian methods (`"INLA"`, and `"MCMC"`).  The comparison of results with `cfunc = "X"` and `cfunc = "Z"` is used to assess whether the intervention effect is likely to be due to chance. With `method = "T"`, `cfunc = "X"` provides a significance test of the intervention effect directly. The models with contamination (see below) can be compared by that with `cfunc = "X"` to evaluate whether contamination has led to an important bias.
+used to select the best fitting model. The deviance information criterion (DIC) and Bayesian information criterion (BIC) perform the same role for the Bayesian methods (`"INLA"`, and `"MCMC"`).  The comparison of results with `cfunc = "X"` and `cfunc = "Z"` is used to assess whether the intervention effect is likely to be due to chance. With `method = "T"`, `cfunc = "X"` provides a significance test of the intervention effect directly. The models with spillover (see below) can be compared by that with `cfunc = "X"` to evaluate whether spillover has led to an important bias.
 
 
 ## Contamination (spillover)
 
-`CRTanalysis()` provides options for analysing contamination between arms, or spillover effects either as function of a Euclidean distance or as a function of a surround measure:
+`CRTanalysis()` provides options for analysing spillover between arms, or spillover effects either as function of a Euclidean distance or as a function of a surround measure:
 
 #### Models that do not consider spillover
-Models that do not consider contamination can be fitted using options `Z` and `X`. These are included both to allow conventional analyses (see above), and also to enable model selection using and likelihood ratio tests, the Akaike information criterion (AIC), deviance information criterion (DIC) or Bayesian information criterion (BIC) .
+Models that do not consider spillover can be fitted using options `Z` and `X`. These are included both to allow conventional analyses (see above), and also to enable model selection using and likelihood ratio tests, the Akaike information criterion (AIC), deviance information criterion (DIC) or Bayesian information criterion (BIC) .
 
 #### Spillover as a function of distance
 These methods require a measure of distance from the boundary between the trial arms,
 with locations in the control arm assigned negative values, and those in the intervention arm assigned positive values. The functional forms for this relationship is specified by the value of  `cfunc` (Table 5.2).
 
-Table 5.2. Available contamination functions
+Table 5.2. Available spillover functions
 
 | `cfunc` | Description | Formula for $P\left( d \right)$ | Compatible `method`(s)   |
 |---------|------------------|--------------------------|--------------------------|
@@ -115,11 +115,11 @@ Table 5.2. Available contamination functions
     \end{matrix}\ $ | `LME4` `INLA` `MCMC` |
 | `R`| rescaled linear | $P\left( d \right) =\frac{d\ -\ min(d)}{max(d)\ -\ min(d)}$ | `LME4` `INLA` `MCMC` |
 
-`cfunc` options `P`, `L` and `S` lead to non-linear models in which the contamination
+`cfunc` options `P`, `L` and `S` lead to non-linear models in which the spillover
 scale parameter (`S`) must be estimated. This is done by selecting `scale_par` using a one-dimensional optimisation of the goodness of fit of the model in `stats::optimize()`.
 
 The different values for `cfunc` lead to the fitted curves shown in Figure 5.1. The light blue shaded part of the
-plot corresponds to the contamination interval in those cases where this is estimated.
+plot corresponds to the spillover interval in those cases where this is estimated.
 
 
 ```r
@@ -151,7 +151,7 @@ summary(analysisLME4_X)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Model formula:  arm + (1 | cluster) 
-## No modelling of contamination 
+## No modelling of spillover 
 ## Estimates:       Control:  0.366  (95% CL:  0.292 0.449 )
 ##             Intervention:  0.216  (95% CL:  0.162 0.281 )
 ##                 Efficacy:  0.41  (95% CL:  0.165 0.584 )
@@ -173,18 +173,18 @@ summary(analysisLME4_P)
 ## Measure of distance or surround: Signed distance to other arm (km)
 ## Estimated scale parameter: 0.45
 ## Model formula:  pvar + (1 | cluster) 
-## Error function model for contamination
+## Error function model for spillover
 ## Estimates:       Control:  0.418  (95% CL:  0.331 0.509 )
 ##             Intervention:  0.186  (95% CL:  0.136 0.25 )
 ##                 Efficacy:  0.553  (95% CL:  0.327 0.703 )
-## contamination interval(km):  4.22  (95% CL:  4.2 4.23 )
+## spillover interval(km):  4.22  (95% CL:  4.2 4.23 )
 ## % locations contaminated: 91.6  (95% CL:  90.6 92 %)
 ## Total effect            : 0.23  (95% CL:  0.114 0.344 )
 ## Ipsilateral Spillover   : 0.0233  (95% CL:  0.0127 0.0323 )
 ## Contralateral Spillover : 0.0417  (95% CL:  0.0192 0.0651 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
 ## deviance:  1374.215 
-## AIC     :  1382.215 including penalty for the contamination scale parameter
+## AIC     :  1382.215 including penalty for the spillover scale parameter
 ```
 
 ```r
@@ -200,18 +200,18 @@ summary(analysisLME4_L)
 ## Measure of distance or surround: Signed distance to other arm (km)
 ## Estimated scale parameter: 0.249
 ## Model formula:  pvar + (1 | cluster) 
-## Sigmoid (logistic) function for contamination
+## Sigmoid (logistic) function for spillover
 ## Estimates:       Control:  0.417  (95% CL:  0.332 0.51 )
 ##             Intervention:  0.186  (95% CL:  0.136 0.249 )
 ##                 Efficacy:  0.552  (95% CL:  0.329 0.7 )
-## contamination interval(km):  4.26  (95% CL:  4.24 4.28 )
+## spillover interval(km):  4.26  (95% CL:  4.24 4.28 )
 ## % locations contaminated: 92.7  (95% CL:  92.2 93.1 %)
 ## Total effect            : 0.229  (95% CL:  0.115 0.342 )
 ## Ipsilateral Spillover   : 0.0219  (95% CL:  0.0121 0.0304 )
 ## Contralateral Spillover : 0.0388  (95% CL:  0.0183 0.0604 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
 ## deviance:  1374.201 
-## AIC     :  1382.201 including penalty for the contamination scale parameter
+## AIC     :  1382.201 including penalty for the spillover scale parameter
 ```
 
 ```r
@@ -227,18 +227,18 @@ summary(analysisLME4_S)
 ## Measure of distance or surround: Signed distance to other arm (km)
 ## Estimated scale parameter: 1.674
 ## Model formula:  pvar + (1 | cluster) 
-## Piecewise linear function for contamination
+## Piecewise linear function for spillover
 ## Estimates:       Control:  0.423  (95% CL:  0.334 0.516 )
 ##             Intervention:  0.185  (95% CL:  0.135 0.247 )
 ##                 Efficacy:  0.561  (95% CL:  0.341 0.711 )
-## contamination interval(km):  4.1  (95% CL:  4.1 4.11 )
+## spillover interval(km):  4.1  (95% CL:  4.1 4.11 )
 ## % locations contaminated: 86.6  (95% CL:  86.6 87.1 %)
 ## Total effect            : 0.237  (95% CL:  0.12 0.356 )
 ## Ipsilateral Spillover   : 0.029  (95% CL:  0.016 0.0403 )
 ## Contralateral Spillover : 0.0522  (95% CL:  0.0248 0.0818 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
 ## deviance:  1374.094 
-## AIC     :  1382.094 including penalty for the contamination scale parameter
+## AIC     :  1382.094 including penalty for the spillover scale parameter
 ```
 
 ```r
@@ -254,11 +254,11 @@ summary(analysisLME4_R)
 ## Measure of distance or surround: Signed distance to other arm (km)
 ## No non-linear parameter. 1
 ## Model formula:  pvar + (1 | cluster) 
-## Rescaled linear function for contamination
+## Rescaled linear function for spillover
 ## Estimates:       Control:  0.584  (95% CL:  0.381 0.758 )
 ##             Intervention:  0.116  (95% CL:  0.0587 0.216 )
 ##                 Efficacy:  0.801  (95% CL:  0.465 0.92 )
-## contamination interval(km):  6.64  (95% CL:  6.61 6.65 )
+## spillover interval(km):  6.64  (95% CL:  6.61 6.65 )
 ## % locations contaminated: 99.8  (95% CL:  99.8 99.8 %)
 ## Total effect            : 0.468  (95% CL:  0.181 0.694 )
 ## Ipsilateral Spillover   : 0.117  (95% CL:  0.0564 0.157 )
@@ -283,10 +283,10 @@ plot_grid(p0, p1, p2, p3, p4, p5, labels = c('Z', 'X', 'P', 'L', 'S', 'R'), labe
   <em>Fig 5.1 Fitted curves for the example dataset with different options for `cfunc`</em>
 </p>
 
-The piecewise linear contamination function, `cfunc = "S"`, is only linear on the scale of the linear predictor. When used in a logistic model, as here, the transformation via the inverse of the link function leads to a slightly curved plot (Figure 5.1S). The rescaled linear function, `cfunc = "R"`, is provided as a comparator and for use with `distance` values other than `distance = "nearestDiscord"` see below (it should not be used to estimate the contamination interval).
+The piecewise linear spillover function, `cfunc = "S"`, is only linear on the scale of the linear predictor. When used in a logistic model, as here, the transformation via the inverse of the link function leads to a slightly curved plot (Figure 5.1S). The rescaled linear function, `cfunc = "R"`, is provided as a comparator and for use with `distance` values other than `distance = "nearestDiscord"` see below (it should not be used to estimate the spillover interval).
 
 The full set of different `cfunc` options are available for each of model options `"LME4"`, `"INLA"`, and `"MCMC"`.
-The performance of all these different models has not yet been thoroughly investigated. The analyses of [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable contamination.
+The performance of all these different models has not yet been thoroughly investigated. The analyses of [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable spillover.
 
 #### Spillover as a function of surround
 Contamination can also be analysed by assuming the effect size to be a function of the number of intervened locations in the surroundings of the location
@@ -344,11 +344,11 @@ summary(examples_hdep)
 ## Measure of distance or surround: Tukey half-depth 
 ## No non-linear parameter. 1
 ## Model formula:  pvar + (1 | cluster) 
-## Rescaled linear function for contamination
+## Rescaled linear function for spillover
 ## Estimates:       Control:  0.381  (95% CL:  0.292 0.478 )
 ##             Intervention:  0.209  (95% CL:  0.15 0.282 )
 ##                 Efficacy:  0.452  (95% CL:  0.167 0.639 )
-## contamination interval(km):  0.978  (95% CL:  0.976 0.98 )
+## spillover interval(km):  0.978  (95% CL:  0.976 0.98 )
 ## % locations contaminated: 55  (95% CL:  55 55 %)
 ## Total effect            : 0.172  (95% CL:  0.0524 0.292 )
 ## Ipsilateral Spillover   : 0.0313  (95% CL:  0.01 0.0512 )
@@ -372,11 +372,11 @@ summary(examples_sdep)
 ## Measure of distance or surround: Simplicial depth 
 ## No non-linear parameter. 1
 ## Model formula:  pvar + (1 | cluster) 
-## Rescaled linear function for contamination
+## Rescaled linear function for spillover
 ## Estimates:       Control:  0.393  (95% CL:  0.307 0.485 )
 ##             Intervention:  0.199  (95% CL:  0.145 0.268 )
 ##                 Efficacy:  0.493  (95% CL:  0.243 0.66 )
-## contamination interval(km):  0.978  (95% CL:  0.976 0.98 )
+## spillover interval(km):  0.978  (95% CL:  0.976 0.98 )
 ## % locations contaminated: 52.4  (95% CL:  52.2 52.4 %)
 ## Total effect            : 0.193  (95% CL:  0.0802 0.306 )
 ## Ipsilateral Spillover   : 0.0299  (95% CL:  0.013 0.0456 )
@@ -400,11 +400,11 @@ summary(examples_disc)
 ## Measure of distance or surround: disc of radius 0.15 km
 ## Precalculated scale parameter: 0.15
 ## Model formula:  pvar + (1 | cluster) 
-## Rescaled linear function for contamination
+## Rescaled linear function for spillover
 ## Estimates:       Control:  0.387  (95% CL:  0.312 0.467 )
 ##             Intervention:  0.2  (95% CL:  0.149 0.26 )
 ##                 Efficacy:  0.482  (95% CL:  0.273 0.634 )
-## contamination interval(km):  0.978  (95% CL:  0.976 0.98 )
+## spillover interval(km):  0.978  (95% CL:  0.976 0.98 )
 ## % locations contaminated: 8.89  (95% CL:  8.89 8.89 %)
 ## Total effect            : 0.186  (95% CL:  0.0912 0.282 )
 ## Ipsilateral Spillover   : 0.00458  (95% CL:  0.00239 0.00656 )
@@ -428,11 +428,11 @@ summary(examples_kern)
 ## Measure of distance or surround: kern with kernel s.d. 0.15 km
 ## Precalculated scale parameter: 0.15
 ## Model formula:  pvar + (1 | cluster) 
-## Rescaled linear function for contamination
+## Rescaled linear function for spillover
 ## Estimates:       Control:  0.406  (95% CL:  0.327 0.491 )
 ##             Intervention:  0.185  (95% CL:  0.136 0.245 )
 ##                 Efficacy:  0.542  (95% CL:  0.349 0.684 )
-## contamination interval(km):  0.979  (95% CL:  0.977 0.98 )
+## spillover interval(km):  0.979  (95% CL:  0.977 0.98 )
 ## % locations contaminated: 50.8  (95% CL:  50.6 50.9 %)
 ## Total effect            : 0.22  (95% CL:  0.122 0.32 )
 ## Ipsilateral Spillover   : 0.011  (95% CL:  0.00661 0.0152 )

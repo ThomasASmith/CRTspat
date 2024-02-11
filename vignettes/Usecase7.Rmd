@@ -1,19 +1,19 @@
 ---
-title: "Use Case 07: Power and sample size calculations allowing for contamination"
+title: "Use Case 07: Power and sample size calculations allowing for spillover"
 output:
   rmarkdown::html_vignette:
   toc: true
 vignette: >
-  %\VignetteIndexEntry{Use Case 07: Power and sample size calculations allowing for contamination}
+  %\VignetteIndexEntry{Use Case 07: Power and sample size calculations allowing for spillover}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 Contamination between the arms of a trial leads to downward bias in the estimates of efficacy
-In the case of malaria, this contamination is mainly caused by mosquito movement, and
+In the case of malaria, this spillover is mainly caused by mosquito movement, and
 is therefore expected to be greatest near to the boundary between the trial arms.
 
-Because the effective distance over which substantial contamination occurs is generally not known,
+Because the effective distance over which substantial spillover occurs is generally not known,
 sensitivity analyses must be used to get an idea of how great these effects are likely to be.
 The following workflow, similar to that used for [Use Case 3](Usecase3.html), explores the likely bias
 and loss of power for one specific simulated setting.
@@ -22,7 +22,7 @@ In this simple example, spatially homogeneous background disease rates are assig
 A small number of simulations is specified for testing (here 2, a much larger number, at least several
 thousands is used for the definitive analysis). In this example, a fixed value for the outcome in the control arm,
 the target ICC of the simulations, and the number of clusters in each arm of the trial.
-input. Efficacy is sampled from a uniform(0, 0.6) distribution, and the simulated contamination interval from a
+input. Efficacy is sampled from a uniform(0, 0.6) distribution, and the simulated spillover interval from a
 uniform(0, 1.5km) distribution.
 
 
@@ -40,7 +40,7 @@ ICC <- 0.05
 c <- 25
 set.seed(7)
 effect <- runif(nsimulations,0,0.6)
-# Data frame of input contamination interval
+# Data frame of input spillover interval
 theta_inp <- runif(nsimulations, min = 0, max = 1.5)
 input <- data.frame(effect = effect, theta_inp = theta_inp)
 ```
@@ -115,7 +115,7 @@ ggplot(data = by_effect, aes(x = effect)) +
   ylab('Performance of t-test')
 ```
 
-Despite the contamination, the t-test performs similarly to expectations
+Despite the spillover, the t-test performs similarly to expectations
 across the range of efficacies investigated (Figure 7.1)
 
 <p>
@@ -128,16 +128,16 @@ $\color{blue}{\textbf{----}}$ : bias.
 </p>
 
 
-## Analysis by simulated contamination interval
+## Analysis by simulated spillover interval
 
-An analogous analysis, to that of performance relative to efficacy, can be carried out to explore the effect of the simulated contamination interval.
+An analogous analysis, to that of performance relative to efficacy, can be carried out to explore the effect of the simulated spillover interval.
 
 
 ```r
 ggplot(data = results, aes(x = theta_inp)) +
   geom_smooth(aes(y = contaminate_pop_pr_input), color = "#b2df8a",se = FALSE, size = 2) +
   geom_smooth(aes(y = contaminate_pop_pr_sd), color = "#0072A7",se = FALSE, size = 2) +
-  xlab('Simulated contamination interval (km)') +
+  xlab('Simulated spillover interval (km)') +
   ylab('Proportion of the locations')
 
 results$theta_cat <- factor(round(results$theta_inp*10))
@@ -150,28 +150,28 @@ ggplot(data = by_theta, aes(x = theta_inp)) +
   geom_smooth(aes(y = power_ratio), color = "#b2df8a",se = FALSE) +
   geom_smooth(aes(y = typeIIerror), color = "#D55E00",se = FALSE) +
   geom_smooth(aes(y = bias_t), color = "#0072A7",se = FALSE) +
-  xlab('Simulated contamination interval (km)') +
+  xlab('Simulated spillover interval (km)') +
   ylab('Performance of t-test')
 ```
 
-The relationships between the simulated contamination interval and the corresponding proportion of the locations in the trial (Figure 7.2).
+The relationships between the simulated spillover interval and the corresponding proportion of the locations in the trial (Figure 7.2).
 
 <p>
     <img src="example7e.r-1.png" > <br>
-    <em>Fig 7.2 Proportion of locations in simulated contamination interval
+    <em>Fig 7.2 Proportion of locations in simulated spillover interval
 $\color{green}{\textbf{----}}$ :zone defined by `gamma_inp`;
 $\color{blue}{\textbf{----}}$ : zone defined by `sd`.
     </em>
 </p>
 
-The contamination results in a loss of power, and increased negative bias in efficacy estimate, but these effects are
+The spillover results in a loss of power, and increased negative bias in efficacy estimate, but these effects are
 rather small (Figure 7.3).
 
-The potential for using the `CRTanalysis()` function to model the contamination and hence correct the naive efficacy estimate (from a t-test) can also be explored (see [Use Case 5](Usecase5.html) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
+The potential for using the `CRTanalysis()` function to model the spillover and hence correct the naive efficacy estimate (from a t-test) can also be explored (see [Use Case 5](Usecase5.html) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
 
 <p>
     <img src="example7e.r-2.png" > <br>
-    <em>Fig 7.3 Performance of t-test by contamination interval
+    <em>Fig 7.3 Performance of t-test by spillover interval
 $\color{purple}{\textbf{----}}$ : ratio of power:nominal power;
 $\color{green}{\textbf{----}}$ :type II error rate;
 $\color{blue}{\textbf{----}}$ : bias.

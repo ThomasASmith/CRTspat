@@ -11,9 +11,9 @@ vignette: >
 
 Both the number and size of clusters affect power calculations for CRTs:
 
-  + If there are no logistical constraints, and contamination can be neglected (as in trials of vaccines that enrol only small proportions of the population), there is no need for a buffer zone and the most efficient design is an individually randomized CRT (i.e. a cluster size of one). In general, a trial with many small clusters has more power than one with the
+  + If there are no logistical constraints, and spillover can be neglected (as in trials of vaccines that enrol only small proportions of the population), there is no need for a buffer zone and the most efficient design is an individually randomized CRT (i.e. a cluster size of one). In general, a trial with many small clusters has more power than one with the
 same number of individuals enrolled in larger clusters.
-  + If contamination is an issue, and it is decided to address this by including buffer zones, then the number of individuals included in the trial is less than the total population. Enumeration and intervention allocation are still required for the full trial area, so there can be substantial resource implications if many people are included in the buffers. There is a trade-off between increasing power by creating many small clusters (leading to a large proportion of locations in buffer zones) and reducing the proportion of locations in
+  + If spillover is an issue, and it is decided to address this by including buffer zones, then the number of individuals included in the trial is less than the total population. Enumeration and intervention allocation are still required for the full trial area, so there can be substantial resource implications if many people are included in the buffers. There is a trade-off between increasing power by creating many small clusters (leading to a large proportion of locations in buffer zones) and reducing the proportion of locations in
 buffer zones by using large clusters.
 
 The `CRTspat` package provides functions for analysing this trade-off for any site for which baseline data are available.

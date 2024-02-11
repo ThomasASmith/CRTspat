@@ -6,7 +6,7 @@
 \alias{CRTspat-package}
 \title{CRTspat: Workflow for Cluster Randomised Trials with Spillover}
 \description{
-Design, workflow and statistical analysis of Cluster Randomised Trials of (health) interventions where there may be geographical contamination between the arms (see \url{https://thomasasmith.github.io/index.html}).
+Design, workflow and statistical analysis of Cluster Randomised Trials of (health) interventions where there may be spillover between the arms (see \url{https://thomasasmith.github.io/index.html}).
 }
 \author{
 \strong{Maintainer}: Thomas Smith \email{Thomas-a.Smith@unibas.ch} (\href{https://orcid.org/0000-0002-3650-9381}{ORCID}) [copyright holder]

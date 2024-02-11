@@ -2,7 +2,7 @@
 % Please edit documentation in R/analyseCRT.R
 \name{CRTanalysis}
 \alias{CRTanalysis}
-\title{Analysis of cluster randomized trial with contamination}
+\title{Analysis of cluster randomized trial with spillover}
 \usage{
 CRTanalysis(
   trial,
@@ -49,12 +49,12 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"sdep"} \tab simplicial depth\cr
 }}
 
-\item{scale_par}{numeric: pre-specified value of the contamination parameter or disc radius for models where this is fixed (\code{cfunc = "R"}).\cr\cr}
+\item{scale_par}{numeric: pre-specified value of the spillover parameter or disc radius for models where this is fixed (\code{cfunc = "R"}).\cr\cr}
 
-\item{cfunc}{transformation defining the contamination function with options:
+\item{cfunc}{transformation defining the spillover function with options:
 \tabular{llll}{
 \code{"Z"} \tab\tab arm effects not considered\tab reference model\cr
-\code{"X"} \tab\tab contamination not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
+\code{"X"} \tab\tab spillover not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
 \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
@@ -84,7 +84,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 
 \item{baselineDenominator}{string: name of denominator variable for baseline data (if present)}
 
-\item{personalProtection}{logical: indicator of whether the model includes local effects with no contamination}
+\item{personalProtection}{logical: indicator of whether the model includes local effects with no spillover}
 
 \item{clusterEffects}{logical: indicator of whether the model includes cluster random effects}
 
@@ -104,7 +104,7 @@ list of class \code{CRTanalysis} containing the following results of the analysi
 \item \code{pt_ests} : point estimates
 \item \code{int_ests} : interval estimates
 \item \code{model_object} : object returned by the fitting routine
-\item \code{contamination} : function values and statistics describing the estimated contamination
+\item \code{spillover} : function values and statistics describing the estimated spillover
 }
 }
 \description{
@@ -137,10 +137,10 @@ example <- readdata('exampleCRT.txt')
 # Analysis of test dataset by t-test
 exampleT <- CRTanalysis(example, method = "T")
 summary(exampleT)
-# Standard GEE analysis of test dataset ignoring contamination
+# Standard GEE analysis of test dataset ignoring spillover
 exampleGEE <- CRTanalysis(example, method = "GEE")
 summary(exampleGEE)
-# LME4 analysis with error function contamination function
+# LME4 analysis with error function spillover function
 exampleLME4 <- CRTanalysis(example, method = "LME4", cfunc = "P")
 summary(exampleLME4)
 }
