@@ -298,6 +298,7 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   colnames(trial)[colnames(trial) == latvar] <- "lat"
   colnames(trial)[colnames(trial) == longvar] <- "long"
   # scalef is the number of degrees per kilometer
+  trial <- trial[!is.na(trial$lat) & !is.na(trial$long), ]
   scalef <- 180/(6371*pi)
   centroid <- list(lat = mean(trial$lat),
                    long = mean(trial$long))
