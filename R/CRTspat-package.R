@@ -7,6 +7,7 @@
 #' @importFrom stats dnorm
 #' @importFrom stats fitted
 #' @importFrom stats gaussian
+#' @importFrom stats pnorm
 #' @importFrom stats poisson
 #' @importFrom stats predict
 #' @importFrom stats quasipoisson

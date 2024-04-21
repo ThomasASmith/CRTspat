@@ -326,7 +326,8 @@ CRTanalysis <- function(
 }
 
 # functions for INLA analysis
-
+#' Create INLA mesh for spatial analysis
+#'
 #' \code{compute_mesh} create objects required for INLA analysis of an object of class \code{"CRTsp"}.
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and outcome.
@@ -1182,9 +1183,9 @@ group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
         # overwrite with proportions and binomial confidence intervals by category
         data$average <- data$positives/data$total
         data$upper <- with(data, average -
-                               qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
+                               stats::qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
         data$lower <- with(data, average +
-                               qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
+                               stats::qnorm(alpha/2) * (sqrt(average * (1 - average)/total)))
     } else if (link == 'identity') {
         # overall means and t-based confidence intervals by category
         data <- trial %>%
@@ -1554,7 +1555,7 @@ summary.CRTanalysis <- function(object, ...) {
             if (!identical(object$options$distance_type, "No fixed effects of distance ")){
                 if (!is.null(object$pt_ests$spillover_interval)){
                     cat(
-                        "spillover interval(km):   ", object$pt_ests$spillover_interval,
+                        "Spillover interval(km):     ", object$pt_ests$spillover_interval,
                         CLtext, unlist(object$int_ests$spillover_interval),
                         ")\n"
                     )
