@@ -86,11 +86,10 @@ specify_buffer <- function(trial, buffer_width = 0) {
   return(CRTsp(CRT))
 }
 
-#' Randomize a two-armed cluster randomized trial
+#' Randomize a two-armed cluster trial
 #'
-#' \code{randomizeCRT} carries out randomization of clusters for a CRT and
-#' augments the trial dataframe with assignments to arms \cr
-#'
+#' \code{randomizeCRT} carries out randomization of clusters and
+#' augments the trial data frame with assignments to arms \cr
 #' @param trial an object of class \code{"CRTsp"} or a data frame containing locations in (x,y) coordinates, cluster
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally: specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.

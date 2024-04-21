@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{randomizeCRT}
 \alias{randomizeCRT}
-\title{Randomize a two-armed cluster randomized trial}
+\title{Randomize a two-armed cluster trial}
 \usage{
 randomizeCRT(
   trial,
@@ -43,8 +43,8 @@ A list of class \code{"CRTsp"} containing the following components:
 }
 }
 \description{
-\code{randomizeCRT} carries out randomization of clusters for a CRT and
-augments the trial dataframe with assignments to arms \cr
+\code{randomizeCRT} carries out randomization of clusters and
+augments the trial data frame with assignments to arms \cr
 }
 \examples{
 # Randomize the clusters in an example trial

@@ -59,7 +59,7 @@ summary(analysisT)
 ##                 Efficacy:  0.423  (95% CL:  0.208 0.727 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
 ##  
-## P-value (2-sided):  0.006879064
+## P-value (2-sided):  0.00688
 ```
 
 ```r
@@ -71,13 +71,13 @@ analysisT$model_object
 ## 	Two Sample t-test
 ## 
 ## data:  lp by arm
-## t = 2.9818, df = 22, p-value = 0.006879
+## t = 3, df = 22, p-value = 0.007
 ## alternative hypothesis: true difference in means between group control and group intervention is not equal to 0
 ## 95 percent confidence interval:
-##  0.2332638 1.2989425
+##  0.233 1.299
 ## sample estimates:
 ##      mean in group control mean in group intervention 
-##                 -0.5561662                 -1.3222694
+##                     -0.556                     -1.322
 ```
 
 ## Assessing model fit
@@ -136,8 +136,8 @@ summary(analysisLME4_Z)
 ## No comparison of arms 
 ## Estimates:       Control:  0.285  (95% CL:  NA )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1387.609 
-## AIC     :  1391.609
+## deviance:  1388 
+## AIC     :  1392
 ```
 
 ```r
@@ -156,8 +156,8 @@ summary(analysisLME4_X)
 ##             Intervention:  0.216  (95% CL:  0.162 0.281 )
 ##                 Efficacy:  0.41  (95% CL:  0.165 0.584 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1379.898 
-## AIC     :  1385.898
+## deviance:  1380 
+## AIC     :  1386
 ```
 
 ```r
@@ -177,14 +177,14 @@ summary(analysisLME4_P)
 ## Estimates:       Control:  0.418  (95% CL:  0.331 0.509 )
 ##             Intervention:  0.186  (95% CL:  0.136 0.25 )
 ##                 Efficacy:  0.553  (95% CL:  0.327 0.703 )
-## spillover interval(km):    4.22  (95% CL:  4.2 4.23 )
+## Spillover interval(km):      4.22  (95% CL:  4.2 4.23 )
 ## % locations contaminated: 91.6  (95% CL:  90.6 92 %)
 ## Total effect            : 0.23  (95% CL:  0.114 0.344 )
 ## Ipsilateral Spillover   : 0.0233  (95% CL:  0.0127 0.0323 )
 ## Contralateral Spillover : 0.0417  (95% CL:  0.0192 0.0651 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1374.215 
-## AIC     :  1382.215 including penalty for the spillover scale parameter
+## deviance:  1374 
+## AIC     :  1382 including penalty for the spillover scale parameter
 ```
 
 ```r
@@ -204,14 +204,14 @@ summary(analysisLME4_L)
 ## Estimates:       Control:  0.417  (95% CL:  0.332 0.51 )
 ##             Intervention:  0.186  (95% CL:  0.136 0.249 )
 ##                 Efficacy:  0.552  (95% CL:  0.329 0.7 )
-## spillover interval(km):    4.26  (95% CL:  4.24 4.28 )
+## Spillover interval(km):      4.26  (95% CL:  4.24 4.28 )
 ## % locations contaminated: 92.7  (95% CL:  92.2 93.1 %)
 ## Total effect            : 0.229  (95% CL:  0.115 0.342 )
 ## Ipsilateral Spillover   : 0.0219  (95% CL:  0.0121 0.0304 )
 ## Contralateral Spillover : 0.0388  (95% CL:  0.0183 0.0604 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1374.201 
-## AIC     :  1382.201 including penalty for the spillover scale parameter
+## deviance:  1374 
+## AIC     :  1382 including penalty for the spillover scale parameter
 ```
 
 ```r
@@ -231,14 +231,14 @@ summary(analysisLME4_S)
 ## Estimates:       Control:  0.423  (95% CL:  0.334 0.516 )
 ##             Intervention:  0.185  (95% CL:  0.135 0.247 )
 ##                 Efficacy:  0.561  (95% CL:  0.341 0.711 )
-## spillover interval(km):    4.1  (95% CL:  4.1 4.11 )
+## Spillover interval(km):      4.1  (95% CL:  4.1 4.11 )
 ## % locations contaminated: 86.6  (95% CL:  86.6 87.1 %)
 ## Total effect            : 0.237  (95% CL:  0.12 0.356 )
 ## Ipsilateral Spillover   : 0.029  (95% CL:  0.016 0.0403 )
 ## Contralateral Spillover : 0.0522  (95% CL:  0.0248 0.0818 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1374.094 
-## AIC     :  1382.094 including penalty for the spillover scale parameter
+## deviance:  1374 
+## AIC     :  1382 including penalty for the spillover scale parameter
 ```
 
 ```r
@@ -258,14 +258,14 @@ summary(analysisLME4_R)
 ## Estimates:       Control:  0.584  (95% CL:  0.381 0.758 )
 ##             Intervention:  0.116  (95% CL:  0.0587 0.216 )
 ##                 Efficacy:  0.801  (95% CL:  0.465 0.92 )
-## spillover interval(km):    6.64  (95% CL:  6.61 6.65 )
+## Spillover interval(km):      6.64  (95% CL:  6.61 6.65 )
 ## % locations contaminated: 99.8  (95% CL:  99.8 99.8 %)
 ## Total effect            : 0.468  (95% CL:  0.181 0.694 )
 ## Ipsilateral Spillover   : 0.117  (95% CL:  0.0564 0.157 )
 ## Contralateral Spillover : 0.238  (95% CL:  0.0831 0.368 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1378.711 
-## AIC     :  1384.711
+## deviance:  1379 
+## AIC     :  1385
 ```
 
 ```r
@@ -346,16 +346,16 @@ summary(examples_hdep)
 ## Model formula:  pvar + (1 | cluster) 
 ## Rescaled linear function for spillover
 ## Estimates:       Control:  0.381  (95% CL:  0.292 0.478 )
-##             Intervention:  0.209  (95% CL:  0.15 0.282 )
-##                 Efficacy:  0.452  (95% CL:  0.167 0.639 )
-## spillover interval(km):    0.978  (95% CL:  0.976 0.98 )
-## % locations contaminated: 55  (95% CL:  55 55 %)
-## Total effect            : 0.172  (95% CL:  0.0524 0.292 )
-## Ipsilateral Spillover   : 0.0313  (95% CL:  0.01 0.0512 )
-## Contralateral Spillover : 0.0444  (95% CL:  0.0128 0.0785 )
+##             Intervention:  0.208  (95% CL:  0.15 0.281 )
+##                 Efficacy:  0.453  (95% CL:  0.169 0.639 )
+## Spillover interval(km):      0.978  (95% CL:  0.976 0.98 )
+## % locations contaminated: 54.7  (95% CL:  54.7 54.7 %)
+## Total effect            : 0.172  (95% CL:  0.0534 0.291 )
+## Ipsilateral Spillover   : 0.032  (95% CL:  0.0104 0.0522 )
+## Contralateral Spillover : 0.0448  (95% CL:  0.0132 0.079 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1379.89 
-## AIC     :  1385.89
+## deviance:  1380 
+## AIC     :  1386
 ```
 
 ```r
@@ -373,17 +373,17 @@ summary(examples_sdep)
 ## No non-linear parameter. 1
 ## Model formula:  pvar + (1 | cluster) 
 ## Rescaled linear function for spillover
-## Estimates:       Control:  0.393  (95% CL:  0.307 0.485 )
-##             Intervention:  0.199  (95% CL:  0.145 0.268 )
-##                 Efficacy:  0.493  (95% CL:  0.243 0.66 )
-## spillover interval(km):    0.978  (95% CL:  0.976 0.98 )
-## % locations contaminated: 52.4  (95% CL:  52.2 52.4 %)
-## Total effect            : 0.193  (95% CL:  0.0802 0.306 )
-## Ipsilateral Spillover   : 0.0299  (95% CL:  0.013 0.0456 )
-## Contralateral Spillover : 0.0431  (95% CL:  0.0169 0.0704 )
+## Estimates:       Control:  0.389  (95% CL:  0.303 0.48 )
+##             Intervention:  0.201  (95% CL:  0.147 0.271 )
+##                 Efficacy:  0.482  (95% CL:  0.229 0.652 )
+## Spillover interval(km):      0.978  (95% CL:  0.976 0.98 )
+## % locations contaminated: 51.8  (95% CL:  51.7 51.9 %)
+## Total effect            : 0.187  (95% CL:  0.0746 0.298 )
+## Ipsilateral Spillover   : 0.0323  (95% CL:  0.0135 0.0501 )
+## Contralateral Spillover : 0.0437  (95% CL:  0.0165 0.0719 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1376.417 
-## AIC     :  1382.417
+## deviance:  1377 
+## AIC     :  1383
 ```
 
 ```r
@@ -404,14 +404,14 @@ summary(examples_disc)
 ## Estimates:       Control:  0.387  (95% CL:  0.312 0.467 )
 ##             Intervention:  0.2  (95% CL:  0.149 0.26 )
 ##                 Efficacy:  0.482  (95% CL:  0.273 0.634 )
-## spillover interval(km):    0.978  (95% CL:  0.976 0.98 )
+## Spillover interval(km):      0.978  (95% CL:  0.976 0.98 )
 ## % locations contaminated: 8.89  (95% CL:  8.89 8.89 %)
 ## Total effect            : 0.186  (95% CL:  0.0912 0.282 )
 ## Ipsilateral Spillover   : 0.00458  (95% CL:  0.00239 0.00656 )
 ## Contralateral Spillover : 0.00576  (95% CL:  0.00271 0.00905 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1374.274 
-## AIC     :  1380.274
+## deviance:  1374 
+## AIC     :  1380
 ```
 
 ```r
@@ -432,14 +432,14 @@ summary(examples_kern)
 ## Estimates:       Control:  0.406  (95% CL:  0.327 0.491 )
 ##             Intervention:  0.185  (95% CL:  0.136 0.245 )
 ##                 Efficacy:  0.542  (95% CL:  0.349 0.684 )
-## spillover interval(km):    0.979  (95% CL:  0.977 0.98 )
+## Spillover interval(km):      0.979  (95% CL:  0.977 0.98 )
 ## % locations contaminated: 50.8  (95% CL:  50.6 50.9 %)
 ## Total effect            : 0.22  (95% CL:  0.122 0.32 )
 ## Ipsilateral Spillover   : 0.011  (95% CL:  0.00661 0.0152 )
 ## Contralateral Spillover : 0.0134  (95% CL:  0.00707 0.0203 )
 ## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
-## deviance:  1369.677 
-## AIC     :  1375.677
+## deviance:  1370 
+## AIC     :  1376
 ```
 
 ```r

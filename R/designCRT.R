@@ -1,6 +1,6 @@
-#' Power and sample size calculations for a CRT
+#' Power and sample size calculations for a cluster randomized trial
 #'
-#' \code{CRTpower} carries out power and sample size calculations for CRTs.
+#' \code{CRTpower} carries out power and sample size calculations for cluster randomized trials.
 #'
 #' @param trial dataframe or \code{'CRTsp'} object: optional list of locations
 #' @param locations numeric: total number of units available for randomization (required if \code{trial} is not specified)
@@ -20,7 +20,12 @@
 #' @param ICC numeric: Intra-cluster correlation
 #' @param cv_percent numeric: Coefficient of variation of the outcome (expressed as a percentage)
 #' @param c integer: number of clusters in each arm (required if \code{trial} is not specified)
-#' @param sd_h standard deviation of number of units per cluster (required if \code{trial} is not specified)
+#' @param sd_h numeric: standard deviation of number of units per cluster (required if \code{trial} is not specified)
+#' @param spillover_interval numeric:  95% spillover interval (km)
+#' @param contaminate_pop_pr numeric: Proportion of the locations within the 95% spillover interval.
+#' @param distance_distribution numeric: algorithm for computing distribution of spillover, with options -
+#' \code{'empirical'}: empirical distribution;
+#' \code{'normal'}: normal distribution.
 #' @returns A list of class \code{'CRTsp'} object comprising the input data, cluster and arm assignments,
 #' trial description and results of power calculations
 #' @export
@@ -33,32 +38,46 @@
 #' the intra-cluster correlation is computed from the coefficient of variation using the formulae
 #' from [Hayes & Moulton](https://www.taylorfrancis.com/books/mono/10.1201/9781584888178/cluster-randomised-trials-richard-hayes-lawrence-moulton). If incompatible values for \code{ICC} and \code{cv_percent} are supplied
 #' then the value of the \code{ICC} is used.\cr\cr
-#' The calculations do not consider any loss in power due to spillover, loss to follow-up etc..\cr\cr
 #' If geolocations are not input then power and sample size calculations are based on the scalar input parameters.\cr\cr
-#' If a trial dataframe or \code{'CRTsp'} object is input then this is used to determine the number of locations. If this input object
-#' contains cluster assignments then the numbers and sizes of clusters in the input data are used to estimate the power. If buffer zones have been specified
-#' then separate calculations are made for the core area and for the full site.\cr\cr
-#' The output is an object of class \code{'CRTsp'} containing any input trial dataframe and values for:
+#' The calculations do not consider any loss in power due to loss to follow-up and by default there is no adjustment for effects of spillover.\cr\cr
+#' Spillover bias can be allowed for using a diffusion model of mosquito movement. If no location or arm assignment information is available
+#' then \code{contaminate_pop_pr} is used to parameterize the model using a normal approximation for the distribution of distance
+#' to discordant locations.\cr\cr
+#' If a trial data frame or \code{'CRTsp'} object is input then this is used to determine the number of locations. If this input object
+#' contains cluster assignments then the numbers and sizes of clusters in the input data are used to estimate the power.
+#' If \code{spillover_interval > 0} and \code{distance_distribution = 'empirical'} then effects of spillover are
+#' incorporated into the power calculations based on the empirical distribution of distances to the nearest
+#' discordant location. (If \code{distance_distribution ≠ 'empirical'} then the distribution of distances is assumed to
+#' be normal.\cr\cr
+#' If buffer zones have been specified in the \code{'CRTsp'} object then separate calculations are made for the core area and for the full site.\cr\cr
+#' The output is an object of class \code{'CRTsp'} containing any input trial data frame and values for:
 #' - The required numbers of clusters to achieve the specified power.
 #' - The design effect based on the input ICC.
-#' - Calculations of the nominal power (ignoring any bias caused by spillover, loss to follow-up etc.)\cr
+#' - Calculations of the power ignoring any bias caused by loss to follow-up etc.\cr
+#' - Calculations of \code{delta}, the expected spillover bias.
 #' @examples
 #' {# Power calculations for a binary outcome without input geolocations
-#' examplePower1 = CRTpower(locations = 3000, ICC = 0.10, effect = 0.4, alpha = 0.05,
+#' examplePower1 <- CRTpower(locations = 3000, ICC = 0.10, effect = 0.4, alpha = 0.05,
 #'     outcome_type = 'd', desiredPower = 0.8, yC=0.35, c = 20, sd_h = 5)
 #' summary(examplePower1)
 #' # Power calculations for a rate outcome without input geolocations
-#' examplePower2 = CRTpower(locations = 2000, cv_percent = 40, effect = 0.4, denominator = 2.5,
+#' examplePower2 <- CRTpower(locations = 2000, cv_percent = 40, effect = 0.4, denominator = 2.5,
 #'     alpha = 0.05, outcome_type = 'e', desiredPower = 0.8, yC = 0.35, c = 20, sd_h=5)
 #' summary(examplePower2)
-#' # Example with input geolocations and randomisation
-#' examplePower3 = CRTpower(trial = readdata('example_site.csv'), desiredPower = 0.8,
+#' # Example with input geolocations
+#' examplePower3 <- CRTpower(trial = readdata('example_site.csv'), desiredPower = 0.8,
 #'     effect=0.4, yC=0.35, outcome_type = 'd', ICC = 0.05, c = 20)
 #' summary(examplePower3)
+#' # Example with input geolocations, randomisation, and spillover
+#' example4 <- randomizeCRT(specify_clusters(trial = readdata('example_site.csv'), c = 20))
+#' examplePower4 <- CRTpower(trial = example4, desiredPower = 0.8,
+#'     effect=0.4, yC=0.35, outcome_type = 'd', ICC = 0.05, contaminate_pop_pr = 0.3)
+#' summary(examplePower4)
 #' }
 CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower = 0.8,
     effect = NULL, yC = NULL, outcome_type = "d", sigma2 = NULL, denominator = 1,
-    N = 1, ICC = NULL, cv_percent = NULL, c = NULL, sd_h = 0) {
+    N = 1, ICC = NULL, cv_percent = NULL, c = NULL, sd_h = 0,
+    spillover_interval = 0, contaminate_pop_pr = 0, distance_distribution = 'normal') {
 
     if(is.null(trial)) trial <- data.frame(x = c(), y = c())
     CRT <- CRTsp(trial)
@@ -78,8 +97,11 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
 
     design <- ifelse(is.null(CRT$design$locations), list(), CRT$design)
     design$locations <- ifelse((nrow(CRT$trial) == 0), locations, nrow(CRT$trial))
+    design$c <- ifelse(is.null(CRT$trial$cluster), c, floor(nlevels(CRT$trial$cluster)/2))
+
     parnames <- c("alpha", "desiredPower", "effect", "yC", "outcome_type",
-        "sigma2", "denominator", "N", "ICC", "cv_percent", "c", "sd_h")
+        "sigma2", "denominator", "N", "ICC", "cv_percent", "c", "sd_h",
+        "spillover_interval", "contaminate_pop_pr", "distance_distribution")
 
     # Identify which variables to retrieve from the pre-existing design
     from_old <- lapply(mget(parnames), FUN = is.null)
@@ -98,7 +120,7 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
 # CRTsp object
 get_geom <- function(trial = NULL, design = NULL) {
 
-    sd_distance <- clustersRequired <- DE <- power <- NULL
+    sigma_x <- clustersRequired <- DE <- power <- NULL
 #   check if the power calculations need to be reconstructed from scratch
     if(!is.null(design$locations)) {
         locations <- design$locations
@@ -106,27 +128,29 @@ get_geom <- function(trial = NULL, design = NULL) {
         mean_h <- locations/(2 * c)
         sd_h <- design$sd_h
     } else {
-        outcome_type <- mean_h <- c <- sd_h <- locations <- NULL
+        outcome_type <- mean_h <- c <- sd_h <- uniquelocations <- locations <- NULL
     }
     geom <- list(locations = locations,
                  sd_h = sd_h,
                  c = c,
-                 records = 0,
+                 uniquelocations = NULL,
                  mean_h = mean_h,
                  DE = NULL,
                  power = NULL,
                  clustersRequired = NULL)
 
-    # cluster size
     geom$c <- ifelse(is.null(geom$c), NA, round(geom$c))
+    # cluster size
     geom$mean_h <- geom$locations/(2 * geom$c)
 
-    # overwrite values from the design with those from the data frame if these are present
-    if (!is.null(trial) & nrow(trial) > 0) {
-        coordinates <- data.frame(cbind(x = trial$x, y = trial$y))
-        geom$records <- nrow(trial)
-        geom$locations <- nrow(dplyr::distinct(coordinates))
+    # overwrite values from the design with those from the data frame
+    sigma_x <- NA
 
+    if (!is.null(trial) & nrow(trial) > 0) {
+        geom$locations <- nrow(trial)
+        coordinates <- data.frame(cbind(x = trial$x, y = trial$y))
+        geom$uniquelocations <- nrow(dplyr::distinct(coordinates))
+        geom$mean_h <- geom$locations/(2 * geom$c)
         if (!is.null(trial$cluster)) {
             # reassign the cluster levels in case some are not
             # represented in this geom (otherwise nlevels() counts
@@ -142,10 +166,20 @@ get_geom <- function(trial = NULL, design = NULL) {
 
         }
         if (!is.null(trial$arm)) {
-            geom$sd_distance <- stats::sd(trial$nearestDiscord)
+            sigma_x <- stats::sd(trial$nearestDiscord)
             arms <- unique(cbind(trial$cluster, trial$arm))[, 2]  #assignments
         }
     }
+
+    sigma_r <- 0
+    sigma_m <- design$spillover_interval/(2 * qnorm(0.975))
+    if(!is.null(trial$nearestDiscord)) {
+        nearestDiscord <- trial$nearestDiscord
+        sigma_x <- sd(nearestDiscord)
+    }
+    if(!is.na(sigma_x)) sigma_r <- sigma_m/sigma_x
+    if(design$contaminate_pop_pr > 0) sigma_r <- qnorm((1 - design$contaminate_pop_pr)/2)/qnorm(0.025)
+    geom$contaminate_pop_pr <- ifelse(sigma_r > 0, 1 - 2 * stats::pnorm(qnorm(0.025)*sigma_r), 0)
 
     if (!is.null(design$effect)) {
         if (is.null(geom$locations)) {
@@ -157,7 +191,9 @@ get_geom <- function(trial = NULL, design = NULL) {
         if (identical(geom$sd_h, 0)) {
             message("*** Assuming all clusters are the same size ***")
         }
-        effect <- design$effect
+
+        # true efficacy
+        E <- design$effect
         yC <- design$yC
 
         # convert power and significance level to Zvalues
@@ -176,25 +212,39 @@ get_geom <- function(trial = NULL, design = NULL) {
         # outcome in intervened group
         link <- switch(design$outcome_type, y = "identity", n = "log", e = "log",
                        p = "logit", d = "logit")
-        yI <- ifelse(link == "identity", yC - design$effect, yC * (1 - design$effect))
+        yI <- ifelse(link == "identity", yC - E, yC * (1 - E))
 
-        # difference between groups
-        # d <- yC - yI
+        # Compute bias but this is zero unless sigma_r > 0
+        if (geom$contaminate_pop_pr > 0) {
+            # calculate delta
+            geom$delta <- get_delta(E = E, sigma_r = sigma_r,
+                               distance_distribution = design$distance_distribution,
+                               nearestDiscord = nearestDiscord)
+        } else {
+            geom$delta <- 0
+        }
+
+        # from Smith et al equation (23)
+        delta_t <- (geom$delta * yC^2)/(yC + yI - geom$delta*yC)
+
+        # compute outcomes with spillover bias
+        yCb <- yC + delta_t
+        yIb <- yI - delta_t
 
         # input value of the coefficient of variation of between cluster variation in outcome
         k <- ifelse(is.null(design$cv_percent), NA, design$cv_percent/100)
 
         if(is.null(design$ICC)) {
-            design$ICC <- switch(link, "identity" = (k * yC)^2/sigma2,
+            design$ICC <- switch(link, "identity" = (k * yCb)^2/sigma2,
                                 "log" = NA,
-                                "logit" = k^2 * yC/(1 - yC)
+                                "logit" = k^2 * yCb/(1 - yCb)
                           )
         }
 
         if(is.null(design$cv_percent)) {
-            k <- switch(link, "identity" = sqrt(design$ICC * sigma2)/yC,
+            k <- switch(link, "identity" = sqrt(design$ICC * sigma2)/yCb,
                                  "log" = NA,
-                               "logit" = sqrt(design$ICC * (1 - yC)/yC)
+                               "logit" = sqrt(design$ICC * (1 - yCb)/yCb)
             )
             design$cv_percent <- 100 * k
         }
@@ -207,13 +257,13 @@ get_geom <- function(trial = NULL, design = NULL) {
 
             denom_per_cluster <- design$denominator * mean_eff
             # clusters required (both arms)
-            geom$clustersRequired <- 2 * ceiling(1 + (Zsig + Zpow)^2 * ((yC + yI)/denom_per_cluster + (yC^2 + yI^2) * k^2)/((yC - yI)^2))
+            geom$clustersRequired <- 2 * ceiling(1 + (Zsig + Zpow)^2 * ((yCb + yIb)/denom_per_cluster + (yCb^2 + yIb^2) * k^2)/((yCb - yIb)^2))
 
             # power with c clusters per arm and unequal cluster sizes
-            geom$power <- stats::pnorm(sqrt((c - 1) * ((yC - yI)^2)/((yC + yI)/denom_per_cluster + (yC^2 + yI^2) * k^2)) - Zsig)
+            geom$power <- stats::pnorm(sqrt((c - 1) * ((yCb - yIb)^2)/((yCb + yIb)/denom_per_cluster + (yCb^2 + yIb^2) * k^2)) - Zsig)
 
             # the design effect is the ratio of the required denominator to that required for an individually randomised trial
-            required_denom_RCT <- 2 * ((Zsig + Zpow)^2 * (yC + yI)/((yC - yI)^2))
+            required_denom_RCT <- 2 * ((Zsig + Zpow)^2 * (yCb + yIb)/((yCb - yIb)^2))
             geom$DE <- denom_per_cluster * geom$clustersRequired/required_denom_RCT
 
         } else {
@@ -226,10 +276,10 @@ get_geom <- function(trial = NULL, design = NULL) {
             } else if (identical(link, "logit")) {
                 # This is the variance for a Bernoulli. The cluster sizes are
                 # inflated for the binomial case (below)
-                sigma2 <- 1/2 * (yI * (1 - yI) + yC * (1 - yC))
+                sigma2 <- 1/2 * (yIb * (1 - yIb) + yCb * (1 - yCb))
             }
             # required individuals per arm in individually randomized trial
-            n_ind <- 2 * sigma2 * ((Zsig + Zpow)/(yC - yI))^2
+            n_ind <- 2 * sigma2 * ((Zsig + Zpow)/(yCb - yIb))^2
 
             # number of individuals required per arm in CRT with equal
             # cluster sizes
@@ -241,9 +291,29 @@ get_geom <- function(trial = NULL, design = NULL) {
                                                                    mean_eff - 1) * design$ICC)/mean_eff)
 
             # power with c clusters per arm and unequal cluster sizes
-            geom$power <- stats::pnorm(sqrt(c * mean_eff/(2 * geom$DE)) * (yC - yI)/sqrt(sigma2) - Zsig)
+            geom$power <- stats::pnorm(sqrt(geom$c * mean_eff/(2 * geom$DE)) * (yCb - yIb)/sqrt(sigma2) - Zsig)
         }
     }
     return(geom)
 }
+
+# compute the spillover bias
+get_delta  <- function(E, sigma_r, distance_distribution = 'normal', nearestDiscord = NULL) {
+
+    if(identical(distance_distribution, 'empirical') & !is.null(nearestDiscord)) {
+        sigma_x <- sd(nearestDiscord)
+        sigma_m <- sigma_r * sigma_x
+        # delta calculation using empirical distribution of distance
+        u0 <- 1
+        u <- u0 * (1 - E * stats::pnorm(nearestDiscord/sigma_m))
+        E_tilde <- 1 - mean(u[nearestDiscord > 0])/mean(u[nearestDiscord < 0])
+    } else {
+
+        # analytical solution assuming p is normally distributed
+        integral1 <-  (1/(2*pi)) * (pi/2 + atan(1/sigma_r))
+        integral2 <-  (1/(2*pi)) * (pi/2 - atan(1/sigma_r))
+        E_tilde <- 1 - (0.5 - E * integral1)/(0.5 - E * integral2)
+    }
+    delta <- E_tilde - E
+return(delta)}
 

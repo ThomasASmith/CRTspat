@@ -1847,9 +1847,10 @@ structure(list(trial = structure(list(y = c(-4.0451374999326504,
 ), class = "data.frame"), design = list(locations = NULL, alpha = NULL,
     desiredPower = NULL, effect = NULL, yC = NULL, outcome_type = NULL,
     sigma2 = NULL, denominator = NULL, N = NULL, ICC = NULL, k = NULL,
-    sd_h = NULL), geom_full = list(locations = 1181L, sd_h = 3.8783587594066984,
+    sd_h = NULL, spillover_interval = NULL, contaminate_pop_pr = 0, distance_distribution = NULL
+), geom_full = list(locations = 1181L, sd_h = 3.8783587594066984,
     k = 12, records = 1181L, mean_h = 49.208333333333336, DE = NULL,
-    power = NULL, clustersRequired = NULL, sd_distance = 1.0453808851050039,
+    power = NULL, clustersRequired = NULL, sigma_x = 1.0453808851050039,
     centroid = list(lat = -0.43037105391199998, long = 34.155877145626)),
     geom_core = list(locations = 0, sd_h = NULL, k = NULL, records = 0,
         mean_h = NULL, DE = NULL, power = NULL, clustersRequired = NULL)), class = "CRTsp")
