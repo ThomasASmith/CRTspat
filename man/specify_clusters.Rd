@@ -2,14 +2,15 @@
 % Please edit documentation in R/utils.R
 \name{specify_clusters}
 \alias{specify_clusters}
-\title{Algorithmically assign locations to clusters in a CRT}
+\title{Assign locations to clusters in a CRT}
 \usage{
 specify_clusters(
   trial = trial,
   c = NULL,
   h = NULL,
   algorithm = "NN",
-  reuseTSP = FALSE
+  reuseTSP = FALSE,
+  auxiliary = NULL
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ along a travelling salesman path.\cr
 
 \item{reuseTSP}{logical: indicator of whether a pre-existing path should be used by
 the TSP algorithm}
+
+\item{auxiliary}{\code{"CRTsp"} object containing external cluster and or arm assignments.}
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
@@ -48,10 +51,17 @@ and cluster assignments.\cr
 \code{specify_clusters} algorithmically assigns locations to clusters by grouping them geographically
 }
 \details{
+Either \code{c} or \code{h} must be specified. If both are specified
+the input value of \code{c} is ignored.\cr\cr
 The \code{reuseTSP} parameter is used to allow the path to be reused
 for creating alternative allocations with different cluster sizes.\cr\cr
-Either \code{c} or \code{h} must be specified. If both are specified
-the input value of \code{c} is ignored.\cr
+If an auxiliary \code{auxiliary} \code{"CRTsp"} object is specified then the other options are ignored
+and the cluster assignments (and arm assignments if available) are taken from the auxiliary object.
+The trial data frame is augmented with a column \code{"nearestPixel"} containing the distance to boundary of the nearest
+grid pixel in the auxiliary. If the auxiliary is a grid with \code{design$geometry} set to \code{'triangle'},
+\code{'square'} or \code{'hexagon'} then the distance is computed to the edge of the nearest grid pixel in the discordant arm
+(using a circular approximation for the perimeter) rather than to the point location itself. If the point is within
+the pixel then the distance is given a negative sign.\cr
 }
 \examples{
 #Assign clusters of average size h = 40 to a test set of co-ordinates, using the kmeans algorithm

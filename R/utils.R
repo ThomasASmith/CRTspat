@@ -76,14 +76,12 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
 #' exampletrial <- specify_buffer(trial = readdata('exampleCRT.txt'), buffer_width = 0.2)
 specify_buffer <- function(trial, buffer_width = 0) {
   CRT <- CRTsp(trial)
-  trial <- CRT$trial
-  if (is.null(trial$arm)) return('*** Randomization is required before buffer specification ***')
-  if (is.null(trial$nearestDiscord)) trial <- compute_distance(trial, distance = "nearestDiscord")
+  if (is.null(CRT$trial$arm)) return('*** Randomization is required before buffer specification ***')
+  if (is.null(CRT$trial$nearestDiscord)) CRT <- compute_distance(CRT, distance = "nearestDiscord")
   if (buffer_width > 0) {
-    trial$buffer <- (abs(trial$nearestDiscord) < buffer_width)
+    CRT$trial$buffer <- (abs(CRT$trial$nearestDiscord) < buffer_width)
   }
-  CRT$trial <- trial
-  return(CRTsp(CRT))
+  return(CRT)
 }
 
 #' Randomize a two-armed cluster trial
@@ -190,7 +188,7 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 }
 
 
-#' Algorithmically assign locations to clusters in a CRT
+#' Assign locations to clusters in a CRT
 #'
 #' \code{specify_clusters} algorithmically assigns locations to clusters by grouping them geographically
 #'
@@ -208,6 +206,7 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #' }
 #' @param reuseTSP logical: indicator of whether a pre-existing path should be used by
 #'   the TSP algorithm
+#' @param auxiliary \code{"CRTsp"} object containing external cluster and or arm assignments.
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{lll}{
 #'  \code{geom_full}   \tab list: \tab summary statistics describing the site,
@@ -219,10 +218,17 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #'  \tab \code{...} \tab other objects included in the input \code{"CRTsp"} object or data frame \cr
 #'  }
 #' @details
+#' Either \code{c} or \code{h} must be specified. If both are specified
+#' the input value of \code{c} is ignored.\cr\cr
 #' The \code{reuseTSP} parameter is used to allow the path to be reused
 #' for creating alternative allocations with different cluster sizes.\cr\cr
-#' Either \code{c} or \code{h} must be specified. If both are specified
-#' the input value of \code{c} is ignored.\cr
+#' If an auxiliary \code{auxiliary} \code{"CRTsp"} object is specified then the other options are ignored
+#' and the cluster assignments (and arm assignments if available) are taken from the auxiliary object.
+#' The trial data frame is augmented with a column \code{"nearestPixel"} containing the distance to boundary of the nearest
+#' grid pixel in the auxiliary. If the auxiliary is a grid with \code{design$geometry} set to \code{'triangle'},
+#' \code{'square'} or \code{'hexagon'} then the distance is computed to the edge of the nearest grid pixel in the discordant arm
+#' (using a circular approximation for the perimeter) rather than to the point location itself. If the point is within
+#' the pixel then the distance is given a negative sign.\cr
 #' @export
 #'
 #' @examples
@@ -230,7 +236,7 @@ simulate_site <- function(geoscale, locations, kappa, mu) {
 #' exampletrial <- specify_clusters(trial = readdata('exampleCRT.txt'),
 #'                             h = 40, algorithm = 'kmeans', reuseTSP = FALSE)
 specify_clusters <- function(trial = trial, c = NULL, h = NULL, algorithm = "NN",
-    reuseTSP = FALSE) {
+    reuseTSP = FALSE, auxiliary = NULL) {
 
     CRT <- CRTsp(trial)
     trial <- CRT$trial
@@ -248,23 +254,42 @@ specify_clusters <- function(trial = trial, c = NULL, h = NULL, algorithm = "NN"
     if (is.null(h)) {
         h <- ceiling(nrow(coordinates)/(2 * c))
     }
-    nclusters <- 2 * c
-    # derive cluster boundaries
-
-    if (algorithm == "TSP") {
-        TSPoutput <- TSP_ClusterDefinition(coordinates, h, nclusters, reuseTSP)
-        trial$path <- TSPoutput$path
-        trial$cluster <- TSPoutput$cluster
-    } else if (algorithm == "NN") {
-        trial$cluster <- NN_ClusterDefinition(coordinates, h, nclusters)$cluster
-    } else if (algorithm == "kmeans") {
-        trial$cluster <- kmeans_ClusterDefinition(coordinates, nclusters)$cluster
+    if (!is.null(auxiliary)) {
+      # identifying nearest cluster in auxiliary
+      dist_vec <- interrogate_auxiliary(CRT = CRT, auxiliary = auxiliary, distance = "nearestPixel")
+      if (all(is.na(dist_vec$dist_corrected))) {
+        warning("*** cluster assignments not available in the auxiliary ***")
+      } else {
+        trial$nearestPixel <- dist_vec$dist_corrected
+        if (!all(is.na(dist_vec$cluster))) {
+          trial$cluster <- dist_vec$cluster
+          message("*** clusters read from auxiliary object ***")
+        }
+        if (!all(is.na(dist_vec$arm))) {
+          trial$arm <- dist_vec$arm
+          message("*** arm assignments read from auxiliary object ***")
+        }
+        message("*** nearestPixel is distance to the nearest pixel in the cluster definition ***")
+      }
     } else {
-        stop("unknown method")
-    }
+      nclusters <- 2 * c
+      # derive cluster boundaries
 
-    # remove any pre-existing arm assignments
-    trial$arm <- NULL
+      if (algorithm == "TSP") {
+          TSPoutput <- TSP_ClusterDefinition(coordinates, h, nclusters, reuseTSP)
+          trial$path <- TSPoutput$path
+          trial$cluster <- TSPoutput$cluster
+      } else if (algorithm == "NN") {
+          trial$cluster <- NN_ClusterDefinition(coordinates, h, nclusters)$cluster
+      } else if (algorithm == "kmeans") {
+          trial$cluster <- kmeans_ClusterDefinition(coordinates, nclusters)$cluster
+      } else {
+          stop("unknown method")
+      }
+
+      # remove any pre-existing arm assignments
+      trial$arm <- NULL
+    }
     CRT$trial <- trial
     return(CRTsp(CRT))
 }
@@ -292,7 +317,11 @@ specify_clusters <- function(trial = trial, c = NULL, h = NULL, algorithm = "NN"
 #' examplexy <- latlong_as_xy(readdata("example_latlong.csv"))
 #'
 latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
-  CRT <- CRTsp(trial)
+  if("CRTsp" %in% class(trial)) {
+    CRT <- trial
+  } else if("data.frame" %in% class(trial)) {
+    CRT <- CRTsp(trial)
+  }
   trial <- CRT$trial
   colnames(trial)[colnames(trial) == latvar] <- "lat"
   colnames(trial)[colnames(trial) == longvar] <- "long"
@@ -304,8 +333,7 @@ latlong_as_xy <- function(trial, latvar = "lat", longvar = "long") {
   trial$y <- (trial$lat - centroid$lat)/scalef
   trial$x <- (trial$long - centroid$long) * cos(trial$lat * pi/180)/scalef
   drops <- c("lat", "long")
-  trial <- trial[, !(names(trial) %in% drops)]
-  CRT <- CRTsp(trial, design = NULL)
+  CRT$trial <- trial[, !(names(trial) %in% drops)]
   CRT$geom_full$centroid <- centroid
   return(CRT)
 }

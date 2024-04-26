@@ -97,6 +97,7 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
 
     design <- ifelse(is.null(CRT$design$locations), list(), CRT$design)
     design$locations <- ifelse((nrow(CRT$trial) == 0), locations, nrow(CRT$trial))
+    if(is.null(design$geometry)) design$geometry <- CRT$design$geometry
     design$c <- ifelse(is.null(CRT$trial$cluster), c, floor(nlevels(CRT$trial$cluster)/2))
 
     parnames <- c("alpha", "desiredPower", "effect", "yC", "outcome_type",
