@@ -13,6 +13,7 @@
 #' }
 #' @param scale_par scale parameter equal to the disc radius in km if \code{distance = "disc"}
 #' or to the standard deviance of the kernels if \code{distance = "kern"}
+#' @param auxiliary \code{"CRTsp"} object containing external randomization data
 #' @returns The input \code{"CRTsp"} object with additional column(s) added to the \code{trial} data frame
 #' with variable name corresponding to the input value of \code{distance}.
 #' @details
@@ -38,14 +39,18 @@
 #' Tukey half space depth are calculated using the algorithm of
 #' [Rousseeuw & Ruts(1996)](https://www.jstor.org/stable/2986073). The half-depth probability within the intervention cloud (di) is computed
 #' with respect to other locations in the intervention arm ([Anaya-Izquierdo & Alexander(2020)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316)). The half-depth within
-#' the half-depth within the control cloud (dc) is also computed. \code{CRTspat} returns the proportion di/(dc + di). \cr
+#' the half-depth within the control cloud (dc) is also computed. \code{CRTspat} returns the proportion di/(dc + di). \cr\cr
+#' If an auxiliary \code{auxiliary} \code{"CRTsp"} object is specified then \code{nearestDiscord} is computed with respect to the assignments
+#' in the auxiliary.If the auxiliary is a grid with \code{design$geometry} set to \code{'triangle'},
+#' \code{'square'} or \code{'hexagon'} then the distance is computed to the edge of the nearest grid pixel in the discordant arm
+#' (using a circular approximation for the perimeter) rather than to the point location itself.\cr
 #' @export
 #' @examples{
 #' # Calculate the disc with a radius of 0.5 km
 #' exampletrial <- compute_distance(trial = readdata('exampleCRT.txt'),
 #' distance = 'disc', scale_par = 0.5)
 #' }
-compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NULL) {
+compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NULL, auxiliary = NULL) {
   CRT <- CRTsp(trial)
   trial <- CRT$trial
   require_nearestDiscord <- is.null(trial$nearestDiscord) & identical(distance, "nearestDiscord")
@@ -56,54 +61,80 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
   require_kern <- identical(distance, "kern") &
                 (is.null(trial$kern) | !identical(CRT$design$kern$scale_par, scale_par))
   kern <- NULL
-  if (is.null(trial[[distance]] & is.null(trial$arm)))
-    stop('*** Randomization is required for computation of distances or surrounds ***')
-  if (require_hdep | require_sdep){
-    depthilist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial, cloud = 'intervention')
-    depthi_df <- as.data.frame(do.call(rbind, lapply(depthilist, as.data.frame)))
-    depthclist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial, cloud = 'control' )
-    depthc_df <- as.data.frame(do.call(rbind, lapply(depthclist, as.data.frame)))
-    trial$hdep <- depthi_df$hdep/(depthc_df$hdep + depthi_df$hdep)
-    trial$sdep <- depthi_df$sdep/(depthc_df$sdep + depthi_df$sdep)
+  if (!is.null(auxiliary)) {
+    # code for computing distance to auxiliary
 
-    # replace NA with limiting value, depending which arm it is in (these points are on the outside of the cloud)
-    trial$hdep[is.na(trial$hdep)] <- ifelse(trial$arm[is.na(trial$hdep)] == 'intervention', 1, 0)
-    trial$sdep[is.na(trial$sdep)] <- ifelse(trial$arm[is.na(trial$sdep)] == 'intervention', 1, 0)
+    # first compute the offset for converting the coordinates onto the same (x,y) scale
+    scalef <- 180/(6371*pi)
+    offset <- list(y = (CRT$geom_full$centroid$lat - auxiliary$geom_full$centroid$lat)/scalef,
+                x <- (CRT$geom_full$centroid$long - auxiliary$geom_full$centroid$long)/scalef *
+                  cos(CRT$geom_full$centroid$lat * pi/180)/scalef)
+    dist_uncorrected <- apply(dist_auxiliary, MARGIN = 2, aux = auxiliary, offset = offset)
+    # subtract the average pixel radius using a circular approximation
+    if(identical(auxiliary$design$geometry, 'point')){
+      dist_corrected <- dist_uncorrected
+    } else {
+      # first compute the minimum distance between grid points
+      d <- min(dist(cbind(auxiliary$trial$x, auxiliary$trial$y), method = "euclidean"))
+      dist_corrected <- dist_uncorrected - switch(auxiliary$design$geometry,
+                                                'triangle' = d * sqrt(3 * sqrt(3)/(4 * pi)),
+                                                'square' = d * sqrt(1/ pi),
+                                                'hexagon' = d * sqrt(sqrt(3)/(2 * pi)))
+    }
+    trial$nearestDiscord <- ifelse(trial$arm == "control", -dist_corrected, dist_corrected)
+    message("*** computed distance to nearest pixel in discordant arm ***")
+  } else {
+    require_nearestDiscord <- is.null(trial$nearestDiscord) & identical(distance, "nearestDiscord")
+    if (is.null(trial[[distance]] & is.null(trial$arm)))
+      stop('*** Randomization is required for computation of distances or surrounds ***')
+    if (require_hdep | require_sdep){
+      depthilist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial, cloud = 'intervention')
+      depthi_df <- as.data.frame(do.call(rbind, lapply(depthilist, as.data.frame)))
+      depthclist <- apply(trial, MARGIN = 1, FUN = depths, trial = trial, cloud = 'control' )
+      depthc_df <- as.data.frame(do.call(rbind, lapply(depthclist, as.data.frame)))
+      trial$hdep <- depthi_df$hdep/(depthc_df$hdep + depthi_df$hdep)
+      trial$sdep <- depthi_df$sdep/(depthc_df$sdep + depthi_df$sdep)
 
-    CRT$design$hdep <- distance_stats(trial, distance = "hdep")
-    CRT$design$sdep <- distance_stats(trial, distance = "sdep")
-  }
+      # replace NA with limiting value, depending which arm it is in (these points are on the outside of the cloud)
+      trial$hdep[is.na(trial$hdep)] <- ifelse(trial$arm[is.na(trial$hdep)] == 'intervention', 1, 0)
+      trial$sdep[is.na(trial$sdep)] <- ifelse(trial$arm[is.na(trial$sdep)] == 'intervention', 1, 0)
 
-  if ((require_nearestDiscord | require_disc | require_kern)){
-      dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
-      if (require_nearestDiscord){
-          discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
-          discord_dist_trial <- ifelse(discord, dist_trial, Inf)
-          trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
-                     MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
-          CRT$design$nearestDiscord <- distance_stats(trial, distance = "nearestDiscord")
-      }
-      if (require_disc){
-          if (is.null(scale_par)) {
-            stop("*** radius (scale_par) must be specified for computation of disc ***")
-          }
-          neighbours <- colSums(dist_trial <= scale_par)
-          intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= scale_par))
-          trial$disc <- intervened_neighbours/neighbours
-          CRT$design$disc <- distance_stats(trial, distance = "disc")
-          CRT$design$disc$scale_par <- scale_par
-      }
-      if (require_kern){
-          if (is.null(scale_par)) {
-            stop("*** s.d. (scale_par) must be specified for computation of kern ***")
-          }
-          weighted_neighbours <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par))
-          weighted_intervened <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) * matrix(data = (trial$arm == 'intervention'),
-                       nrow = nrow(trial), ncol = nrow(trial)))
-          trial$kern <- weighted_intervened/weighted_neighbours
-          CRT$design$kern <- distance_stats(trial, distance = "kern")
-          CRT$design$kern$scale_par <- scale_par
-      }
+      CRT$design$hdep <- distance_stats(trial, distance = "hdep")
+      CRT$design$sdep <- distance_stats(trial, distance = "sdep")
+    }
+
+    if ((require_nearestDiscord | require_disc | require_kern)){
+        dist_trial <- as.matrix(dist(cbind(trial$x, trial$y), method = "euclidean"))
+        if (require_nearestDiscord){
+            discord <- outer(trial$arm, trial$arm, "!=")  #true & false.
+            discord_dist_trial <- ifelse(discord, dist_trial, Inf)
+            trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
+                       MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
+            CRT$design$nearestDiscord <- distance_stats(trial, distance = "nearestDiscord")
+            message("*** computed distance to nearest measurements in discordant arm ***")
+        }
+        if (require_disc){
+            if (is.null(scale_par)) {
+              stop("*** radius (scale_par) must be specified for computation of disc ***")
+            }
+            neighbours <- colSums(dist_trial <= scale_par)
+            intervened_neighbours <- colSums(trial$arm =='intervention' & (dist_trial <= scale_par))
+            trial$disc <- intervened_neighbours/neighbours
+            CRT$design$disc <- distance_stats(trial, distance = "disc")
+            CRT$design$disc$scale_par <- scale_par
+        }
+        if (require_kern){
+            if (is.null(scale_par)) {
+              stop("*** s.d. (scale_par) must be specified for computation of kern ***")
+            }
+            weighted_neighbours <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par))
+            weighted_intervened <- colSums(dnorm(dist_trial, mean = 0, sd = scale_par) * matrix(data = (trial$arm == 'intervention'),
+                         nrow = nrow(trial), ncol = nrow(trial)))
+            trial$kern <- weighted_intervened/weighted_neighbours
+            CRT$design$kern <- distance_stats(trial, distance = "kern")
+            CRT$design$kern$scale_par <- scale_par
+        }
+    }
   }
   CRT$trial <- trial
   return(CRT)
@@ -281,4 +312,15 @@ distance_stats <- function(trial, distance){
                            within_cluster_sd = within_cluster_sd, rSq = rSq))
   return(distance_stats)
 }
+
+
+dist_auxiliary <- function(X, aux, offset){
+# minimum distance to discordant element in auxiliary CRTsp object
+# coordinates are offset by the difference in centroids
+  x <- X$x - offset$x
+  y <- X$y - offset$y
+  da <- (x-aux$trial$x[aux$trial$arm != X$arm])^2 +
+        (y-aux$trial$y[aux$trial$arm != X$arm])^2
+return(sqrt(min(da)))}
+
 

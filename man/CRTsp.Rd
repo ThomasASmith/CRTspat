@@ -10,7 +10,8 @@ CRTsp(
   geoscale = NULL,
   locations = NULL,
   kappa = NULL,
-  mu = NULL
+  mu = NULL,
+  geometry = "point"
 )
 }
 \arguments{
@@ -20,13 +21,16 @@ any other variables required for subsequent analysis.}
 
 \item{design}{list: an optional list containing the requirements for the power of the trial}
 
-\item{geoscale}{standard deviation of random displacement from each settlement cluster center (for new objects)}
+\item{geoscale}{numeric: standard deviation of random displacement from each settlement cluster center (for new objects)}
 
-\item{locations}{number of locations in population (for new objects)}
+\item{locations}{integer: number of locations in population (for new objects)}
 
-\item{kappa}{intensity of Poisson process of settlement cluster centers (for new objects)}
+\item{kappa}{numeric: intensity of Poisson process of settlement cluster centers (for new objects)}
 
-\item{mu}{mean  number of points per settlement cluster (for new objects)}
+\item{mu}{numeric: mean number of points per settlement cluster (for new objects)}
+
+\item{geometry}{with valid values \code{'point'} (the default, corresponding to point locations), \code{'triangle'},
+\code{'square'} and \code{'hexagon'} corresponding to grids constructed from pixels of regular polygons.}
 }
 \value{
 A list of class \code{"CRTsp"} containing the following components:
@@ -56,7 +60,7 @@ If \code{geoscale, locations, kappa} and \code{mu} are specified then a new tria
 corresponding to a novel simulated human settlement pattern. This is generated using the
 Thomas algorithm (\code{rThomas}) in \href{https://CRAN.R-project.org/package=spatstat.random}{\code{spatstat.random}}
 allowing the user to defined the density of locations and degree of spatial clustering.
-The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
+The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.\cr\cr
 }
 \examples{
 {# Generate a simulated area with 10,000 locations

@@ -6,10 +6,12 @@
 #'   assignments (factor \code{cluster}), and arm assignments (factor \code{arm}). Optionally specification of a buffer zone (logical \code{buffer});
 #'   any other variables required for subsequent analysis.
 #' @param design list: an optional list containing the requirements for the power of the trial
-#' @param geoscale standard deviation of random displacement from each settlement cluster center (for new objects)
-#' @param locations number of locations in population (for new objects)
-#' @param kappa intensity of Poisson process of settlement cluster centers (for new objects)
-#' @param mu mean  number of points per settlement cluster (for new objects)
+#' @param geoscale numeric: standard deviation of random displacement from each settlement cluster center (for new objects)
+#' @param locations integer: number of locations in population (for new objects)
+#' @param kappa numeric: intensity of Poisson process of settlement cluster centers (for new objects)
+#' @param mu numeric: mean number of points per settlement cluster (for new objects)
+#' @param geometry  with valid values \code{'point'} (the default, corresponding to point locations), \code{'triangle'},
+#' \code{'square'} and \code{'hexagon'} corresponding to grids constructed from pixels of regular polygons.
 #' @export
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #'  \tabular{lll}{
@@ -33,15 +35,15 @@
 #' corresponding to a novel simulated human settlement pattern. This is generated using the
 #' Thomas algorithm (\code{rThomas}) in [\code{spatstat.random}](https://CRAN.R-project.org/package=spatstat.random)
 #' allowing the user to defined the density of locations and degree of spatial clustering.
-#' The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.
+#' The resulting trial data frame comprises a set of Cartesian coordinates centred at the origin.\cr\cr
 #' @export
 #' @examples
 #' {# Generate a simulated area with 10,000 locations
 #' example_area = CRTsp(geoscale = 1, locations=10000, kappa=3, mu=40)
 #' summary(example_area)
 #' }
-CRTsp <- function(x = NULL, design = NULL,
-                  geoscale = NULL, locations = NULL, kappa = NULL, mu = NULL) {
+CRTsp <- function(x = NULL, design = NULL, geoscale = NULL, locations = NULL,
+                  kappa = NULL, mu = NULL, geometry = 'point') {
   centroid <- list(lat = NULL, long = NULL)
   if(identical(class(x),"CRTsp")) {
     CRT <- x
@@ -59,7 +61,7 @@ CRTsp <- function(x = NULL, design = NULL,
       CRT <- list(trial = data.frame(x=numeric(0),y=numeric(0)), design = design)
     }
   }
-  if(is.null(CRT$design)) CRT$design <- list(locations = NULL,
+  if(is.null(CRT$design)) CRT$design <- list(locations = NULL, geometry = geometry,
                                              alpha = NULL, desiredPower = NULL, effect = NULL, yC = NULL,
                                              outcome_type = NULL, sigma2 = NULL, denominator = NULL, N = NULL,
                                              ICC = NULL, k = NULL, d_h = NULL, spillover_interval = NULL,
