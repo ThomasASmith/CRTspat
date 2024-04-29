@@ -81,7 +81,7 @@ specify_buffer <- function(trial, buffer_width = 0) {
   if (buffer_width > 0) {
     CRT$trial$buffer <- (abs(CRT$trial$nearestDiscord) < buffer_width)
   }
-  return(CRT)
+  return(CRTsp(CRT))
 }
 
 #' Randomize a two-armed cluster trial
@@ -269,7 +269,7 @@ specify_clusters <- function(trial = trial, c = NULL, h = NULL, algorithm = "NN"
           trial$arm <- dist_vec$arm
           message("*** arm assignments read from auxiliary object ***")
         }
-        message("*** nearestPixel is distance to the nearest pixel in the cluster definition ***")
+        message("*** nearestPixel is distance to the nearest pixel in the auxiliary object ***")
       }
     } else {
       nclusters <- 2 * c

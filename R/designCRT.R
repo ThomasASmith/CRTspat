@@ -38,7 +38,6 @@
 #' the intra-cluster correlation is computed from the coefficient of variation using the formulae
 #' from [Hayes & Moulton](https://www.taylorfrancis.com/books/mono/10.1201/9781584888178/cluster-randomised-trials-richard-hayes-lawrence-moulton). If incompatible values for \code{ICC} and \code{cv_percent} are supplied
 #' then the value of the \code{ICC} is used.\cr\cr
-#' If geolocations are not input then power and sample size calculations are based on the scalar input parameters.\cr\cr
 #' The calculations do not consider any loss in power due to loss to follow-up and by default there is no adjustment for effects of spillover.\cr\cr
 #' Spillover bias can be allowed for using a diffusion model of mosquito movement. If no location or arm assignment information is available
 #' then \code{contaminate_pop_pr} is used to parameterize the model using a normal approximation for the distribution of distance
@@ -49,6 +48,7 @@
 #' incorporated into the power calculations based on the empirical distribution of distances to the nearest
 #' discordant location. (If \code{distance_distribution ≠ 'empirical'} then the distribution of distances is assumed to
 #' be normal.\cr\cr
+#' If geolocations are not input then power and sample size calculations are based on the scalar input parameters.\cr\cr
 #' If buffer zones have been specified in the \code{'CRTsp'} object then separate calculations are made for the core area and for the full site.\cr\cr
 #' The output is an object of class \code{'CRTsp'} containing any input trial data frame and values for:
 #' - The required numbers of clusters to achieve the specified power.
@@ -98,7 +98,8 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
     design <- ifelse(is.null(CRT$design$locations), list(), CRT$design)
     design$locations <- ifelse((nrow(CRT$trial) == 0), locations, nrow(CRT$trial))
     if(is.null(design$geometry)) design$geometry <- CRT$design$geometry
-    design$c <- ifelse(is.null(CRT$trial$cluster), c, floor(nlevels(CRT$trial$cluster)/2))
+    design$c <- ifelse(is.null(CRT$trial$cluster), c,
+                       floor(nlevels(factor(CRT$trial$cluster))/2))
 
     parnames <- c("alpha", "desiredPower", "effect", "yC", "outcome_type",
         "sigma2", "denominator", "N", "ICC", "cv_percent", "c", "sd_h",
