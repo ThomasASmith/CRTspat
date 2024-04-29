@@ -314,7 +314,6 @@ distance_stats <- function(trial, distance){
 
 # Functions for trials with cluster assignments in an auxiliary list
 
-
 interrogate_auxiliary <- function(CRT, auxiliary, distance){
   # first compute the offset for converting the coordinates onto the same (x,y) scale
   scalef <- 180/(6371*pi)
@@ -372,5 +371,6 @@ dist_auxiliary <- function(X, auxiliary, offset, distance){
   }
 return(list(dist_uncorrected = sqrt(min(d2)),
             cluster = cluster, arm = arm))}
+
 
 
