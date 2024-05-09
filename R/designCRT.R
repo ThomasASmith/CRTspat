@@ -79,7 +79,17 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
     N = 1, ICC = NULL, cv_percent = NULL, c = NULL, sd_h = 0,
     spillover_interval = 0, contaminate_pop_pr = 0, distance_distribution = 'normal') {
 
-    if(is.null(trial)) trial <- data.frame(x = c(), y = c())
+    if(is.null(trial)) {
+        if (is.null(locations)) {
+            stop("*** A table of locations or a value for the number of locations must be supplied ***")
+        }
+        if (is.null(c)) {
+            stop("*** A table of locations with cluster assignments or a value for the number of clusters must be supplied ***")
+        } else {
+            c <- as.integer(c)
+        }
+        trial <- data.frame(x = c(), y = c())
+    }
     CRT <- CRTsp(trial)
 
     # populate a design list with a data about the input trial (if
@@ -117,9 +127,8 @@ CRTpower <- function(trial = NULL, locations = NULL, alpha = 0.05, desiredPower 
 }
 
 
-# Characteristics of a trial design. The input is a data frame or
-# CRTsp object. The output list conforms to the requirements for a
-# CRTsp object
+# Characteristics of a trial design.
+
 get_geom <- function(trial = NULL, design = NULL) {
 
     sigma_x <- clustersRequired <- DE <- power <- NULL
@@ -174,10 +183,12 @@ get_geom <- function(trial = NULL, design = NULL) {
     }
 
     sigma_r <- 0
-    sigma_m <- design$spillover_interval/(2 * qnorm(0.975))
+    sigma_m <- as.numeric(design$spillover_interval)/(2 * qnorm(0.975))
     if(!is.null(trial$nearestDiscord)) {
         nearestDiscord <- trial$nearestDiscord
         sigma_x <- sd(nearestDiscord)
+    } else {
+        nearestDiscord <- NULL
     }
     if(!is.na(sigma_x)) sigma_r <- sigma_m/sigma_x
     if(design$contaminate_pop_pr > 0) sigma_r <- qnorm((1 - design$contaminate_pop_pr)/2)/qnorm(0.025)
@@ -195,7 +206,7 @@ get_geom <- function(trial = NULL, design = NULL) {
         }
 
         # true efficacy
-        E <- design$effect
+        E <- as.numeric(design$effect)
         yC <- design$yC
 
         # convert power and significance level to Zvalues

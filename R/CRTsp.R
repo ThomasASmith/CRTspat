@@ -69,13 +69,17 @@ CRTsp <- function(x = NULL, design = NULL, geoscale = NULL, locations = NULL,
   if(is.null(CRT$trial)) CRT$trial <- data.frame(x=numeric(0),y=numeric(0))
   CRT$geom_full <- get_geom(trial = CRT$trial, design = CRT$design)
   CRT$geom_full$centroid <- centroid
+  empty_geom <- list(locations = 0, sd_h = NULL, k= NULL, uniquelocations = 0, mean_h = NULL,
+    DE = NULL, power = NULL, clustersRequired = NULL)
   if (is.null(CRT$trial$buffer)) {
-    CRT$geom_core <- list(
-      locations = 0, sd_h = NULL, k= NULL, uniquelocations = 0, mean_h = NULL,
-      DE = NULL, power = NULL, clustersRequired = NULL)
+    CRT$geom_core <- empty_geom
   } else {
-    CRT$geom_core <- get_geom(trial = CRT$trial[CRT$trial$buffer == FALSE, ],
-                              design = CRT$design)
+    if (all(CRT$trial$buffer == TRUE)) {
+      CRT$geom_core <- empty_geom
+    } else {
+      CRT$geom_core <- get_geom(trial = CRT$trial[CRT$trial$buffer == FALSE, ],
+                                design = CRT$design)
+    }
   }
   return(validate_CRTsp(new_CRTsp(CRT)))
 }
@@ -192,7 +196,8 @@ summary.CRTsp <- function(object, maskbuffer = 0.2, ...) {
     if(!is.null(object$geom_full$uniquelocations))
       output[4, 1] <- object$geom_full$uniquelocations
   }
-  if (object$geom_core$locations > 0) {
+  if (object$geom_core$locations > 0 &
+      object$geom_core$locations < object$geom_full$locations) {
     output[1, 1] <- "Full"
     output[1, 2] <- "Core"
     output[4, 2] <- object$geom_core$uniquelocations
