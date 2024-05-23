@@ -240,13 +240,13 @@ get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
   # generate a pattern of propensity
 
   trial$propensity <- f_1 <- createPropensity(trial, bandwidth = bw, centers = centers)
-  # Smooth the propensity.  the s.d. in each dimension of the 2 d gaussian is bw/sqrt(2)
+  # Smooth the propensity.  the s.d. in each dimension of the 2 d gaussian is bw
 
   # f_2 is the value of propensity decremented by the effect of intervention and smoothed
   # by applying a further kernel smoothing step (trap the case with no spillover)
   if (sd < 0.001) sd <- 0.001
   f_2 <- f_1 * (1 - effect * (trial$arm == "intervention"))
-  f_3 <- dispersal(bw = sd*sqrt(2), euclid = euclid) %*% f_2
+  f_3 <- dispersal(bw = sd, euclid = euclid) %*% f_2
 
   if (identical(scale, "continuous")) {
     # Note that the sd here is logically different from the smoothing sd, but how to choose a value?
