@@ -40,8 +40,8 @@ c <- 25
 set.seed(7)
 effect <- runif(nsimulations,0,0.6)
 # Data frame of input spillover interval
-theta_inp <- runif(nsimulations, min = 0, max = 1.5)
-input <- data.frame(effect = effect, theta_inp = theta_inp)
+spillover_interval <- runif(nsimulations, min = 0, max = 1.5)
+input <- data.frame(effect = effect, spillover_interval = spillover_interval)
 ```
 
 A user function is defined for randomizing and analysing each simulated trial
@@ -51,13 +51,13 @@ CRTscenario7 <- function(input) {
       ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
         randomizeCRT() %>%
         simulateCRT(effect = input[["effect"]], generateBaseline = FALSE, outcome0 = outcome0,
-                    ICC_inp = ICC, theta_inp = input[["theta_inp"]],
+                    ICC_inp = ICC, spillover_interval = input[["spillover_interval"]],
                     matchedPair = FALSE, scale = "proportion", denominator = "denom", tol = 0.01)
-    sd <- theta_inp/(2 * qnorm(0.975))
+    sd <- spillover_interval/(2 * qnorm(0.975))
     contaminate_pop_pr_input <- sum(abs(ex$trial$nearestDiscord) <
-              0.5 * input[["theta_inp"]])/nrow(ex$trial)
+              0.5 * input[["spillover_interval"]])/nrow(ex$trial)
     contaminate_pop_pr_sd <- sum(abs(ex$trial$nearestDiscord) <
-              input[["theta_inp"]]/(2 * qnorm(0.975)))/nrow(ex$trial)
+              input[["spillover_interval"]]/(2 * qnorm(0.975)))/nrow(ex$trial)
     examplePower = CRTpower(trial = ex, desiredPower = 0.8,
                            effect=input[["effect"]], yC=outcome0, outcome_type = 'd', ICC = ICC, c = c)
     nominalpower <-  examplePower$geom_full$power
@@ -66,7 +66,7 @@ CRTscenario7 <- function(input) {
       effect = input[["effect"]],
       contaminate_pop_pr_input = contaminate_pop_pr_input,
       contaminate_pop_pr_sd = contaminate_pop_pr_sd,
-      theta_inp = input[["theta_inp"]],
+      spillover_interval = input[["spillover_interval"]],
       nominalpower = examplePower$geom_full$power,
       Pvalue_t = Tanalysis$pt_ests$p.value,
       effect_size_t = Tanalysis$pt_ests$effect_size)
@@ -131,19 +131,19 @@ $\color{blue}{\textbf{----}}$ : bias.
 An analogous analysis, to that of performance relative to efficacy, can be carried out to explore the effect of the simulated spillover interval.
 
 ```{r example7e.r, fig.keep = 'none', message = FALSE, warning = FALSE, echo = TRUE}
-ggplot(data = results, aes(x = theta_inp)) +
+ggplot(data = results, aes(x = spillover_interval)) +
   geom_smooth(aes(y = contaminate_pop_pr_input), color = "#b2df8a",se = FALSE, size = 2) +
   geom_smooth(aes(y = contaminate_pop_pr_sd), color = "#0072A7",se = FALSE, size = 2) +
   xlab('Simulated spillover interval (km)') +
   ylab('Proportion of the locations')
 
-results$theta_cat <- factor(round(results$theta_inp*10))
+results$theta_cat <- factor(round(results$spillover_interval*10))
 by_theta <- results[results$effect > 0, ] %>%
   group_by(theta_cat) %>%
-  summarise_at(c("theta_inp","significant_t", "nominalpower", "bias_t", "typeIIerror"),
+  summarise_at(c("spillover_interval","significant_t", "nominalpower", "bias_t", "typeIIerror"),
                mean, na.rm = TRUE)
 by_theta$power_ratio <- with(by_theta, significant_t/nominalpower)
-ggplot(data = by_theta, aes(x = theta_inp)) +
+ggplot(data = by_theta, aes(x = spillover_interval)) +
   geom_smooth(aes(y = power_ratio), color = "#b2df8a",se = FALSE) +
   geom_smooth(aes(y = typeIIerror), color = "#D55E00",se = FALSE) +
   geom_smooth(aes(y = bias_t), color = "#0072A7",se = FALSE) +

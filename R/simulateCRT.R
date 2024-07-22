@@ -17,8 +17,8 @@
 #' @param denominator optional name of denominator variable for the outcome
 #' @param kernels number of kernels used to generate a de novo \code{propensity}
 #' @param ICC_inp numeric. Target intra cluster correlation, provided as input when baseline data are to be simulated
-#' @param sd numeric. standard deviation of the normal kernel measuring spatial smoothing leading to spillover
-#' @param theta_inp numeric. input spillover interval
+#' @param sigma_m numeric. standard deviation of the normal kernel measuring spatial smoothing leading to spillover
+#' @param spillover_interval numeric. input spillover interval
 #' @param tol numeric. tolerance of output ICC
 #' @returns A list of class \code{"CRTsp"} containing the following components:
 #' \tabular{lll}{
@@ -83,9 +83,9 @@
 #' there are an even number of clusters. If there are an odd number of clusters then matched pairs are not generated and
 #' an unmatched randomization is output.
 #'
-#' Either \code{sd} or \code{theta_inp} must be provided. If both are provided then
-#' the value of \code{sd} is overwritten
-#' by the standard deviation implicit in the value of \code{theta_inp}.
+#' Either \code{sigma_m} or \code{spillover_interval} must be provided. If both are provided then
+#' the value of \code{sigma_m} is overwritten
+#' by the standard deviation implicit in the value of \code{spillover_interval}.
 #' Spillover is simulated as arising from a diffusion-like process.
 #'
 #' For further details see [Multerer (2021)](https://edoc.unibas.ch/85228/)
@@ -99,13 +99,14 @@
 #'   outcome0 = 0.5,
 #'   matchedPair = FALSE,
 #'   scale = 'proportion',
-#'   sd = 0.6,
+#'   sigma_m = 0.6,
 #'   tol = 0.05)
 #'  summary(simulation)
 #'  }
 simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBaseline = TRUE, matchedPair = TRUE,
                         scale = "proportion", baselineNumerator = "base_num", baselineDenominator = "base_denom",
-                        denominator = NULL, ICC_inp = NULL, kernels = 200, sd = NULL, theta_inp = NULL, tol = 5e-03) {
+                        denominator = NULL, ICC_inp = NULL, kernels = 200, sigma_m = NULL,
+                        spillover_interval = NULL, tol = 5e-03) {
 
     # Written by Tom Smith, July 2017. Adapted by Lea Multerer, September 2017
     message("\n=====================    SIMULATION OF CLUSTER RANDOMISED TRIAL    =================\n")
@@ -135,10 +136,10 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     if (is.null(trial$denom)) trial$denom <- 1
 
     # use spillover interval if this is available
-    if (!is.null(theta_inp)) {
-        sd <- theta_inp/(2 * qnorm(0.975))
+    if (!is.null(spillover_interval)) {
+        sigma_m <- spillover_interval/(2 * qnorm(0.975))
     }
-    if (is.null(sd)) {
+    if (is.null(sigma_m)) {
         stop("spillover interval or s.d. of spillover must be provided")
     }
 
@@ -179,7 +180,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     while (loss > tol) {
         ICC.loss <- OOR::StoSOO(par = c(NA), fn = ICCdeviation, lower = -5, upper = 5, nb_iter = nb_iter,
                                 trial = trial, ICC_inp = ICC_inp, centers = centers, approx_diag = approx_diag,
-                                sd = sd, scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0,
+                                sigma_m = sigma_m, scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0,
                                 random_multiplier = random_multiplier)
         loss <- ICC.loss$value
         if(kernels > 500) {
@@ -201,11 +202,11 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     bw <- exp(logbw[1])
     set.seed(round(bw * random_multiplier))
 
-    trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
+    trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sigma_m = sigma_m, effect = effect,
                     outcome0 = outcome0, bw = bw, centers = centers, numerator = "num", denominator = "denom")
     # create a baseline dataset using the optimized bandwidth
     if (generateBaseline) trial <- get_assignments(trial = trial, scale = scale,
-                    euclid = euclid, sd = sd, effect = 0, outcome0 = outcome0, bw = bw,
+                    euclid = euclid, sigma_m = sigma_m, effect = 0, outcome0 = outcome0, bw = bw,
                     centers = centers, numerator = baselineNumerator,
                     denominator = baselineDenominator)
     ICC <- get_ICC(trial = trial, scale = scale)
@@ -231,7 +232,7 @@ return(propensity)
 }
 
 # Assign expected outcome to each location assuming a fixed effect size.
-get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
+get_assignments <- function(trial, scale, euclid, sigma_m, effect, outcome0,
                             bw, centers, numerator, denominator) {
   expected_ratio <- num <- rowno <- sumnum <- NULL
   # remove any superseded numerator variable
@@ -244,15 +245,15 @@ get_assignments <- function(trial, scale, euclid, sd, effect, outcome0,
 
   # f_2 is the value of propensity decremented by the effect of intervention and smoothed
   # by applying a further kernel smoothing step (trap the case with no spillover)
-  if (sd < 0.001) sd <- 0.001
+  if (sigma_m < 0.001) sigma_m <- 0.001
   f_2 <- f_1 * (1 - effect * (trial$arm == "intervention"))
-  f_3 <- dispersal(bw = sd, euclid = euclid) %*% f_2
+  f_3 <- dispersal(bw = sigma_m, euclid = euclid) %*% f_2
 
   if (identical(scale, "continuous")) {
-    # Note that the sd here is logically different from the smoothing sd, but how to choose a value?
+    # Note that the sd here is logically different from sigma_m, but how to choose a value?
     trial$num <- rnorm(n = nrow(trial),
                        mean = f_3 * trial[[denominator]],
-                       sd = sd)
+                       sd = sigma_m)
   } else {
 
     if (!(denominator %in% colnames(trial))) trial[[denominator]] <- 1
@@ -311,7 +312,7 @@ return(trial)
 }
 
 # deviation of ICC from target as a function of bandwidth
-ICCdeviation <- function(logbw, trial, ICC_inp, centers, approx_diag, sd, scale, euclid, effect, outcome0, random_multiplier) {
+ICCdeviation <- function(logbw, trial, ICC_inp, centers, approx_diag, sigma_m, scale, euclid, effect, outcome0, random_multiplier) {
     cluster <- NULL
     # set the seed so that a reproducible result is obtained for a specific bandwidth
     if (!is.null(logbw)) {
@@ -319,7 +320,7 @@ ICCdeviation <- function(logbw, trial, ICC_inp, centers, approx_diag, sd, scale,
         set.seed(round(bw * random_multiplier))
     }
 
-    trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sd = sd, effect = effect,
+    trial <- get_assignments(trial = trial, scale = scale, euclid = euclid, sigma_m = sigma_m, effect = effect,
                              outcome0 = outcome0, bw = bw, centers = centers, numerator = "num", denominator = "denom")
     loss <- (get_ICC(trial = trial, scale = scale) - ICC_inp)^2
 #    message("\rbandwidth: ", bw, "  ICC=", ICC, " loss = ", loss, " \r")

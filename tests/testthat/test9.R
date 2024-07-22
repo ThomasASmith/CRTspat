@@ -19,7 +19,7 @@ get_test9 = function(){
                              generateBaseline = FALSE,
                              baselineNumerator = "RDT_test_result",
                              baselineDenominator = "base_denom",
-                             ICC_inp = 0.05, theta_inp = 0.8)
+                             ICC_inp = 0.05, spillover_interval = 0.8)
     # Reading in the inla.mesh functions when run outside the check but not as part of a check
     library(Matrix)
     inla_mesh <- readdata("examplemesh100.rds")

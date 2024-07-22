@@ -36,7 +36,7 @@ ICC <- 0.05
 k <- 25
 # the number of trial simulations required (a small number, is used for testing, the plots are based on 1000)
 nsimulations <- 2
-theta_vec <- runif(nsimulations,0,1.5)
+spillover_vec <- runif(nsimulations,0,1.5)
 radii <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5)
 proportions <- c(0, 0.1, 0.2, 0.3, 0.4, 0.5)
 scenarios <- data.frame(radius = c(radii, rep(0,6)),
@@ -80,16 +80,16 @@ analyseReducedCRT <- function(x, CRT) {
 }
 
 # randomization and trial simulation
-randomize_simulate <- function(theta) {
+randomize_simulate <- function(spillover) {
   ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
     randomizeCRT() %>%
     simulateCRT(effect = 0.4, generateBaseline = FALSE, outcome0 = outcome0,
-                ICC_inp = ICC, theta_inp = theta,
+                ICC_inp = ICC, spillover_interval = spillover,
                 matchedPair = FALSE, scale = "proportion", denominator = "denom", tol = 0.01)
   # The results are collected in a data frame
   sub_results_matrix <- apply(scenarios, MARGIN = 1,  FUN = analyseReducedCRT, CRT = ex)
   sub_results <- as.data.frame(do.call(rbind, lapply(sub_results_matrix, as.data.frame)))
-  sub_results$theta_inp <- theta
+  sub_results$spillover_interval <- spillover
 return(sub_results)
 }
 
@@ -107,9 +107,9 @@ results <- list(simulation = numeric(0),
                effect_size = numeric(0),
                gamma = numeric(0))
 simulation <- 0
-for(theta in theta_vec){
+for(spillover in spillover_vec){
   simulation <- simulation + 1
-  sub_results <- randomize_simulate(theta)
+  sub_results <- randomize_simulate(spillover)
   sub_results$simulation <- simulation
   results <- rbind(results,sub_results)
 }
@@ -125,7 +125,7 @@ fig8_1a <- ggplot(data = results, aes(x = observations, y = significant, color =
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Number of locations in analysis') +
     ylab('Power')
-fig8_1b <- ggplot(data = results, aes(x = theta_inp, y = significant, color = factor(fried))) +
+fig8_1b <- ggplot(data = results, aes(x = spillover_interval, y = significant, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Simulated spillover interval (km)') +
@@ -135,7 +135,7 @@ fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Number of locations in analysis') +
   ylab('Bias')
-fig8_1d <- ggplot(data = results, aes(x = theta_inp, y = bias, color = factor(fried))) +
+fig8_1d <- ggplot(data = results, aes(x = spillover_interval, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Simulated spillover interval (km)') +

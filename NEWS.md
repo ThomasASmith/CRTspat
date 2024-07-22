@@ -1,3 +1,8 @@
+# CRTspat 1.3.0
+
+* Algebra for simulation of sites following diffusion model of spillover. 
+* Power and sample size calculations allowing for diffusion model of spillover.
+
 # CRTspat 1.2.0
 
 * Changed terminology from 'contamination' to 'spillover' throughout.
