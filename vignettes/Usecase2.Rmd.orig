@@ -23,7 +23,7 @@ Information about the underlying spatial pattern of disease is used in the form 
 |Baseline data are supplied by user and `propensity` is not supplied |`propensity` is created from the baseline data|
 |Neither baseline data nor `propensity` are supplied |`propensity` is generated using normal kernels, with the bandwidth adjusted to achieve the input value of the `ICC_inp` (after the further smoothing stage to simulate spillover (see below))|
 
-The effect of intervention is simulated as a fixed percentage reduction in the `propensity`. Contamination or spillover between trial arms is then modelled as a additional smoothing process applied to the intervention-adjusted `propensity` via a further bivariate normal kernel. In the case of mosquito borne disease this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a spillover interval with the `theta_inp` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. If both are provided then it is the value of `theta_inp` that is used.
+The effect of intervention is simulated as a fixed percentage reduction in the `propensity`. Contamination or spillover between trial arms is then modelled as a additional smoothing process applied to the intervention-adjusted `propensity` via a further bivariate normal kernel. In the case of mosquito borne disease this is proposed as an approximation to the effect of mosquito movement. The degree of spillover is specified either as a spillover interval with the `spillover_interval` parameter, or as `sd`, the bandwidth of the corresponding normal kernel. If both are provided then it is the value of `spillover_interval` that is used.
 
 #### Example with baseline data provided as proportions
 ```{r example2a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
@@ -44,7 +44,7 @@ plotCRT(example_randomized, map = TRUE, legend.position = c(0.8, 0.8))
            generateBaseline = FALSE,
            baselineNumerator = "RDT_test_result",
            baselineDenominator = "base_denom",
-           ICC_inp = 0.05, theta_inp = 0.8)
+           ICC_inp = 0.05, spillover_interval = 0.8)
 summary(example2a)
 library(Matrix)
 examplemesh100 <- readdata("examplemesh100.rds")
@@ -88,7 +88,7 @@ example2b<- CRTsp(new_site) %>%
                outcome0 = 0.5,
                generateBaseline = TRUE,
                ICC_inp = 0.05,
-               theta_inp = 0.5)
+               spillover_interval = 0.5)
 summary(example2b)
 results2b <- CRTanalysis(example2b, method = 'GEE')
 summary(results2b)
@@ -112,7 +112,7 @@ example2c<- CRTsp(geoscale = 2, locations=2000, kappa=3, mu=40) %>%
        baselineNumerator = 'base_num',
        baselineDenominator = 'base_denom',
        ICC_inp = 0.08,
-       theta_inp = 0.2)
+       spillover_interval = 0.2)
 results2c <- CRTanalysis(example2c, method = 'GEE')
 summary(results2c)
 ```

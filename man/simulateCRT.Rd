@@ -16,8 +16,8 @@ simulateCRT(
   denominator = NULL,
   ICC_inp = NULL,
   kernels = 200,
-  sd = NULL,
-  theta_inp = NULL,
+  sigma_m = NULL,
+  spillover_interval = NULL,
   tol = 0.005
 )
 }
@@ -47,9 +47,9 @@ using pair-matching on the baseline data (see details)}
 
 \item{kernels}{number of kernels used to generate a de novo \code{propensity}}
 
-\item{sd}{numeric. standard deviation of the normal kernel measuring spatial smoothing leading to spillover}
+\item{sigma_m}{numeric. standard deviation of the normal kernel measuring spatial smoothing leading to spillover}
 
-\item{theta_inp}{numeric. input spillover interval}
+\item{spillover_interval}{numeric. input spillover interval}
 
 \item{tol}{numeric. tolerance of output ICC}
 }
@@ -124,9 +124,9 @@ If \code{matchedPair} is \code{TRUE} then pair-matching on the baseline data wil
 there are an even number of clusters. If there are an odd number of clusters then matched pairs are not generated and
 an unmatched randomization is output.
 
-Either \code{sd} or \code{theta_inp} must be provided. If both are provided then
-the value of \code{sd} is overwritten
-by the standard deviation implicit in the value of \code{theta_inp}.
+Either \code{sigma_m} or \code{spillover_interval} must be provided. If both are provided then
+the value of \code{sigma_m} is overwritten
+by the standard deviation implicit in the value of \code{spillover_interval}.
 Spillover is simulated as arising from a diffusion-like process.
 
 For further details see \href{https://edoc.unibas.ch/85228/}{Multerer (2021)}
@@ -139,7 +139,7 @@ For further details see \href{https://edoc.unibas.ch/85228/}{Multerer (2021)}
   outcome0 = 0.5,
   matchedPair = FALSE,
   scale = 'proportion',
-  sd = 0.6,
+  sigma_m = 0.6,
   tol = 0.05)
  summary(simulation)
  }

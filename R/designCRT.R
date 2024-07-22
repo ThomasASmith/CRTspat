@@ -238,11 +238,11 @@ get_geom <- function(trial = NULL, design = NULL) {
         }
 
         # from Smith et al equation (23)
-        delta_t <- (geom$delta * yC^2)/(yC + yI - geom$delta*yC)
+        delta_t <- 2 * (geom$delta * yC^2)/(yC + yI - geom$delta*yC)
 
         # compute outcomes with spillover bias
-        yCb <- yC + delta_t
-        yIb <- yI - delta_t
+        yCb <- yC + delta_t/2
+        yIb <- yI - delta_t/2
 
         # input value of the coefficient of variation of between cluster variation in outcome
         k <- ifelse(is.null(design$cv_percent), NA, design$cv_percent/100)
