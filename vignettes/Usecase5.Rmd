@@ -40,7 +40,7 @@ output from the statistical procedure that is called, try `<analysis>$model_obje
 `summary("<analysis>$model_object")`.
 
 
-```r
+``` r
 library(CRTspat)
 example <- readdata("exampleCRT.txt")
 analysisT <- CRTanalysis(example, method = "T")
@@ -62,7 +62,7 @@ summary(analysisT)
 ## P-value (2-sided):  0.006879064
 ```
 
-```r
+``` r
 analysisT$model_object
 ```
 
@@ -122,7 +122,7 @@ The different values for `cfunc` lead to the fitted curves shown in Figure 5.1. 
 plot corresponds to the spillover interval in those cases where this is estimated.
 
 
-```r
+``` r
 analysisLME4_Z <- CRTanalysis(example, method = "LME4", cfunc = "Z")
 summary(analysisLME4_Z)
 ```
@@ -140,7 +140,7 @@ summary(analysisLME4_Z)
 ## AIC     :  1391.609
 ```
 
-```r
+``` r
 analysisLME4_X <- CRTanalysis(example, method = "LME4", cfunc = "X")
 summary(analysisLME4_X)
 ```
@@ -160,7 +160,7 @@ summary(analysisLME4_X)
 ## AIC     :  1385.898
 ```
 
-```r
+``` r
 analysisLME4_P <- CRTanalysis(example, method = "LME4", cfunc = "P")
 summary(analysisLME4_P)
 ```
@@ -187,7 +187,7 @@ summary(analysisLME4_P)
 ## AIC     :  1382.215 including penalty for the spillover scale parameter
 ```
 
-```r
+``` r
 analysisLME4_L <- CRTanalysis(example, method = "LME4", cfunc = "L")
 summary(analysisLME4_L)
 ```
@@ -214,7 +214,7 @@ summary(analysisLME4_L)
 ## AIC     :  1382.201 including penalty for the spillover scale parameter
 ```
 
-```r
+``` r
 analysisLME4_S <- CRTanalysis(example, method = "LME4", cfunc = "S")
 summary(analysisLME4_S)
 ```
@@ -241,7 +241,7 @@ summary(analysisLME4_S)
 ## AIC     :  1382.094 including penalty for the spillover scale parameter
 ```
 
-```r
+``` r
 analysisLME4_R <- CRTanalysis(example, method = "LME4", cfunc = "R")
 summary(analysisLME4_R)
 ```
@@ -268,7 +268,7 @@ summary(analysisLME4_R)
 ## AIC     :  1384.711
 ```
 
-```r
+``` r
 p0 <- plotCRT(analysisLME4_Z, map = FALSE)
 p1 <- plotCRT(analysisLME4_X, map = FALSE)
 p2 <- plotCRT(analysisLME4_P, map = FALSE)
@@ -311,7 +311,7 @@ add them to a `trial` data frame and specify them using `distance`. `CRTanalysis
 
 
 
-```r
+``` r
 examples <- compute_distance(example, distance = "hdep")
 ps1 <- plotCRT(examples, distance = "hdep", legend.position = c(0.6, 0.8))
 ps2 <- plotCRT(examples, distance = "sdep")
@@ -331,7 +331,7 @@ If `distance` is assigned a value of either `hdep`, `sdep`, then `cfunc = "R"` i
 scale parameter estimated in the same way as in the scale parameter in other models (see above Table 5.2).
 
 
-```r
+``` r
 examples_hdep <- CRTanalysis(examples, method = "LME4", distance = "hdep", cfunc = 'R')
 summary(examples_hdep)
 ```
@@ -358,7 +358,7 @@ summary(examples_hdep)
 ## AIC     :  1385.89
 ```
 
-```r
+``` r
 ps4 <- plotCRT(examples_hdep,legend.position = c(0.8, 0.8))
 examples_sdep <- CRTanalysis(examples, method = "LME4", distance = "sdep", cfunc = 'R')
 summary(examples_sdep)
@@ -386,7 +386,7 @@ summary(examples_sdep)
 ## AIC     :  1382.417
 ```
 
-```r
+``` r
 ps5 <- plotCRT(examples_sdep)
 examples_disc <- CRTanalysis(examples, method = "LME4", distance = "disc", cfunc = 'R', scale_par = 0.15)
 summary(examples_disc)
@@ -414,7 +414,7 @@ summary(examples_disc)
 ## AIC     :  1380.274
 ```
 
-```r
+``` r
 ps6 <- plotCRT(examples_disc)
 examples_kern <- CRTanalysis(examples, method = "LME4", distance = "kern", cfunc = 'R', scale_par = 0.15)
 summary(examples_kern)
@@ -442,7 +442,7 @@ summary(examples_kern)
 ## AIC     :  1375.677
 ```
 
-```r
+``` r
 ps7 <- plotCRT(examples_kern)
 plot_grid(ps4, ps5, ps6, ps7, labels = c('hdep', 'sdep', 'disc', 'kern'), label_size = 10, ncol = 2)
 ```

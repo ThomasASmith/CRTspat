@@ -3,7 +3,7 @@
 # A separate seed should be set for each processor.
 get_test9 = function(){
   if (identical(system.file(package='INLA'), "")){
-    return(1342)
+    return(1335)
   } else {
     set.seed(1234)
     example_locations <- readdata('example_site.csv')

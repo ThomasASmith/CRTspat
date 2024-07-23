@@ -20,7 +20,7 @@ In this example, the effects of reducing the numbers of observations on power an
 As in [Use Case 7](Usecase7.html), spatially homogeneous background disease rates are assigned, using `propensity <- 1`, fixed values are used for the outcome in the control arm, the target ICC of the simulations and the number of clusters in each arm of the trial. Efficacy is also fixed at 0.4. The spillover interval is sampled from a uniform(0, 1.5km) distribution.
 
 
-```r
+``` r
 library(CRTspat)
 # use the locations only from example dataset (as with Use Case 7)
 example <- readdata("exampleCRT.txt")
@@ -51,7 +51,7 @@ Two user functions are required:
 + analysis of each simulated trial with different sets of locations removed
 
 
-```r
+``` r
 analyseReducedCRT <- function(x, CRT) {
   trial <- CRT$trial
   radius <- x[["radius"]]
@@ -98,7 +98,7 @@ return(sub_results)
 Collect all the analysis results and plot. Note that some analyses result in warnings (because of problems computing some of the descriptive statistics when the number of observations in some clusters is very small)
 
 
-```r
+``` r
 results <- list(simulation = numeric(0),
                 radius = numeric(0),
                proportion = numeric(0),
@@ -119,7 +119,7 @@ for(spillover in spillover_vec){
 ## 0 00.1 00.2 00.3 00.4 00.5 00 00 0.10 0.20 0.30 0.40 0.50 00.1 00.2 00.3 00.4 00.5 00 00 0.10 0.20 0.30 0.40 0.5
 ```
 
-```r
+``` r
 results$fried <- ifelse(results$radius > 0, 'fried',
                       ifelse(results$proportion > 0, 'scrambled', 'neither'))
 results$bias <- results$effect_size - 0.5

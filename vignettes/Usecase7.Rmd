@@ -26,7 +26,7 @@ input. Efficacy is sampled from a uniform(0, 0.6) distribution, and the simulate
 uniform(0, 1.5km) distribution.
 
 
-```r
+``` r
 library(CRTspat)
 # The locations only are taken from the example dataset. The cluster, arm, and outcome assignments are replaced
 example <- readdata("exampleCRT.txt")
@@ -48,7 +48,7 @@ input <- data.frame(effect = effect, spillover_interval = spillover_interval)
 A user function is defined for randomizing and analysing each simulated trial
 
 
-```r
+``` r
 CRTscenario7 <- function(input) {
       ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
         randomizeCRT() %>%
@@ -80,7 +80,7 @@ The results are collected in a data frame and post-processed to classify
 the outcomes according to whether they represent either Type I errors or Type II errors
 
 
-```r
+``` r
 results_matrix <- apply(input, MARGIN = 1,  FUN = CRTscenario7)
 results <- as.data.frame(t(results_matrix))
 
@@ -97,7 +97,7 @@ The results are grouped by ranges of efficacy, for each of which the ratio of th
 statistically significant results to the expected number can be calculated.
 
 
-```r
+``` r
 results$effect_cat <- factor(round(results$effect*10))
 by_effect <- results[results$effect > 0, ] %>%
   group_by(effect_cat) %>%
@@ -133,7 +133,7 @@ $\color{blue}{\textbf{----}}$ : bias.
 An analogous analysis, to that of performance relative to efficacy, can be carried out to explore the effect of the simulated spillover interval.
 
 
-```r
+``` r
 ggplot(data = results, aes(x = spillover_interval)) +
   geom_smooth(aes(y = contaminate_pop_pr_input), color = "#b2df8a",se = FALSE, size = 2) +
   geom_smooth(aes(y = contaminate_pop_pr_sd), color = "#0072A7",se = FALSE, size = 2) +
