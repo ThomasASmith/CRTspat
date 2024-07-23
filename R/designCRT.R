@@ -46,7 +46,7 @@
 #' contains cluster assignments then the numbers and sizes of clusters in the input data are used to estimate the power.
 #' If \code{spillover_interval > 0} and \code{distance_distribution = 'empirical'} then effects of spillover are
 #' incorporated into the power calculations based on the empirical distribution of distances to the nearest
-#' discordant location. (If \code{distance_distribution ≠ 'empirical'} then the distribution of distances is assumed to
+#' discordant location. (If \code{distance_distribution is not equal to 'empirical'} then the distribution of distances is assumed to
 #' be normal.\cr\cr
 #' If geolocations are not input then power and sample size calculations are based on the scalar input parameters.\cr\cr
 #' If buffer zones have been specified in the \code{'CRTsp'} object then separate calculations are made for the core area and for the full site.\cr\cr
