@@ -1,6 +1,6 @@
 Package: CRTspat
 Title: Workflow for Cluster Randomised Trials with Spillover
-Version: 1.3.0
+Version: 1.3.1
 Authors@R: c(person(given = "Thomas",
                     family = "Smith", 
                     email = "Thomas-a.Smith@unibas.ch",
@@ -36,8 +36,9 @@ Imports:
     Matrix,
     spatstat.geom,
     spatstat.random,
-    jagsUI, 
-    TSP
+    jagsUI,
+    TSP,
+    gee
 Suggests: 
     knitr, rmarkdown, INLA, 
     testthat (>= 2.0.0)
