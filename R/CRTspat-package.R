@@ -2,6 +2,7 @@
 "_PACKAGE"
 
 ## usethis namespace: start
+#' @importFrom gee gee
 #' @importFrom stats aggregate
 #' @importFrom stats coef
 #' @importFrom stats dnorm
@@ -13,6 +14,7 @@
 #' @importFrom stats quasipoisson
 #' @importFrom stats residuals
 #' @importFrom stats sd
+#' @importFrom stats var
 #' @importFrom stats vcov
 ## usethis namespace: end
 NULL

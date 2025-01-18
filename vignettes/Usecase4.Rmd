@@ -53,6 +53,49 @@ results <- t(sapply(c_vec, FUN = CRTscenario, simplify = "array", CRT = example,
     buffer_width = 0.5)) %>%
     data.frame()
 ```
+
+```
+## (Intercept) 
+##  -0.9370939 
+## (Intercept) 
+##  -0.8589939 
+## (Intercept) 
+##   -0.935533 
+## (Intercept) 
+##  -0.8964881 
+## (Intercept) 
+##   -1.023863 
+## (Intercept) 
+##  -0.9778199 
+## (Intercept) 
+##   -1.103676 
+## (Intercept) 
+##   -1.003547 
+## (Intercept) 
+##  -0.9010233 
+## (Intercept) 
+##  -0.9686587 
+## (Intercept) 
+##   -1.221709 
+## (Intercept) 
+##   -1.118359 
+## (Intercept) 
+##  -0.9804311 
+## (Intercept) 
+##   -1.210983 
+## (Intercept) 
+##   -1.140902 
+## (Intercept) 
+##   -1.077208 
+## (Intercept) 
+##   -1.252144 
+## (Intercept) 
+##  -0.9988478 
+## (Intercept) 
+##    -1.17822 
+## (Intercept) 
+##  -0.9236708
+```
 Each simulated cluster allocation is different, as are the randomizations.  This leads to variation in the locations of the buffer zones, so the number of core clusters is a stochastic function of the number of clusters randomised (c). There is also variation in the estimated Intracluster Correlation (see [Use Case 3](Usecase3.html)) for any value of c.
 
 

@@ -66,7 +66,7 @@
 #' @importFrom stats binomial dist kmeans median na.omit qlogis qnorm quantile rbinom rnorm runif simulate
 #' @importFrom utils head read.csv
 #' @details \code{CRTanalysis} is a wrapper for the statistical analysis packages:
-#' [geepack](https://CRAN.R-project.org/package=geepack),
+#' [gee](https://CRAN.R-project.org/package=gee),
 #' [INLA](https://www.r-inla.org/),
 #' [jagsUI](https://CRAN.R-project.org/package=jagsUI),
 #' and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test)
@@ -624,6 +624,7 @@ GEEanalysis <- function(analysis, resamples){
 
 
     # remove the temporary objects from the dataframe
+    model_object$data <- trial
     model_object$data$y1 <- model_object$data$y0 <- model_object$data$y_off <- NULL
 
     pt_ests$controlY <- invlink(link, lp_yC)
@@ -632,11 +633,16 @@ GEEanalysis <- function(analysis, resamples){
         alpha = alpha
     )
 
-    # Intracluster correlation
-    pt_ests$ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
-    se_ICC <- noLabels(summary.fit$corr[2])
-    int_ests$ICC <- namedCL(
-        noLabels(c(pt_ests$ICC - z * se_ICC, pt_ests$ICC + z * se_ICC)),
+    # Intracluster correlation: original GEE based estimator replace owing to archiving of GEEpack at CRAN
+    pt_ests$ICC <- analysis$description$ICC
+
+    # In GEEpack:
+    # pt_ests$ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
+    # se_ICC <- noLabels(summary.fit$corr[2])
+
+     se_ICC <- NA
+     int_ests$ICC <- namedCL(
+         noLabels(c(pt_ests$ICC - z * se_ICC, pt_ests$ICC + z * se_ICC)),
         alpha = alpha
     )
     pt_ests$DesignEffect <- 1 + (clusterSize - 1) * pt_ests$ICC  #Design Effect
@@ -647,9 +653,9 @@ GEEanalysis <- function(analysis, resamples){
     if (cfunc == "X") {
         lp_yI <- summary.fit$coefficients[1, 1] + summary.fit$coefficients[2, 1]
         se_lp_yI <- sqrt(
-            model_object$geese$vbeta[1, 1] +
-                model_object$geese$vbeta[2, 2] +
-                2 * model_object$geese$vbeta[1,2]
+            model_object$robust.variance[1, 1] +
+                model_object$robust.variance[2, 2] +
+                2 * model_object$robust.variance[1,2]
         )
 
         int_ests$interventionY <- namedCL(
@@ -657,7 +663,7 @@ GEEanalysis <- function(analysis, resamples){
             alpha = alpha)
 
         int_ests$effect_size <- estimateCLeffect_size(
-            q50 = summary.fit$coefficients[, 1], Sigma = model_object$geese$vbeta,
+            q50 = summary.fit$coefficients[, 1], Sigma = model_object$robust.variance,
             alpha = alpha, resamples = resamples, method = method,
             link = link)
 
@@ -681,21 +687,21 @@ get_GEEmodel <- function(trial, link, fterms){
                 fterms)
     formula <- stats::as.formula(paste(fterms, collapse = "+"))
     if (link == "log") {
-        model_object <- geepack::geeglm(
+        model_object <- suppressMessages(gee::gee(
             formula = formula, id = cluster, data = trial, family = poisson(link = "log"),
-            corstr = "exchangeable", scale.fix = FALSE)
+            corstr = "exchangeable", scale.fix = FALSE))
     } else if (link == "cloglog") {
-        model_object <- geepack::geeglm(
+        model_object <- suppressMessages(gee::gee(
             formula = formula, id = cluster, data = trial, family = binomial(link = "cloglog"),
-            corstr = "exchangeable", scale.fix = FALSE)
+            corstr = "exchangeable", scale.fix = FALSE))
     } else if (link == "logit") {
-        model_object <- geepack::geeglm(
+        model_object <- suppressMessages(gee::gee(
             formula = formula, id = cluster, corstr = "exchangeable",
-            data = trial, family = binomial(link = "logit"))
+            data = trial, family = binomial(link = "logit")))
     } else if (link == "identity") {
-        model_object <- geepack::geeglm(
+        model_object <- suppressMessages(gee::gee(
             formula = formula, id = cluster, corstr = "exchangeable",
-            data = trial, family = gaussian)
+            data = trial, family = gaussian))
     }
 return(model_object)}
 
@@ -1003,11 +1009,11 @@ MCMCanalysis <- function(analysis){
         # log_sp is the central value of each bin
         nbins <- 10
         binsize <- (log_sp_prior[2] - log_sp_prior[1])/(nbins - 1)
-        log_sp <- log_sp_prior[1] + c(0, seq(1:nbins -1 )) * binsize
+        log_sp <- log_sp_prior[1] + c(0, seq(1:(nbins - 1))) * binsize
         # calculate pvar corresponding to first value of sp
         Pr <- compute_pvar(trial = trial, distance = distance,
                            scale_par = exp(log_sp[1]), FUN = FUN)
-        for(i in 1:nbins - 1){
+        for(i in 1:(nbins - 1)){
             Pri <- compute_pvar(trial = trial,
                                 distance = distance, scale_par = exp(log_sp[1 + i]), FUN = FUN)
             Pr <- data.frame(cbind(Pr, Pri))
@@ -1214,7 +1220,7 @@ namedCL <- function(limits, alpha = alpha)
 }
 
 
-# Minimal data description and crude effect_size estimate
+# Data description, crude effect_size estimate, CV and ICC calculation
 get_description <- function(trial, link, alpha, baselineOnly) {
     lp <- arm <- NULL
     if(baselineOnly) trial$arm <- "control"
@@ -1236,9 +1242,26 @@ get_description <- function(trial, link, alpha, baselineOnly) {
     }
     means <- clusterSum %>% group_by(arm) %>% dplyr::summarize(lp = mean(lp))
     deviations <- ifelse(clusterSum$arm == "control", clusterSum$lp - means$lp[1], clusterSum$lp - means$lp[2])
-    meanlp <- mean(ifelse(clusterSum$arm == "control", means$lp[1], means$lp[2]), na.rm = TRUE)
-    cv_percent <- sd(deviations, na.rm = TRUE)/meanlp * 100
-    cv_intervals <- cv_interval(K = cv_percent/100, n = nrow(clusterSum), alpha = alpha)
+
+    sigma2B <- var(clusterSum$y/clusterSum$total)
+    mu <- mean(trial$y1/trial$y_off)
+    sigma2 <- mean(trial$y1/trial$y_off)
+
+    # coefficient of variation (Hayes and Moulton, equation 2.1)
+    sigmaB <- sqrt(sigma2B)
+    K <- sigmaB/mu
+
+    cv_percent <- 100 * K
+    cv_intervals <- cv_interval(K = K, n = nrow(clusterSum), alpha = alpha)
+    if (identical(link, 'logit')){
+        # Hayes & Moulton equation 2.5
+        ICC <- K^2 * mu/(1 - mu)
+    } else if (identical(link, 'identity')){
+        # Hayes & Moulton equation 2.3
+        ICC <- sigma2B/sigma2
+    } else {
+        ICC <- NA
+    }
     description <- list(
         sum.numerators = sum.numerators,
         sum.denominators = sum.denominators,
@@ -1249,6 +1272,7 @@ get_description <- function(trial, link, alpha, baselineOnly) {
         cv_percent = cv_percent,
         cv_lower = cv_intervals$lcl * 100,
         cv_upper = cv_intervals$ucl * 100,
+        ICC = ICC,
         locations = nrow(trial)
     )
 return(description)
@@ -2003,7 +2027,11 @@ coef.CRTanalysis <- function(object, ...){
 #' residuals <- residuals(exampleGEE)
 #' }
 residuals.CRTanalysis <- function(object, ...){
-    value = residuals(object = object$model_object, ...)
+    if ("gee" %in% class(object$model_object)) {
+        value <- object$model_object$residuals
+    } else {
+        value <- residuals(object = object$model_object, ...)
+    }
     return(value)
 }
 

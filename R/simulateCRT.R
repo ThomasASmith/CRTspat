@@ -183,6 +183,7 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
                                 sigma_m = sigma_m, scale = scale, euclid = euclid, effect = effect, outcome0 = outcome0,
                                 random_multiplier = random_multiplier)
         loss <- ICC.loss$value
+        message("\rtol: ", tol, " loss = ", loss, " \r")
         if(kernels > 500) {
           loss <- tol
           warning("*** Failure to converge on target ICC ***")
@@ -332,10 +333,9 @@ get_ICC <- function(trial, scale) {
   trial$y1 <- trial$num
   trial$y_off <- trial$denom
   trial$y0 <- trial$denom - trial$num
-  model_object <- get_GEEmodel(trial = trial, link = link, fterms = 'arm')
-  summary.fit <- summary(model_object)
+  description <- get_description(trial = trial, link = link, alpha = 0.05, baselineOnly = TRUE)
   # Intracluster correlation
-  ICC <- noLabels(summary.fit$corr[1])  #with corstr = 'exchangeable', alpha is the ICC
+  ICC <- description$ICC
   return(ICC)
 }
 

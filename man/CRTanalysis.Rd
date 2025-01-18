@@ -112,7 +112,7 @@ list of class \code{CRTanalysis} containing the following results of the analysi
 }
 \details{
 \code{CRTanalysis} is a wrapper for the statistical analysis packages:
-\href{https://CRAN.R-project.org/package=geepack}{geepack},
+\href{https://CRAN.R-project.org/package=gee}{gee},
 \href{https://www.r-inla.org/}{INLA},
 \href{https://CRAN.R-project.org/package=jagsUI}{jagsUI},
 and the \href{https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test}{t.test}

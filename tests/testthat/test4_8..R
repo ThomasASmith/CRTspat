@@ -39,11 +39,11 @@ test_that("Analysis using T option gives expected efficacy", {
    expect_equal(get_test6(extdata), 1446)
 })
 
-test_that("Analysis using GEE option gives expected ICC", {
+test_that("Analysis using GEE option gives expected coefficient of variation", {
    get_test7 = function(extdata){
       analysis <- CRTanalysis(readdata("exampleCRT.txt"),method = 'GEE',link='log')
-      value <- round(as.numeric(10000 * analysis$pt_ests$ICC))
+      value <- round(as.numeric(10 * analysis$description$cv_percent))
       return(value)}
-   expect_equal(get_test7(extdata), 583)
+   expect_equal(get_test7(extdata), 484)
 })
 

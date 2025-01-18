@@ -16,7 +16,7 @@ The [`CRTanalysis()`](../reference/CRTanalysis.html) function is a wrapper for d
 The options that can be specified using the `method` parameter in the function call are:
 
 + `method = "T"` summarises the outcome at the level of the cluster, and uses 2-sample t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size. The [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) function in the `stats` package is used.
-+	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [geepack](https://www.jstatsoft.org/article/view/v015i02) package.
++	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [gee](https://cran.r-project.org/web/packages/gee/) package.
 +	`method = "LME4"` fits linear (for continuous data) or generalized linear (for counts and proportions) mixed models with iid random effects for clusters in [lme4](https://CRAN.R-project.org/package=lme4).
 + `method = "MCMC"` uses Markov chain Monte Carlo simulation in package [jagsUI](https://CRAN.R-project.org/package=jagsUI), which calls r-JAGS.
 + `method = "INLA"` uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. This can be generated using [`CRTspat::new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
@@ -28,7 +28,7 @@ Table 5.1. Available statistical methods
 | `method` | Package | What the `CRTanalysis()` implementation offers |Limitations (as implemented) |
 |----------|---------|------------------------------------------------|-----------------------------|
 | `T`| [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) | P-values and confidence intervals for efficacy based on comparison of cluster means | No analysis of spillover or degree of clustering |
-| `GEE` | [geepack](https://www.jstatsoft.org/article/view/v015i02) | Interval estimates for efficacy and Intra-cluster correlations | No analysis of spillover or degree of clustering |
+| `GEE` | [gee](https://CRAN.R-project.org/package=gee) | Interval estimates for efficacy | No analysis of spillover or degree of clustering |
 | `LME4`| [lme4](https://CRAN.R-project.org/package=lme4) | Analysis of spillover | No geostatistical analysis |
 | `INLA` | [INLA](https://www.r-inla.org/) | Analysis of spillover, geostatistical analysis and spatially structured outputs | Computationally intensive |
 | `MCMC` | [jagsUI](https://CRAN.R-project.org/package=jagsUI) | Interval estimates for spillover parameters | Identifiability issues and slow convergence are possible |
@@ -57,7 +57,7 @@ summary(analysisT)
 ## Estimates:       Control:  0.364  (95% CL:  0.286 0.451 )
 ##             Intervention:  0.21  (95% CL:  0.147 0.292 )
 ##                 Efficacy:  0.423  (95% CL:  0.208 0.727 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ##  
 ## P-value (2-sided):  0.006879064
 ```
@@ -135,7 +135,7 @@ summary(analysisLME4_Z)
 ## Model formula:  (1 | cluster) 
 ## No comparison of arms 
 ## Estimates:       Control:  0.285  (95% CL:  NA )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1387.609 
 ## AIC     :  1391.609
 ```
@@ -155,7 +155,7 @@ summary(analysisLME4_X)
 ## Estimates:       Control:  0.366  (95% CL:  0.292 0.449 )
 ##             Intervention:  0.216  (95% CL:  0.162 0.281 )
 ##                 Efficacy:  0.41  (95% CL:  0.165 0.584 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1379.898 
 ## AIC     :  1385.898
 ```
@@ -182,7 +182,7 @@ summary(analysisLME4_P)
 ## Total effect            : 0.23  (95% CL:  0.114 0.344 )
 ## Ipsilateral Spillover   : 0.0233  (95% CL:  0.0127 0.0323 )
 ## Contralateral Spillover : 0.0417  (95% CL:  0.0192 0.0651 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1374.215 
 ## AIC     :  1382.215 including penalty for the spillover scale parameter
 ```
@@ -209,7 +209,7 @@ summary(analysisLME4_L)
 ## Total effect            : 0.229  (95% CL:  0.115 0.342 )
 ## Ipsilateral Spillover   : 0.0219  (95% CL:  0.0121 0.0304 )
 ## Contralateral Spillover : 0.0388  (95% CL:  0.0183 0.0604 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1374.201 
 ## AIC     :  1382.201 including penalty for the spillover scale parameter
 ```
@@ -236,7 +236,7 @@ summary(analysisLME4_S)
 ## Total effect            : 0.237  (95% CL:  0.12 0.356 )
 ## Ipsilateral Spillover   : 0.029  (95% CL:  0.016 0.0403 )
 ## Contralateral Spillover : 0.0522  (95% CL:  0.0248 0.0818 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1374.094 
 ## AIC     :  1382.094 including penalty for the spillover scale parameter
 ```
@@ -263,7 +263,7 @@ summary(analysisLME4_R)
 ## Total effect            : 0.468  (95% CL:  0.181 0.694 )
 ## Ipsilateral Spillover   : 0.117  (95% CL:  0.0564 0.157 )
 ## Contralateral Spillover : 0.238  (95% CL:  0.0831 0.368 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1378.711 
 ## AIC     :  1384.711
 ```
@@ -353,7 +353,7 @@ summary(examples_hdep)
 ## Total effect            : 0.172  (95% CL:  0.0524 0.292 )
 ## Ipsilateral Spillover   : 0.0313  (95% CL:  0.01 0.0512 )
 ## Contralateral Spillover : 0.0444  (95% CL:  0.0128 0.0785 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1379.89 
 ## AIC     :  1385.89
 ```
@@ -381,7 +381,7 @@ summary(examples_sdep)
 ## Total effect            : 0.193  (95% CL:  0.0802 0.306 )
 ## Ipsilateral Spillover   : 0.0299  (95% CL:  0.013 0.0456 )
 ## Contralateral Spillover : 0.0431  (95% CL:  0.0169 0.0704 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1376.417 
 ## AIC     :  1382.417
 ```
@@ -409,7 +409,7 @@ summary(examples_disc)
 ## Total effect            : 0.186  (95% CL:  0.0912 0.282 )
 ## Ipsilateral Spillover   : 0.00458  (95% CL:  0.00239 0.00656 )
 ## Contralateral Spillover : 0.00576  (95% CL:  0.00271 0.00905 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1374.274 
 ## AIC     :  1380.274
 ```
@@ -437,7 +437,7 @@ summary(examples_kern)
 ## Total effect            : 0.22  (95% CL:  0.122 0.32 )
 ## Ipsilateral Spillover   : 0.011  (95% CL:  0.00661 0.0152 )
 ## Contralateral Spillover : 0.0134  (95% CL:  0.00707 0.0203 )
-## Coefficient of variation:  41.6 %  (95% CL:  31.2 63.1 )
+## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1369.677 
 ## AIC     :  1375.677
 ```

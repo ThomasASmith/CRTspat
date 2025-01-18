@@ -3,7 +3,7 @@
 # A separate seed should be set for each processor.
 get_test9 = function(){
   if (identical(system.file(package='INLA'), "")){
-    return(1335)
+    return(1303)
   } else {
     set.seed(1234)
     example_locations <- readdata('example_site.csv')
@@ -32,5 +32,5 @@ get_test9 = function(){
   }
 }
 test_that("Analysis using INLA option gives expected DIC", {
-  expect_equal(get_test9(), 1335)
+  expect_equal(get_test9(), 1303)
 })

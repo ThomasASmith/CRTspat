@@ -1,5 +1,7 @@
 # CRTspat 1.3.1
 
+* Replaced dependency on 'geepack' with 'gee'
+
 # CRTspat 1.3.0
 
 * Algebra for simulation of sites following diffusion model of spillover. 

@@ -16,7 +16,7 @@ The [`CRTanalysis()`](../reference/CRTanalysis.html) function is a wrapper for d
 The options that can be specified using the `method` parameter in the function call are:
 
 + `method = "T"` summarises the outcome at the level of the cluster, and uses 2-sample t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size. The [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) function in the `stats` package is used.
-+	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [geepack](https://www.jstatsoft.org/article/view/v015i02) package.
++	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [gee](https://cran.r-project.org/web/packages/gee/) package.
 +	`method = "LME4"` fits linear (for continuous data) or generalized linear (for counts and proportions) mixed models with iid random effects for clusters in [lme4](https://CRAN.R-project.org/package=lme4).
 + `method = "MCMC"` uses Markov chain Monte Carlo simulation in package [jagsUI](https://CRAN.R-project.org/package=jagsUI), which calls r-JAGS.
 + `method = "INLA"` uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. This can be generated using [`CRTspat::new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
@@ -28,7 +28,7 @@ Table 5.1. Available statistical methods
 | `method` | Package | What the `CRTanalysis()` implementation offers |Limitations (as implemented) |
 |----------|---------|------------------------------------------------|-----------------------------|
 | `T`| [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) | P-values and confidence intervals for efficacy based on comparison of cluster means | No analysis of spillover or degree of clustering |
-| `GEE` | [geepack](https://www.jstatsoft.org/article/view/v015i02) | Interval estimates for efficacy and Intra-cluster correlations | No analysis of spillover or degree of clustering |
+| `GEE` | [gee](https://CRAN.R-project.org/package=gee) | Interval estimates for efficacy | No analysis of spillover or degree of clustering |
 | `LME4`| [lme4](https://CRAN.R-project.org/package=lme4) | Analysis of spillover | No geostatistical analysis |
 | `INLA` | [INLA](https://www.r-inla.org/) | Analysis of spillover, geostatistical analysis and spatially structured outputs | Computationally intensive |
 | `MCMC` | [jagsUI](https://CRAN.R-project.org/package=jagsUI) | Interval estimates for spillover parameters | Identifiability issues and slow convergence are possible |
