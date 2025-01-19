@@ -304,7 +304,7 @@ CRTanalysis <- function(
            "GEE" = GEEanalysis(analysis = analysis, resamples=resamples),
            "LME4" = LME4analysis(analysis),
            "INLA" = INLAanalysis(analysis, requireMesh = requireMesh, inla_mesh = inla_mesh),
-           "MCMC" = MCMCanalysis(analysis),
+           "MCMC" = stananalysis(analysis),
            "WCA" = wc_analysis(analysis, design = CRT$design)
     )
     if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
@@ -982,6 +982,7 @@ return(analysis)
 }
 
 MCMCanalysis <- function(analysis){
+    #TODO: remove this. It has been replaced
     trial <- analysis$trial
     link <- analysis$options$link
     cfunc <- analysis$options$cfunc
@@ -1128,6 +1129,271 @@ MCMCanalysis <- function(analysis){
     sample <- data.frame(rbind(model_object$samples[[1]],model_object$samples[[2]]))
     model_object$MCMCmodel <- MCMCmodel
     analysis$model_object <- model_object
+    analysis$trial <- trial
+    analysis <- extractEstimates(analysis = analysis, sample = sample)
+    analysis$options$scale_par <- analysis$pt_ests$scale_par
+    # distance must be re-computed in the case of surrounds with estimated scale parameter
+    analysis$trial <- compute_distance(trial, distance = distance,
+                                       scale_par = analysis$options$scale_par)$trial
+    analysis$pt_ests$DIC <- model_object$DIC
+    return(analysis)
+}
+
+
+stananalysis <- function(analysis){
+
+    trial <- analysis$trial
+    link <- analysis$options$link
+    cfunc <- analysis$options$cfunc
+    alpha <- analysis$options$alpha
+    fterms <- analysis$options$fterms
+    linearity <- analysis$options$linearity
+    personalProtection <- analysis$options$personalProtection
+    distance <- analysis$options$distance
+    scale_par <- analysis$options$scale_par
+    log_sp_prior <- analysis$options$log_sp_prior
+    clusterEffects<- analysis$options$clusterEffects
+    FUN <- get_FUN(cfunc, variant = 0)
+
+    datastan <- list(N = nrow(trial))
+
+    # construct the stan code by concatenating strings
+    cb <- "
+    }
+    " # new line and close brace are needed repeatedly
+
+    datablock <- "data{
+      int<lower=0> N;"
+    parameterblock <- "parameters{
+      real intercept;"
+    transformedparameterblock <-"transformed parameters {
+      vector[N] lp;"
+    transformedparameterblock1 <-""
+    transformedparameterblock2 <-"
+     for(i in 1:N){
+         lp[i] = intercept"
+    transformedparameterblock3 <- ""
+    modelblock <- "model {
+      for(i in 1:N){"
+    generatedquantitiesblock <-"generated quantities {
+      real log_lik;
+      vector[N] llik;
+      for(i in 1:N){"
+    if(identical(link,"identity")){
+        datastan$y <- trial$y1/trial$y_off
+        datablock <- paste0(datablock,"
+        vector[N] y;")
+        transformedparameterblock3 <- paste0(transformedparameterblock3,"
+            lp[i] = lp[i] + pvar * pr[i]
+        }")
+        modelblock <- paste0(modelblock,"
+         y[i] ~ normal(lp[i], sigma1);")
+        generatedquantitiesblock <- paste0(generatedquantitiesblock,"
+         llik[i] = normal_lpdf(y1[i] | lp[i], sigma1);")
+    } else if(identical(link, 'log')){
+        datastan$y1 <- trial$y1
+        datastan$y_off <- trial$y_off
+        datablock <- paste0(datablock,"
+      array[N] int y1;
+      vector[N] y_off;")
+        modelblock <- paste0(modelblock,"
+         gamma1[i] ~ normal(0, sigma1);
+         y1[i] ~ poisson(Expect_y[i]);")
+        transformedparameterblock <- paste0(transformedparameterblock,"
+      vector[N] Expect_y;")
+        if (!identical(cfunc, "D")) {
+            transformedparameterblock3 <- paste0(transformedparameterblock3,"
+            Expect_y[i] = exp(lp[i] + gamma1[i]) * y_off[i];
+      }")
+        } else {
+            transformedparameterblock3 <- paste0(transformedparameterblock3,"
+            Expect_y[i] = exp(lp[i] + gamma1[i]) * y_off[i];
+            Expect_y[i] = Expect_y[i] * pvar * pr[i]
+      }")
+        }
+        transformedparameterblock3 <- paste0(transformedparameterblock3,"
+         Expect_y[i] = exp(lp[i] + gamma1[i]) * y_off[i];
+        }")
+        generatedquantitiesblock <- paste0(generatedquantitiesblock,"
+         llik[i] = poisson_lpdf(y1[i] | Expect_y[i]);")
+    } else if(identical(link, 'logit')){
+        datastan$y1 <- trial$y1
+        datastan$y_off <- trial$y_off
+        datablock <- paste0(datablock,"
+      array[N] int y1;
+      array[N] int y_off;")
+        modelblock <- paste0(modelblock,"
+         y1[i] ~ binomial(y_off[i], p[i]);")
+        transformedparameterblock <- paste0(transformedparameterblock,"
+      vector[N] p;")
+        if (!identical(cfunc, "D")) {
+         transformedparameterblock3 <- paste0(transformedparameterblock3,"
+         p[i] = 1/(1 + exp(-lp[i]));
+      }")
+         } else {
+            transformedparameterblock3 <- paste0(transformedparameterblock3,"
+         p[i] = p[i] * pvar * pr[i] + (1 - p[i]);
+      }")
+        }
+        generatedquantitiesblock <- paste0(generatedquantitiesblock,"
+         llik[i] = log((p[i] * y1[i]) + (1 - p[i])*(y_off[i] - y1[i]));")
+    } else if(identical(link, 'cloglog')){
+        datastan$y1 <- trial$y1
+        datastan$y_off <- trial$y_off
+        modelblock <- paste0(modelblock,"
+         gamma1[i] ~ normal(0, sigma1);
+         y1[i] ~ bernoulli(p[i]);
+         ")
+        transformedparameterblock <- paste0(transformedparameterblock,"
+     vector[N] p;
+         ")
+        if (!identical(cfunc, "D")) {
+            transformedparameterblock3 <- paste0(transformedparameterblock3,"
+         p[i] = 1 - exp(-exp(lp[i] + gamma1[i]) * y_off[i]);
+      }")
+        } else {
+            transformedparameterblock3 <- paste0(transformedparameterblock3,"
+         p[i] = 1 - exp(-exp(lp[i] + gamma1[i]) * y_off[i]);
+         p[i] = p[i] + (1 - p[i]) * pvar * pr[i]
+      }")
+        }
+        generatedquantitiesblock <- paste0(generatedquantitiesblock,"
+         llik[i] = log(1 - exp(-exp(p[i]))) + log(exp(-exp(p[i])));")
+    }
+    if ("arm" %in% fterms) {
+        datastan$intervened <- ifelse(trial$arm == "intervention", 1, 0)
+        datablock <- paste0(datablock,"
+     vector[N] intervened;")
+        parameterblock <- paste0(parameterblock,"
+     real<lower=0, upper=1> pvar;")
+        transformedparameterblock2 <- paste0(transformedparameterblock2,
+         " + pvar * intervened[i]")
+    }
+
+    if ("pvar" %in% fterms) {
+        parameterblock <- paste0(parameterblock,"
+      real<lower=0, upper=1> pvar;")
+    }
+
+    if (clusterEffects) {
+        datastan$cluster <- as.numeric(as.character(trial$cluster))
+        datastan$ncluster <- max(as.numeric(as.character(trial$cluster)))
+        datablock <- paste0(datablock,"
+      array[N] int cluster;
+      int ncluster;")
+        parameterblock <- paste0(parameterblock,"
+      vector[ncluster] gamma;
+      real<lower=0, upper=2> sigma;")
+        transformedparameterblock2 <- paste0(transformedparameterblock2,
+     " + gamma[cluster[i]]")
+        modelblock <- paste0(modelblock,"
+      }
+      for(ic in 1:ncluster) {
+        gamma[ic] ~ normal(0, sigma);
+      }")
+    }
+
+    if (identical(linearity,"Estimated scale parameter: ")) {
+        # Create vector of candidate values of scale_par
+        # by dividing the prior (on log scale) into equal bins
+        # log_sp is the central value of each bin
+        nbins <- 10
+        binsize <- (log_sp_prior[2] - log_sp_prior[1])/(nbins - 1)
+        log_sp <- log_sp_prior[1] + c(0, seq(1:(nbins - 1))) * binsize
+        # calculate pvar corresponding to first value of sp
+        Pr <- compute_pvar(trial = trial, distance = distance,
+                           scale_par = exp(log_sp[1]), FUN = FUN)
+        for(i in 1:(nbins - 1)){
+            Pri <- compute_pvar(trial = trial,
+                                distance = distance, scale_par = exp(log_sp[1 + i]), FUN = FUN)
+            Pr <- data.frame(cbind(Pr, Pri))
+        }
+        log_sp1 <- c(log_sp + binsize/2, log_sp[nbins - 1] + binsize/2)
+        datastan$Pr <- as.matrix(Pr)
+        datastan$nbins <- nbins
+        datastan$log_sp <- log_sp
+        datablock <- paste0(datablock,"
+      int nbins;
+      matrix[N, nbins] Pr;
+      vector[nbins] log_sp;")
+        parameterblock <- paste0(parameterblock,"
+      real<lower=0, upper=100> scale_par;")
+        transformedparameterblock <- paste0(transformedparameterblock,"
+      vector[N] pr;
+      real log_scale_par;
+      real wt;
+      real increment;")
+        transformedparameterblock1 <- paste0(transformedparameterblock1,"
+      log_scale_par = log(scale_par);
+      wt = -9.0;
+      increment = (log_sp[nbins] - log_sp[1])/(nbins - 1);
+      if (log_scale_par < log_sp[1]){
+         wt = 9;
+         pr = Pr[, 1];
+      } else {
+         for (j in 1:(nbins - 1)) {
+             if(log_scale_par > log_sp[j] && log_scale_par < log_sp[j + 1]){
+                 wt = (log_scale_par - log_sp[j])/increment;
+                 pr = (1 - wt) * Pr[,j] + wt * Pr[,j + 1];
+             }
+         }
+         if (wt < 0){
+             pr = Pr[, nbins];
+         }
+      }")
+        if (!identical(cfunc, "D")) {
+            transformedparameterblock2 <- paste0(transformedparameterblock2,
+            " + pvar * pr[i]")
+        }
+        cfunc <- "O"
+    }
+    if (identical(cfunc, "R")) {
+        trial <- compute_distance(trial, distance = distance,
+                                  scale_par = scale_par)$trial
+        datastan$d <- trial[[distance]]
+        datastan$mind <- min(trial[[distance]])
+        datastan$maxd <- max(trial[[distance]])
+        datablock <- paste0(datablock,"
+     vector[N] d;
+     real mind;
+     real maxd;")
+        transformedparameterblock1 <- paste0(transformedparameterblock1,"
+     pr[i] <- (d[i] - mind)/(maxd - mind);")
+        transformedparameterblock2 <- paste0(transformedparameterblock2,
+     " + pvar * pr[i]")
+    }
+    generatedquantitiesblock <- paste0(generatedquantitiesblock,"
+      }
+      log_lik = sum(llik);
+    }")
+
+    stancode <- paste0(
+        datablock, cb,
+        parameterblock, cb,
+        transformedparameterblock,
+        transformedparameterblock1,
+        transformedparameterblock2, ";",
+        transformedparameterblock3, cb,
+        modelblock, cb,
+        generatedquantitiesblock)
+
+    cat(stancode)
+    ANSWER <- readline()
+    fit <- rstan::stan(model_code = stancode,
+                       model_name = 'test4',
+                       data = datastan,
+                       control = list(max_treedepth = 20))
+    ANSWER <- readline()
+
+    if (identical(cfunc, "E")) cfunc = "ES"
+    parameters.to.save <- switch(cfunc, O = c("int", "pvar", "scale_par"),
+                                 X = c("int"),
+                                 Z = c("int"),
+                                 R = c("int", "pvar"))
+    if ("arm" %in% fterms) parameters.to.save <- c(parameters.to.save, "arm")
+    pairs(fit, pars = parameters.to.save)
+
+    analysis$model_object <- fit
     analysis$trial <- trial
     analysis <- extractEstimates(analysis = analysis, sample = sample)
     analysis$options$scale_par <- analysis$pt_ests$scale_par
