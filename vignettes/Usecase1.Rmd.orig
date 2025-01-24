@@ -47,7 +47,7 @@ summary(example)
 plotCRT(example, map = TRUE, showLocations = TRUE, maskbuffer = 0.2)
 ```
 <p>
-  <img src="example1a.r-1.png"> <br>
+  <img src="example1a.r-1.png" alt="" >   <br>
   <em>Fig 1.1 Map of locations</em>
   </p>
 
@@ -60,7 +60,7 @@ summary(example_clustered)
 plotCRT(example_clustered, map = TRUE, showClusterLabels = TRUE, maskbuffer = 0.2, labelsize = 2)
 ```
 <p>
-  <img src="example1b.r-1.png"> <br>
+  <img src="example1b.r-1.png" alt="" >   <br>
   <em>Fig 1.2 Map of clusters</em>
 </p>
 
@@ -81,7 +81,7 @@ baselineanalysis <- CRTanalysis(trial=example_clustered,
 plotCRT(baselineanalysis, map = TRUE, fill = 'prediction')
 ```
 <p>
-  <img src="example1c.r-1.png"> <br>
+  <img src="example1c.r-1.png" alt="" >   <br>
   <em>Fig 1.3 Smoothed surface of baseline prevalence</em>
 </p>
 
@@ -95,6 +95,6 @@ summary(example_randomized)
 plotCRT(example_randomized, map = TRUE, maskbuffer=0.2, legend.position=c(0.8,0.8))
 ```
 <p>
-  <img src="example1d.r-1.png"> <br>
+  <img src="example1d.r-1.png" alt="" >   <br>
   <em>Fig 1.4 Map of arm assignments</em>
   </p>

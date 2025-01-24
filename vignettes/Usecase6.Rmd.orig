@@ -22,7 +22,7 @@ exampleCRT <- readdata('exampleCRT.txt')
 plotCRT(exampleCRT, map = TRUE, fill = 'none', showLocations=TRUE)
 ```
 <p>
-    <img src="example6a.r-1.png" > <br>
+    <img src="example6a.r-1.png" alt="" > <br>
     <em>Fig 6.1 Locations </em>
 </p>
 
@@ -35,7 +35,7 @@ plotCRT(exampleCRT, map = TRUE, fill = 'clusters', showClusterLabels = TRUE, lab
 
 ```
 <p>
-    <img src="example6b.r-1.png" > <br>
+    <img src="example6b.r-1.png" alt="" > <br>
     <em>Fig 6.2 Clusters </em>
 </p>
 
@@ -48,11 +48,11 @@ plotCRT(exampleCRT, map = TRUE, fill = 'arms', showBuffer=TRUE,
         showClusterBoundaries = FALSE, buffer_width = 0.5)
 ```
 <p>
-  <img src="example6c.r-1.png" > <br>
+  <img src="example6c.r-1.png" alt="" > <br>
   <em>Fig 6.3 Arms with locations </em>
   </p>
   <p>
-  <img src="example6c.r-2.png" > <br>
+  <img src="example6c.r-2.png" alt="" > <br>
   <em>Fig 6.4 Arms with 500m buffer zone shaded </em>
   </p>
 
@@ -63,7 +63,7 @@ how much of the data are found close to the boundary between the arms.
 plotCRT(exampleCRT, map = FALSE)
 ```
 <p>
-  <img src="example6d.r-1.png" > <br>
+  <img src="example6d.r-1.png" alt="" > <br>
   <em>Fig 6.5 Numbers of observations by distance from boundary</em>
 </p>
 
@@ -79,11 +79,11 @@ plotCRT(analysis, map = FALSE)
 plotCRT(analysis, map = TRUE, fill = 'arms', showBuffer=TRUE, showClusterBoundaries = FALSE)
 ```
   <p>
-  <img src="example6e.r-1.png" > <br>
+  <img src="example6e.r-1.png" alt="" > <br>
   <em>Fig 6.6 Plot of estimated spillover function </em>
   </p>
   <p>
-  <img src="example6e.r-2.png" > <br>
+  <img src="example6e.r-2.png" alt="" > <br>
   <em>Fig 6.7 Arms with spillover zone shaded </em>
   </p>
 

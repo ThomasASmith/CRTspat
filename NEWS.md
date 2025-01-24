@@ -1,3 +1,5 @@
+# CRTspat 1.3.2
+
 # CRTspat 1.3.1
 
 * Replaced dependency on 'geepack' with 'gee'

@@ -59,17 +59,17 @@ plotCRT(example2aINLA, map = TRUE, fill = 'prediction',
   showClusterBoundaries = TRUE, legend.position = c(0.8, 0.8))
 ```
 <p>
-    <img src="example2a.r-1.png" > <br>
+    <img src="example2a.r-1.png" alt="" > <br>
     <em>Fig 2.1 Map of allocations of clusters to arms</em>
 </p>
 
 <p>
-    <img src="example2a.r-2.png" > <br>
+    <img src="example2a.r-2.png" alt="" > <br>
     <em>Fig 2.2 Plot of data by distance to other arm</em>
 </p>
 
 <p>
-    <img src="example2a.r-3.png" > <br>
+    <img src="example2a.r-3.png" alt="" > <br>
     <em>Fig 2.3 Smoothed outcome from geostatistical model</em>
 </p>
 
@@ -95,7 +95,7 @@ summary(results2b)
 plotCRT(example2b, map = TRUE, fill = 'clusters', showClusterLabels = TRUE, maskbuffer = 0.5)
 ```
 <p>
-    <img src="example2b.r-1.png" > <br>
+    <img src="example2b.r-1.png" alt="" > <br>
     <em>Fig 2.4 Map of clusters in simulated trial</em>
 </p>
 
