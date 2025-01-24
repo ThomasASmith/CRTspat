@@ -234,6 +234,9 @@ CRTanalysis <- function(
             stop("*** No outcome data to analyse ***")
         }
         trial$y1 <- trial[[numerator]]
+        if (is.null(trial[[denominator]])){
+            stop("*** No denominator specified ***")
+        }
         trial$y0 <- trial[[denominator]] - trial[[numerator]]
         trial$y_off <- trial[[denominator]]
     }
@@ -323,6 +326,7 @@ CRTanalysis <- function(
         }
     }
     class(analysis) <- "CRTanalysis"
+    message(summary(analysis))
     return(analysis)
 }
 
@@ -1175,11 +1179,22 @@ stananalysis <- function(analysis){
          lp[i] = intercept"
     transformedparameterblock3 <- ""
     modelblock <- "model {
-      for(i in 1:N){"
+     for(i in 1:N){"
     generatedquantitiesblock <-"generated quantities {
       real log_lik;
       vector[N] llik;
       for(i in 1:N){"
+
+    if ("effect" %in% fterms) {
+        parameterblock <- paste0(parameterblock,"
+      real log_effect;
+     ")
+        transformedparameterblock <- paste0(transformedparameterblock,"
+      real effect;
+      effect = -exp(log_effect);")
+        modelblock <- paste0(modelblock,"
+      log_effect ~ normal(0, 3);")
+    }
     if(identical(link,"identity")){
         datastan$y <- trial$y1/trial$y_off
         datablock <- paste0(datablock,"
@@ -1188,7 +1203,8 @@ stananalysis <- function(analysis){
             lp[i] = lp[i] * (1 + pr[i] * effect);
         }")
         modelblock <- paste0(modelblock,"
-         y[i] ~ normal(lp[i], sigma1);")
+         y[i] ~ normal(lp[i], sigma1);
+        }")
         generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          llik[i] = normal_lpdf(y1[i] | lp[i], sigma1);")
     } else if(identical(link, 'log')){
@@ -1197,26 +1213,32 @@ stananalysis <- function(analysis){
         datablock <- paste0(datablock,"
       array[N] int y1;
       vector[N] y_off;")
+        parameterblock <- paste0(parameterblock,"
+      real<lower=0, upper=2> sigma1;")
+#      vector[N] gamma1;
         modelblock <- paste0(modelblock,"
-         gamma1[i] ~ normal(0, sigma1);
-         y1[i] ~ poisson(Expect_y[i]);")
+         y1[i] ~ poisson(Expect_y[i]);
+        }")
+#         gamma1[i] ~ normal(0, sigma1);
         transformedparameterblock <- paste0(transformedparameterblock,"
       vector[N] Expect_y;")
+#        transformedparameterblock2 <- paste0(transformedparameterblock2,
+#        " + gamma1[i]")
         if (!identical(cfunc, "D")) {
             transformedparameterblock3 <- paste0(transformedparameterblock3,"
-            Expect_y[i] = exp(lp[i] + gamma1[i]) * y_off[i];
+            Expect_y[i] = exp(lp[i]) * y_off[i];
       }")
         } else {
+            transformedparameterblock <- paste0(transformedparameterblock,"
+      real<lower=0, upper=1> efficacy;
+      efficacy = 1 - exp(effect);")
             transformedparameterblock3 <- paste0(transformedparameterblock3,"
-            Expect_y[i] = exp(lp[i] + gamma1[i]) * y_off[i];
-            Expect_y[i] = Expect_y[i] * (1 + pr[i] * effect);
+         Expect_y[i] = exp(lp[i]) * y_off[i];
+         Expect_y[i] = Expect_y[i] * (1 - pr[i] * efficacy);
       }")
         }
-        transformedparameterblock3 <- paste0(transformedparameterblock3,"
-         Expect_y[i] = exp(lp[i] + gamma1[i]) * y_off[i];
-        }")
         generatedquantitiesblock <- paste0(generatedquantitiesblock,"
-         llik[i] = poisson_lpdf(y1[i] | Expect_y[i]);")
+         llik[i] = poisson_lpmf(y1[i] | Expect_y[i]);")
     } else if(identical(link, 'logit')){
         datastan$y1 <- trial$y1
         datastan$y_off <- trial$y_off
@@ -1224,7 +1246,8 @@ stananalysis <- function(analysis){
       array[N] int y1;
       array[N] int y_off;")
         modelblock <- paste0(modelblock,"
-         y1[i] ~ binomial(y_off[i], p[i]);")
+         y1[i] ~ binomial(y_off[i], p[i]);
+        }")
         transformedparameterblock <- paste0(transformedparameterblock,"
       vector[N] p;")
         if (!identical(cfunc, "D")) {
@@ -1232,9 +1255,12 @@ stananalysis <- function(analysis){
          p[i] = 1/(1 + exp(-lp[i]));
       }")
          } else {
+            transformedparameterblock <- paste0(transformedparameterblock,"
+      real<lower=0, upper=1> efficacy;
+      efficacy = (exp⁡(-effect)-1)/(exp⁡(intercept) + exp⁡(-effect));")
             transformedparameterblock3 <- paste0(transformedparameterblock3,"
          p[i] = 1/(1 + exp(-lp[i]));
-         p[i] = p[i] * (1 + pr[i] * effect);
+         p[i] = p[i] * (1 - pr[i] * efficacy);
       }")
         }
         generatedquantitiesblock <- paste0(generatedquantitiesblock,"
@@ -1245,7 +1271,7 @@ stananalysis <- function(analysis){
         modelblock <- paste0(modelblock,"
          gamma1[i] ~ normal(0, sigma1);
          y1[i] ~ bernoulli(p[i]);
-         ")
+        }")
         transformedparameterblock <- paste0(transformedparameterblock,"
      vector[N] p;
          ")
@@ -1256,35 +1282,21 @@ stananalysis <- function(analysis){
         } else {
             transformedparameterblock3 <- paste0(transformedparameterblock3,"
          p[i] = 1 - exp(-exp(lp[i] + gamma1[i]) * y_off[i]);
-         p[i] = p[i] * (1 + pr[i]*effect);
+         p[i] = p[i] * (1 - pr[i]*efficacy);
       }")
         }
         generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          llik[i] = log(1 - exp(-exp(p[i]))) + log(exp(-exp(p[i])));")
     }
     if ("arm" %in% fterms) {
+        #TODO: personal protection models will crash owing to the use of 'effect' for two different parameters
         datastan$intervened <- ifelse(trial$arm == "intervention", 1, 0)
         datablock <- paste0(datablock,"
       vector[N] intervened;")
-        if (identical(cfunc, "D")) {
-            parameterblock <- paste0(parameterblock,"
-       real<lower=-1,upper=0>  effect;")
-        } else {
-            parameterblock <- paste0(parameterblock,"
+        parameterblock <- paste0(parameterblock,"
        real effect;")
-        }
         transformedparameterblock2 <- paste0(transformedparameterblock2,
          " + effect * intervened[i]")
-    }
-
-    if ("effect" %in% fterms) {
-        if (identical(cfunc, "D")) {
-            parameterblock <- paste0(parameterblock,"
-       real<lower=-1,upper=0>  effect;")
-        } else {
-            parameterblock <- paste0(parameterblock,"
-       real effect;")
-        }
     }
 
     if (clusterEffects) {
@@ -1298,8 +1310,7 @@ stananalysis <- function(analysis){
       real<lower=0, upper=2> sigma;")
         transformedparameterblock2 <- paste0(transformedparameterblock2,
      " + gamma[cluster[i]]")
-        modelblock <- paste0(modelblock,"
-      }
+        modelblock <- paste0(modelblock, "
       for(ic in 1:ncluster) {
         gamma[ic] ~ normal(0, sigma);
       }")
@@ -1329,14 +1340,16 @@ stananalysis <- function(analysis){
       matrix[N, nbins] Pr;
       vector[nbins] log_sp;")
         parameterblock <- paste0(parameterblock,"
-      real<lower=0, upper=100> scale_par;")
+      real log_scale_par;")
+        modelblock <- paste0(modelblock,"
+      log_scale_par ~ normal(0, 2);")
         transformedparameterblock <- paste0(transformedparameterblock,"
       vector[N] pr;
-      real log_scale_par;
+      real scale_par;
       real wt;
       real increment;")
         transformedparameterblock1 <- paste0(transformedparameterblock1,"
-      log_scale_par = log(scale_par);
+      scale_par = exp(log_scale_par);
       wt = -9.0;
       increment = (log_sp[nbins] - log_sp[1])/(nbins - 1);
       if (log_scale_par < log_sp[1]){
@@ -1389,7 +1402,8 @@ stananalysis <- function(analysis){
         modelblock, cb,
         generatedquantitiesblock)
 
-    cat(stancode)
+    message(cat(stancode))
+    message(paste0("\n", "*** Fitting stan model***\n"))
     options(mc.cores = parallel::detectCores())
     fit <- rstan::stan(model_code = stancode,
                        model_name = 'test4',
