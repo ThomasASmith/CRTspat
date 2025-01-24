@@ -56,43 +56,100 @@ results <- t(sapply(c_vec, FUN = CRTscenario, simplify = "array", CRT = example,
 
 ```
 ## (Intercept) 
-##  -0.9370939 
+##  -0.9370939
+```
+
+```
 ## (Intercept) 
-##  -0.8589939 
+##  -0.8589939
+```
+
+```
 ## (Intercept) 
-##   -0.935533 
+##   -0.935533
+```
+
+```
 ## (Intercept) 
-##  -0.8964881 
+##  -0.8964881
+```
+
+```
 ## (Intercept) 
-##   -1.023863 
+##   -1.023863
+```
+
+```
 ## (Intercept) 
-##  -0.9778199 
+##  -0.9778199
+```
+
+```
 ## (Intercept) 
-##   -1.103676 
+##   -1.103676
+```
+
+```
 ## (Intercept) 
-##   -1.003547 
+##   -1.003547
+```
+
+```
 ## (Intercept) 
-##  -0.9010233 
+##  -0.9010233
+```
+
+```
 ## (Intercept) 
-##  -0.9686587 
+##  -0.9686587
+```
+
+```
 ## (Intercept) 
-##   -1.221709 
+##   -1.221709
+```
+
+```
 ## (Intercept) 
-##   -1.118359 
+##   -1.118359
+```
+
+```
 ## (Intercept) 
-##  -0.9804311 
+##  -0.9804311
+```
+
+```
 ## (Intercept) 
-##   -1.210983 
+##   -1.210983
+```
+
+```
 ## (Intercept) 
-##   -1.140902 
+##   -1.140902
+```
+
+```
 ## (Intercept) 
-##   -1.077208 
+##   -1.077208
+```
+
+```
 ## (Intercept) 
-##   -1.252144 
+##   -1.252144
+```
+
+```
 ## (Intercept) 
-##  -0.9988478 
+##  -0.9988478
+```
+
+```
 ## (Intercept) 
-##    -1.17822 
+##    -1.17822
+```
+
+```
 ## (Intercept) 
 ##  -0.9236708
 ```
@@ -114,7 +171,7 @@ ggplot(data = results, aes(x = c_full, y = c_core)) + geom_smooth() + xlab("Clus
     color = "red")
 ```
 <p>
-    <img src="example4b.r-1.png" > <br>
+    <img src="example4b.r-1.png" alt="" > <br>
     <em>Fig 4.1 Numbers of clusters</em>
 </p>
 
@@ -140,11 +197,11 @@ plotCRT(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels =
     labelsize = 2, maskbuffer = 0.2)
 ```
 <p>
-    <img src="example4c.r-1.png"> <br>
+    <img src="example4c.r-1.png" alt=""> <br>
     <em>Fig 4.2 Map of clusters with c = 6</em>
 </p>
 <p>
-    <img src="example4c.r-2.png"> <br>
+    <img src="example4c.r-2.png" alt=""> <br>
     <em>Fig 4.3 Map of clusters with c = 40</em>
 </p>
 
@@ -158,7 +215,7 @@ ggplot(data = results, aes(x = c_core, y = mean_h)) + geom_smooth() + xlab("Clus
     ylab("Mean cluster size")
 ```
 <p>
-    <img src="example4d.r-1.png" > <br>
+    <img src="example4d.r-1.png" alt="" > <br>
     <em>Fig 4.4 Size of clusters</em>
 </p>
 
@@ -172,7 +229,7 @@ ggplot(data = results, aes(x = c_core, y = power)) + geom_smooth() + xlab("Clust
     ylab("Power")
 ```
 <p>
-    <img src="example4e.r-1.png" > <br>
+    <img src="example4e.r-1.png" alt="" > <br>
     <em>Fig 4.5 Power achievable with given site</em>
 </p>
 
@@ -189,7 +246,7 @@ ggplot2::ggplot(data = results, aes(x = c_full, y = power)) + geom_smooth() +
     xlab("Clusters allocated (per arm)") + ylab("Power")
 ```
 <p>
-    <img src="example4f.r-1.png" > <br>
+    <img src="example4f.r-1.png" alt="" > <br>
     <em>Fig 4.6 Power achievable with given site</em>
 </p>
 
@@ -210,7 +267,7 @@ ggplot2::ggplot(data = results, aes(x = c_core, y = corelocations_required)) +
 ## `geom_smooth()` using method = 'loess' and formula = 'y ~ x'
 ```
 <p>
-    <img src="example4g.r-1.png" > <br>
+    <img src="example4g.r-1.png" alt="" > <br>
     <em>Fig 4.7 Number of clusters required for full trial area </em>
 </p>
 
@@ -226,7 +283,7 @@ ggplot2::ggplot(data = results, aes(x = c_core, y = proportion_included)) +
         "cm")), lwd = 2, color = "red")
 ```
 <p>
-    <img src="example4h.r-1.png" > <br>
+    <img src="example4h.r-1.png" alt="" > <br>
     <em>Fig 4.8 Proportions of locations in core</em>
 </p>
 
@@ -244,7 +301,7 @@ ggplot2::ggplot(data = results, aes(x = c_core, y = totallocations_required)) +
         "cm")), lwd = 2, color = "red")
 ```
 <p>
-    <img src="example4i.r-1.png" > <br>
+    <img src="example4i.r-1.png" alt="" > <br>
     <em>Fig 4.9 Size of trial area required to achieve adequate power</em>
 </p>
 

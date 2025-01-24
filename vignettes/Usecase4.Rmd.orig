@@ -69,7 +69,7 @@ ggplot(data = results, aes(x = c_full, y = c_core)) + geom_smooth() + xlab("Clus
     color = "red")
 ```
 <p>
-    <img src="example4b.r-1.png" > <br>
+    <img src="example4b.r-1.png" alt="" > <br>
     <em>Fig 4.1 Numbers of clusters</em>
 </p>
 
@@ -94,11 +94,11 @@ plotCRT(example40, map = TRUE, showClusterBoundaries = TRUE, showClusterLabels =
     labelsize = 2, maskbuffer = 0.2)
 ```
 <p>
-    <img src="example4c.r-1.png"> <br>
+    <img src="example4c.r-1.png" alt=""> <br>
     <em>Fig 4.2 Map of clusters with c = 6</em>
 </p>
 <p>
-    <img src="example4c.r-2.png"> <br>
+    <img src="example4c.r-2.png" alt=""> <br>
     <em>Fig 4.3 Map of clusters with c = 40</em>
 </p>
 
@@ -111,7 +111,7 @@ ggplot(data = results, aes(x = c_core, y = mean_h)) + geom_smooth() + xlab("Clus
     ylab("Mean cluster size")
 ```
 <p>
-    <img src="example4d.r-1.png" > <br>
+    <img src="example4d.r-1.png" alt="" > <br>
     <em>Fig 4.4 Size of clusters</em>
 </p>
 
@@ -124,7 +124,7 @@ ggplot(data = results, aes(x = c_core, y = power)) + geom_smooth() + xlab("Clust
     ylab("Power")
 ```
 <p>
-    <img src="example4e.r-1.png" > <br>
+    <img src="example4e.r-1.png" alt="" > <br>
     <em>Fig 4.5 Power achievable with given site</em>
 </p>
 
@@ -140,7 +140,7 @@ ggplot2::ggplot(data = results, aes(x = c_full, y = power)) + geom_smooth() +
     xlab("Clusters allocated (per arm)") + ylab("Power")
 ```
 <p>
-    <img src="example4f.r-1.png" > <br>
+    <img src="example4f.r-1.png" alt="" > <br>
     <em>Fig 4.6 Power achievable with given site</em>
 </p>
 
@@ -156,7 +156,7 @@ ggplot2::ggplot(data = results, aes(x = c_core, y = corelocations_required)) +
     geom_smooth() + xlab("Clusters in core (per arm)") + ylab("Required core locations")
 ```
 <p>
-    <img src="example4g.r-1.png" > <br>
+    <img src="example4g.r-1.png" alt="" > <br>
     <em>Fig 4.7 Number of clusters required for full trial area </em>
 </p>
 
@@ -171,7 +171,7 @@ ggplot2::ggplot(data = results, aes(x = c_core, y = proportion_included)) +
         "cm")), lwd = 2, color = "red")
 ```
 <p>
-    <img src="example4h.r-1.png" > <br>
+    <img src="example4h.r-1.png" alt="" > <br>
     <em>Fig 4.8 Proportions of locations in core</em>
 </p>
 
@@ -188,7 +188,7 @@ ggplot2::ggplot(data = results, aes(x = c_core, y = totallocations_required)) +
         "cm")), lwd = 2, color = "red")
 ```
 <p>
-    <img src="example4i.r-1.png" > <br>
+    <img src="example4i.r-1.png" alt="" > <br>
     <em>Fig 4.9 Size of trial area required to achieve adequate power</em>
 </p>
 

@@ -357,6 +357,7 @@ CRTanalysis <- function(
 #' {
 #' # low resolution mesh for test dataset
 #' library(Matrix)
+#' library(sp)
 #' example <- readdata('exampleCRT.txt')
 #' exampleMesh=compute_mesh(example, pixel = 0.5)
 #' }
@@ -388,6 +389,11 @@ compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
         # estimation mesh construction
         # dummy call to Matrix. This miraculously allows the loading of the "dgCMatrix" in the mesh to pass the test
         dummy <- Matrix::as.matrix(c(1,1,1,1))
+
+        # dummy use of sp package (sp package is required to pass linux tests although there is no direct use of sp)
+        dummysp <- matrix(c(0,1,0,1), nrow = 2, ncol = 2)
+        colnames(dummysp) <- c("min", "max")
+        dummysp <- sp::Spatial(dummysp)
 
         mesh <- INLA::inla.mesh.2d(
             boundary = buffer, offset = offset, cutoff = 0.05, max.edge = max.edge

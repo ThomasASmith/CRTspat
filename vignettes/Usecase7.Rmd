@@ -119,11 +119,11 @@ Despite the spillover, the t-test performs similarly to expectations
 across the range of efficacies investigated (Figure 7.1)
 
 <p>
-    <img src="example7d.r-1.png" > <br>
+    <img src="example7d.r-1.png" alt="" > <br>
     <em>Fig 7.1 Performance of t-test by efficacy
-$\color{purple}{\textbf{----}}$ : ratio of power:nominal power;
-$\color{green}{\textbf{----}}$ :type II error rate;
-$\color{blue}{\textbf{----}}$ : bias.
+purple line: ratio of power:nominal power;
+green line: type II error rate;
+blue line : bias.
     </em>
 </p>
 
@@ -157,10 +157,10 @@ ggplot(data = by_theta, aes(x = spillover_interval)) +
 The relationships between the simulated spillover interval and the corresponding proportion of the locations in the trial (Figure 7.2).
 
 <p>
-    <img src="example7e.r-1.png" > <br>
+    <img src="example7e.r-1.png" alt="" > <br>
     <em>Fig 7.2 Proportion of locations in simulated spillover interval
-$\color{green}{\textbf{----}}$ :zone defined by `gamma_inp`;
-$\color{blue}{\textbf{----}}$ : zone defined by `sd`.
+green line: zone defined by `gamma_inp`;
+blue line : zone defined by `sd`.
     </em>
 </p>
 
@@ -170,10 +170,10 @@ rather small (Figure 7.3).
 The potential for using the `CRTanalysis()` function to model the spillover and hence correct the naive efficacy estimate (from a t-test) can also be explored (see [Use Case 5](Usecase5.html) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
 
 <p>
-    <img src="example7e.r-2.png" > <br>
+    <img src="example7e.r-2.png" alt="" > <br>
     <em>Fig 7.3 Performance of t-test by spillover interval
-$\color{purple}{\textbf{----}}$ : ratio of power:nominal power;
-$\color{green}{\textbf{----}}$ :type II error rate;
-$\color{blue}{\textbf{----}}$ : bias.
+purple line: ratio of power:nominal power;
+green line: type II error rate;
+blue line: bias.
     </em>
 </p>
