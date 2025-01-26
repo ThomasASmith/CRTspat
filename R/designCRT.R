@@ -31,7 +31,7 @@
 #' @export
 #' @details
 #' Power and sample size calculations are for an unmatched two-arm trial. For counts
-#' or event rate data the formula of [Hayes & Bennett, 1999](\doi{10.1093/ije/28.2.319}) is used. This requires as an input the
+#' or event rate data the formula of [Hayes & Bennett, 1999](https://doi.org/10.1093/ije/28.2.319) is used. This requires as an input the
 #' between cluster coefficient of variation (\code{cv_percent}). For continuous outcomes and proportions the formulae of
 #' [Hemming et al, 2011](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102) are used. These make use of
 #' the intra-cluster correlation in the outcome (\code{ICC}) as an input. If the coefficient of variation and not the ICC is supplied then
@@ -266,7 +266,7 @@ get_geom <- function(trial = NULL, design = NULL) {
             if(is.null(k)){
                 stop("*** Between cluster coefficient of variation is a required input ***")
             }
-            # use the formulae from Hayes & Bennett (1999) https://doi.org/10.1093/ije/28.2.319
+            # use the formulae from [Hayes & Bennett, 1999](https://doi.org/10.1093/ije/28.2.319)
 
             denom_per_cluster <- design$denominator * mean_eff
             # clusters required (both arms)
