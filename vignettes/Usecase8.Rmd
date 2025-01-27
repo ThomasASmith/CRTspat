@@ -116,99 +116,7 @@ for(spillover in spillover_vec){
 ```
 
 ```
-## 0 0
-```
-
-```
-## 0.1 0
-```
-
-```
-## 0.2 0
-```
-
-```
-## 0.3 0
-```
-
-```
-## 0.4 0
-```
-
-```
-## 0.5 0
-```
-
-```
-## 0 0
-```
-
-```
-## 0 0.1
-```
-
-```
-## 0 0.2
-```
-
-```
-## 0 0.3
-```
-
-```
-## 0 0.4
-```
-
-```
-## 0 0.5
-```
-
-```
-## 0 0
-```
-
-```
-## 0.1 0
-```
-
-```
-## 0.2 0
-```
-
-```
-## 0.3 0
-```
-
-```
-## 0.4 0
-```
-
-```
-## 0.5 0
-```
-
-```
-## 0 0
-```
-
-```
-## 0 0.1
-```
-
-```
-## 0 0.2
-```
-
-```
-## 0 0.3
-```
-
-```
-## 0 0.4
-```
-
-```
-## 0 0.5
+## Error in 2 * c: non-numeric argument to binary operator
 ```
 
 ``` r
@@ -223,23 +131,78 @@ fig8_1a <- ggplot(data = results, aes(x = observations, y = significant, color =
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Number of locations in analysis') +
     ylab('Power')
+```
+
+```
+## Error in `fortify()`:
+## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
+##   coercible by `as.data.frame()`.
+## Caused by error in `.prevalidate_data_frame_like_object()`:
+## ! `dim(data)` must return an <integer> of length 2.
+```
+
+``` r
 fig8_1b <- ggplot(data = results, aes(x = spillover_interval, y = significant, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Simulated spillover interval (km)') +
     ylab('Power')
+```
+
+```
+## Error in `fortify()`:
+## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
+##   coercible by `as.data.frame()`.
+## Caused by error in `.prevalidate_data_frame_like_object()`:
+## ! `dim(data)` must return an <integer> of length 2.
+```
+
+``` r
 fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Number of locations in analysis') +
   ylab('Bias')
+```
+
+```
+## Error in `fortify()`:
+## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
+##   coercible by `as.data.frame()`.
+## Caused by error in `.prevalidate_data_frame_like_object()`:
+## ! `dim(data)` must return an <integer> of length 2.
+```
+
+``` r
 fig8_1d <- ggplot(data = results, aes(x = spillover_interval, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Simulated spillover interval (km)') +
   ylab('Bias')
+```
+
+```
+## Error in `fortify()`:
+## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
+##   coercible by `as.data.frame()`.
+## Caused by error in `.prevalidate_data_frame_like_object()`:
+## ! `dim(data)` must return an <integer> of length 2.
+```
+
+``` r
 library(cowplot)
+```
+
+```
+## Error in library(cowplot): there is no package called 'cowplot'
+```
+
+``` r
 plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c('a', 'b', 'c', 'd'), label_size = 14, ncol = 2)
+```
+
+```
+## Error in plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c("a", : could not find function "plot_grid"
 ```
 
 #### Analysis
@@ -253,7 +216,7 @@ in this dataset. The fried egg designs largely avoid this loss of power (Figure 
 In these simulations, the lme4 estimates of the efficacy are biased slightly downwards (i.e. the bias has negative sign). The absolute bias was least when some of the locations were excluded (Figure 8.1c). There is less absolute bias with the fried-egg designs but the effect is small except when the simulated spillover interval is very large (Figure 8.1d). The difference in bias between 'fried' and 'scrambled' egg designs is modest in relation to the scale of the overall bias.
 
 <p>
-    <img src="example8c.r-1 .png" alt="" > <br>
+    <img src="example8c.r-1.png" alt="" > <br>
     <em>Fig 8.1 Power and bias by number of locations in analysis
     $\color{purple}{\textbf{----}}$ : Randomly sampled locations removed;
     $\color{green}{\textbf{----}}$ : Fried-egg- locations in boundary zone removed.
