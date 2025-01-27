@@ -56,7 +56,6 @@ analyseReducedCRT <- function(x, CRT) {
   trial <- CRT$trial
   radius <- x[["radius"]]
   proportion <- x[["proportion"]]
-  cat(radius,proportion)
   nlocations <- nrow(trial)
   if (radius > 0) {
     radius <- radius + runif(1, -0.05, 0.05)
@@ -113,13 +112,7 @@ for(spillover in spillover_vec){
   sub_results$simulation <- simulation
   results <- rbind(results,sub_results)
 }
-```
 
-```
-## Error in 2 * c: non-numeric argument to binary operator
-```
-
-``` r
 results$fried <- ifelse(results$radius > 0, 'fried',
                       ifelse(results$proportion > 0, 'scrambled', 'neither'))
 results$bias <- results$effect_size - 0.5
@@ -131,78 +124,23 @@ fig8_1a <- ggplot(data = results, aes(x = observations, y = significant, color =
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Number of locations in analysis') +
     ylab('Power')
-```
-
-```
-## Error in `fortify()`:
-## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
-##   coercible by `as.data.frame()`.
-## Caused by error in `.prevalidate_data_frame_like_object()`:
-## ! `dim(data)` must return an <integer> of length 2.
-```
-
-``` r
 fig8_1b <- ggplot(data = results, aes(x = spillover_interval, y = significant, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
     xlab('Simulated spillover interval (km)') +
     ylab('Power')
-```
-
-```
-## Error in `fortify()`:
-## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
-##   coercible by `as.data.frame()`.
-## Caused by error in `.prevalidate_data_frame_like_object()`:
-## ! `dim(data)` must return an <integer> of length 2.
-```
-
-``` r
 fig8_1c <- ggplot(data = results, aes(x = observations, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Number of locations in analysis') +
   ylab('Bias')
-```
-
-```
-## Error in `fortify()`:
-## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
-##   coercible by `as.data.frame()`.
-## Caused by error in `.prevalidate_data_frame_like_object()`:
-## ! `dim(data)` must return an <integer> of length 2.
-```
-
-``` r
 fig8_1d <- ggplot(data = results, aes(x = spillover_interval, y = bias, color = factor(fried))) +
   geom_smooth(size = 2, se = FALSE, show.legend = FALSE, method = "loess", span = 1) +
   scale_colour_manual(values = c("#b2df8a","#D55E00","#0072A7")) +
   xlab('Simulated spillover interval (km)') +
   ylab('Bias')
-```
-
-```
-## Error in `fortify()`:
-## ! `data` must be a <data.frame>, or an object coercible by `fortify()`, or a valid <data.frame>-like object
-##   coercible by `as.data.frame()`.
-## Caused by error in `.prevalidate_data_frame_like_object()`:
-## ! `dim(data)` must return an <integer> of length 2.
-```
-
-``` r
 library(cowplot)
-```
-
-```
-## Error in library(cowplot): there is no package called 'cowplot'
-```
-
-``` r
 plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c('a', 'b', 'c', 'd'), label_size = 14, ncol = 2)
-```
-
-```
-## Error in plot_grid(fig8_1a, fig8_1b, fig8_1c, fig8_1d, labels = c("a", : could not find function "plot_grid"
 ```
 
 #### Analysis

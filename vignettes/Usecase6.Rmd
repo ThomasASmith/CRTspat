@@ -101,14 +101,14 @@ summary(analysis)
 ## Estimated scale parameter: 0.45
 ## Model formula:  pvar + (1 | cluster) 
 ## Error function model for spillover
-## Estimates:       Control:  0.418  (95% CL:  0.331 0.511 )
-##             Intervention:  0.186  (95% CL:  0.135 0.251 )
-##                 Efficacy:  0.554  (95% CL:  0.33 0.703 )
-## Spillover interval(km):      4.22  (95% CL:  4.2 4.24 )
-## % locations contaminated: 91.6  (95% CL:  90.6 92.2 %)
-## Total effect            : 0.231  (95% CL:  0.116 0.347 )
-## Ipsilateral Spillover   : 0.0234  (95% CL:  0.0129 0.0325 )
-## Contralateral Spillover : 0.0417  (95% CL:  0.0195 0.0655 )
+## Estimates:       Control:  0.417  (95% CL:  0.329 0.512 )
+##             Intervention:  0.186  (95% CL:  0.137 0.251 )
+##                 Efficacy:  0.554  (95% CL:  0.323 0.703 )
+## Spillover interval(km):      4.22  (95% CL:  4.2 4.23 )
+## % locations contaminated: 91.6  (95% CL:  90.6 92 %)
+## Total effect            : 0.231  (95% CL:  0.112 0.347 )
+## Ipsilateral Spillover   : 0.0234  (95% CL:  0.0125 0.0325 )
+## Contralateral Spillover : 0.0417  (95% CL:  0.0189 0.0653 )
 ## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
 ## deviance:  1374.215 
 ## AIC     :  1382.215 including penalty for the spillover scale parameter
