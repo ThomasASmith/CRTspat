@@ -55,7 +55,6 @@ analyseReducedCRT <- function(x, CRT) {
   trial <- CRT$trial
   radius <- x[["radius"]]
   proportion <- x[["proportion"]]
-  cat(radius,proportion)
   nlocations <- nrow(trial)
   if (radius > 0) {
     radius <- radius + runif(1, -0.05, 0.05)
