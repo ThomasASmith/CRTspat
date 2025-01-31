@@ -38,7 +38,9 @@ Imports:
     jagsUI,
     TSP,
     gee,
-    sp
+    rstan,
+    sp,
+    loo
 Suggests: 
     knitr, rmarkdown, INLA, 
     testthat (>= 2.0.0)

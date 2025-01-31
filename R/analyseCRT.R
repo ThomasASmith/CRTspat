@@ -27,6 +27,7 @@
 #' \code{"X"} \tab\tab spillover not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
 #' \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 #' \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
+#' \code{"D"} \tab\tab diffusion model\tab only available with the \code{"MCMC"} method\cr
 #' \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
 #' \code{"E"} \tab\tab estimation of scale factor\tab only available with \code{distance = "disc"} or \code{distance = "kern"}\cr
 #' \code{"R"} \tab\tab rescaled linear\tab \cr
@@ -49,7 +50,8 @@
 #' @param personalProtection logical: indicator of whether the model includes local effects with no spillover
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
-#' (available only for \code{method = "INLA"})
+#' (available only for \code{method = "INLA"} or for \code{method = "MCMC"})
+#' @param pixel numeric: size of pixel in km for spatial model (used for \code{method = "MCMC"})
 #' @param requireMesh logical: indicator of whether spatial predictions are required
 #' (available only for \code{method = "INLA"})
 #' @param inla_mesh string: name of pre-existing INLA input object created by \code{compute_mesh()}
@@ -103,8 +105,8 @@ CRTanalysis <- function(
     cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
-    personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE, requireMesh = FALSE,
-    inla_mesh = NULL) {
+    personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE, pixel = NULL,
+    requireMesh = FALSE, inla_mesh = NULL) {
 
     CRT <- CRTsp(trial)
 
@@ -178,7 +180,7 @@ CRTanalysis <- function(
         else if(is.null(scale_par)) {
             if(identical(distance_type, "Surround: ") & identical(cfunc, "E")){
                 # message("Estimated escape function )
-            } else if (!cfunc %in% c("L", "P", "S")){
+            } else if (!cfunc %in% c("L", "P", "S", "D")){
                 stop("*** Invalid spillover function ***")
                 return(NULL)
             }
@@ -233,6 +235,9 @@ CRTanalysis <- function(
             stop("*** No outcome data to analyse ***")
         }
         trial$y1 <- trial[[numerator]]
+        if (is.null(trial[[denominator]])){
+            stop("*** No denominator specified ***")
+        }
         trial$y0 <- trial[[denominator]] - trial[[numerator]]
         trial$y_off <- trial[[denominator]]
     }
@@ -241,7 +246,7 @@ CRTanalysis <- function(
     fterms <- switch(cfunc,
         Z = NULL,
         X = "arm",
-        "pvar"
+        "effect"
     )
 
     if (personalProtection & cfunc != 'X') fterms <- c(fterms, "arm")
@@ -258,9 +263,10 @@ CRTanalysis <- function(
         if (spatialEffects) fterms <- c(fterms, "f(s, model = spde)")
         if (link %in% c("log", "cloglog")) fterms <- c(fterms, "f(id, model = \'iid\')")
     }
+    if (identical(method, "MCMC")){
+        if (spatialEffects) fterms <- c(fterms, "ICAR")
+    }
     ftext <- paste(fterms, collapse = " + ")
-
-
 
     # create names for confidence limits for use throughout
     CLnames <- c(
@@ -281,13 +287,14 @@ CRTanalysis <- function(
                     log_sp_prior = log_sp_prior,
                     clusterEffects = clusterEffects,
                     spatialEffects = spatialEffects,
+                    pixel = pixel,
                     personalProtection = personalProtection,
                     distance_type = distance_type,
                     linearity = linearity,
                     scale_par = scale_par,
                     penalty = penalty)
 
-    # create scaffolds for lists
+    # scaffolds for lists
     pt_ests <- list(scale_par = NA, personal_protection = NA, spillover_interval = NA)
     int_ests <- list(controlY = NA, interventionY = NA, effect_size = NA)
     model_object <- list()
@@ -304,7 +311,7 @@ CRTanalysis <- function(
            "GEE" = GEEanalysis(analysis = analysis, resamples=resamples),
            "LME4" = LME4analysis(analysis),
            "INLA" = INLAanalysis(analysis, requireMesh = requireMesh, inla_mesh = inla_mesh),
-           "MCMC" = MCMCanalysis(analysis),
+           "MCMC" = stananalysis(analysis),
            "WCA" = wc_analysis(analysis, design = CRT$design)
     )
     if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
@@ -322,6 +329,7 @@ CRTanalysis <- function(
         }
     }
     class(analysis) <- "CRTanalysis"
+    message(summary(analysis))
     return(analysis)
 }
 
@@ -357,7 +365,6 @@ CRTanalysis <- function(
 #' {
 #' # low resolution mesh for test dataset
 #' library(Matrix)
-#' library(sp)
 #' example <- readdata('exampleCRT.txt')
 #' exampleMesh=compute_mesh(example, pixel = 0.5)
 #' }
@@ -389,11 +396,6 @@ compute_mesh <- function(trial = trial, offset = -0.1, max.edge = 0.25,
         # estimation mesh construction
         # dummy call to Matrix. This miraculously allows the loading of the "dgCMatrix" in the mesh to pass the test
         dummy <- Matrix::as.matrix(c(1,1,1,1))
-
-        # dummy use of sp package (sp package is required to pass linux tests although there is no direct use of sp)
-        dummysp <- matrix(c(0,1,0,1), nrow = 2, ncol = 2)
-        colnames(dummysp) <- c("min", "max")
-        dummysp <- sp::Spatial(dummysp)
 
         mesh <- INLA::inla.mesh.2d(
             boundary = buffer, offset = offset, cutoff = 0.05, max.edge = max.edge
@@ -761,7 +763,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
         } else {
             x <- trial[[distance]] / scale_par
         }
-        trial$pvar <- eval(parse(text = FUN))
+        trial$effect <- eval(parse(text = FUN))
     }
     model_object <- switch(link,
                            "identity" = lme4::lmer(formula = formula, data = trial, REML = FALSE),
@@ -784,14 +786,14 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     analysis$pt_ests$df <- analysis$pt_ests$df - (analysis$options$penalty > 0)
     coefficients <- summary(model_object)$coefficients
     if (!identical(distance_type, "No fixed effects of distance ")) {
-        WaldP <- ifelse(ncol(coefficients) == 4, coefficients['pvar',4], NA)
+        WaldP <- ifelse(ncol(coefficients) == 4, coefficients['effect',4], NA)
     }
-    if (grepl("pvar", ftext, fixed = TRUE) |
+    if (grepl("effect", ftext, fixed = TRUE) |
         grepl("arm", ftext, fixed = TRUE)) {
         q50 <- summary(model_object)$coefficients[,1]
         names(q50)[grep("Int",names(q50))] <- "int"
         names(q50)[grep("arm",names(q50))] <- "arm"
-        names(q50)[grep("pvar",names(q50))] <- "pvar"
+        names(q50)[grep("effect",names(q50))] <- "effect"
         cov <- vcov(model_object)
         rownames(cov) <- colnames(cov) <- names(q50)
     }
@@ -879,25 +881,25 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
         if (distance %in% c("disc", "kern")) {
             trial <- compute_distance(trial, distance = distance, scale_par = scale_par)$trial
             x <- trial[[distance]]
-            trial$pvar <- eval(parse(text = FUN))
+            trial$effect <- eval(parse(text = FUN))
             analysis$trial <- trial
             inla_mesh$prediction[[distance]] <-
                 trial[[distance]][inla_mesh$prediction$nearestNeighbour]
             x <- inla_mesh$prediction[[distance]]
         } else {
             x <- trial[[distance]]/scale_par
-            trial$pvar <- eval(parse(text = FUN))
+            trial$effect <- eval(parse(text = FUN))
             inla_mesh$prediction[[distance]] <-
                 trial[[distance]][inla_mesh$prediction$nearestNeighbour]
             x <- inla_mesh$prediction[[distance]]/scale_par
         }
-        inla_mesh$prediction$pvar <- eval(parse(text = FUN))
-        effectse$df$pvar <- trial$pvar
-        effectsp$df$pvar <- inla_mesh$prediction$pvar
+        inla_mesh$prediction$effect <- eval(parse(text = FUN))
+        effectse$df$effect <- trial$effect
+        effectsp$df$effect <- inla_mesh$prediction$effect
         # set up linear contrasts
-        lc <- INLA::inla.make.lincomb(int = 1, pvar = 1)
+        lc <- INLA::inla.make.lincomb(int = 1, effect = 1)
         if (grepl("arm", ftext, fixed = TRUE)){
-            lc <- INLA::inla.make.lincomb(int = 1, pvar = 1, arm = 1)
+            lc <- INLA::inla.make.lincomb(int = 1, effect = 1, arm = 1)
         }
     } else if (grepl("arm", ftext, fixed = TRUE)) {
         lc <- INLA::inla.make.lincomb(int = 1, arm = 1)
@@ -967,7 +969,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     # Compute sample-based confidence limits for intervened outcome and effect_size
     # intervention effects are estimated
     q50 <- cov <- list()
-    if (grepl("pvar", ftext, fixed = TRUE) |
+    if (grepl("effect", ftext, fixed = TRUE) |
         grepl("arm", ftext, fixed = TRUE)) {
         # Specify the point estimates of the parameters
         q50 <- model_object$summary.lincomb.derived$"0.5quant"
@@ -988,6 +990,7 @@ return(analysis)
 }
 
 MCMCanalysis <- function(analysis){
+    #TODO: remove this. It has been replaced
     trial <- analysis$trial
     link <- analysis$options$link
     cfunc <- analysis$options$cfunc
@@ -1016,12 +1019,12 @@ MCMCanalysis <- function(analysis){
         nbins <- 10
         binsize <- (log_sp_prior[2] - log_sp_prior[1])/(nbins - 1)
         log_sp <- log_sp_prior[1] + c(0, seq(1:(nbins - 1))) * binsize
-        # calculate pvar corresponding to first value of sp
-        Pr <- compute_pvar(trial = trial, distance = distance,
+        # calculate effect corresponding to first value of sp
+        Pr <- compute_effect(trial = trial, distance = distance,
                            scale_par = exp(log_sp[1]), FUN = FUN)
         for(i in 1:(nbins - 1)){
-            Pri <- compute_pvar(trial = trial,
-                                distance = distance, scale_par = exp(log_sp[1 + i]), FUN = FUN)
+            Pri <- compute_effect(trial = trial,
+                       distance = distance, scale_par = exp(log_sp[1 + i]), FUN = FUN)
             Pr <- data.frame(cbind(Pr, Pri))
         }
         log_sp1 <- c(log_sp + binsize/2, log_sp[nbins - 1] + binsize/2)
@@ -1090,7 +1093,7 @@ MCMCanalysis <- function(analysis){
     if (cfunc %in% c('Z', 'X')) {
         text4 <- "lp[i] <- int"
     } else {
-        text4 <- "lp[i] <- int + pvar * pr[i]"
+        text4 <- "lp[i] <- int + effect * pr[i]"
     }
     text5 <- ifelse(clusterEffects,
                     " + gamma[cluster[i]] \n
@@ -1110,7 +1113,7 @@ MCMCanalysis <- function(analysis){
         text4 <- paste0(text4, " + arm * intervened[i]")
         text6 <- paste(text6, "arm ~ dnorm(0, 1E-2) \n")
     }
-    text7 <- ifelse(identical(cfunc,'Z'), "pvar <- 0 \n", "pvar ~ dnorm(0, 1E-2) \n")
+    text7 <- ifelse(identical(cfunc,'Z'), "effect <- 0 \n", "effect ~ dnorm(0, 1E-2) \n")
     text8 <- switch(link,
                     "identity" = "tau1 <- 1/(sigma1 * sigma1) \n
                                   sigma1 ~ dunif(0, 2) } \n",
@@ -1122,13 +1125,13 @@ MCMCanalysis <- function(analysis){
 
     MCMCmodel <- paste0(text1, text2, text3, text4, text5, text6, text7, text8)
     if (identical(cfunc, "E")) cfunc = "ES"
-    parameters.to.save <- switch(cfunc, O = c("int", "pvar", "scale_par"),
+    parameters_to_save <- switch(cfunc, O = c("int", "effect", "scale_par"),
                                  X = c("int"),
                                  Z = c("int"),
-                                 R = c("int", "pvar"))
-    if ("arm" %in% fterms) parameters.to.save <- c(parameters.to.save, "arm")
+                                 R = c("int", "effect"))
+    if ("arm" %in% fterms) parameters_to_save <- c(parameters_to_save, "arm")
     model_object <- jagsUI::autojags(data = datajags, inits = NULL,
-                                     parameters.to.save = parameters.to.save,
+                                     parameters_to_save = parameters_to_save,
                                      model.file = textConnection(MCMCmodel), n.chains = nchains,
                                      iter.increment = iter.increment, n.burnin = n.burnin, max.iter=max.iter)
     sample <- data.frame(rbind(model_object$samples[[1]],model_object$samples[[2]]))
@@ -1143,6 +1146,8 @@ MCMCanalysis <- function(analysis){
     analysis$pt_ests$DIC <- model_object$DIC
     return(analysis)
 }
+
+
 
 group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
     # define the limits of the curve both for control and intervention arms
@@ -1363,7 +1368,7 @@ estimateSpilloverINLA <- function(
     } else {
         x <- trial[[distance]]/exp(log_scale_par)
     }
-    trial$pvar <- eval(parse(text = FUN))
+    trial$effect <- eval(parse(text = FUN))
 
     stk.e <- INLA::inla.stack(
         tag = "est", data = list(y1 = trial$y1, y_off = trial$y_off),
@@ -1372,7 +1377,7 @@ estimateSpilloverINLA <- function(
             data.frame(
                 int = rep(1, nrow(trial)),
                 arm = ifelse(trial$arm == "intervention", 1, 0),
-                pvar = trial$pvar, id = trial$id, cluster = trial$cluster
+                effect = trial$effect, id = trial$id, cluster = trial$cluster
             ),
             s = inla_mesh$indexs
         )
@@ -1427,7 +1432,7 @@ estimateSpilloverLME4 <- function(
     } else {
         x <- trial[[distance]]/exp(log_scale_par)
     }
-    trial$pvar <- eval(parse(text = FUN))
+    trial$effect <- eval(parse(text = FUN))
     try(
     model_object <- switch(link,
                 "identity" = lme4::lmer(formula = formula, data = trial, REML = FALSE),
@@ -1449,7 +1454,7 @@ estimateSpilloverLME4 <- function(
 # Add estimates to analysis list
 add_estimates <- function(analysis, bounds, CLnames){
     bounds <- data.frame(bounds)
-    for (variable in c("int", "arm", "pvar",
+    for (variable in c("int", "arm", "effect",
                       "controlY","interventionY","effect_size",
                       "personal_protection","scale_par",
                       "deviance","spillover_interval","spillover_limit0",
@@ -1622,6 +1627,7 @@ summary.CRTanalysis <- function(object, ...) {
         # goodness of fit
         if (!is.null(object$pt_ests$deviance)) cat("deviance: ", object$pt_ests$deviance, "\n")
         if (!is.null(object$pt_ests$DIC)) cat("DIC     : ", object$pt_ests$DIC)
+        if (!is.null(object$pt_ests$elpd)) cat("elpd    : ", object$pt_ests$elpd)
         if (!is.null(object$pt_ests$AIC)) cat("AIC     : ", object$pt_ests$AIC)
         if (object$options$penalty > 0) {
             cat(" including penalty for the spillover scale parameter\n")
@@ -1645,9 +1651,9 @@ extractEstimates <- function(analysis, sample) {
     scale_par <- analysis$options$scale_par
     sample$controlY <- invlink(link, sample$int)
     # personal_protection is the proportion of effect attributed to personal protection
-    if ("arm" %in% names(sample) & "pvar" %in% names(sample)) {
+    if ("arm" %in% names(sample) & "effect" %in% names(sample)) {
         if (method %in% c("MCMC","LME4")) {
-            sample$lc <- with(sample, int + pvar + arm)
+            sample$lc <- with(sample, int + effect + arm)
         }
         sample$interventionY <- invlink(link, sample$lc)
         sample$personal_protection <- with(
@@ -1656,11 +1662,11 @@ extractEstimates <- function(analysis, sample) {
     } else {
         sample$personal_protection <- NA
     }
-    if ("arm" %in% names(sample) & !("pvar" %in% names(sample))) {
+    if ("arm" %in% names(sample) & !("effect" %in% names(sample))) {
         sample$interventionY <- invlink(link, sample$int + sample$arm)
     }
-    if ("pvar" %in% names(sample) & !("arm" %in% names(sample))) {
-        sample$interventionY <- invlink(link, sample$int + sample$pvar)
+    if ("effect" %in% names(sample) & !("arm" %in% names(sample))) {
+        sample$interventionY <- invlink(link, sample$int + sample$effect)
     }
     if ("interventionY" %in% names(sample)) {
         sample$effect_size <- 1 - sample$interventionY/sample$controlY
@@ -1803,8 +1809,9 @@ get_FUN <- function(cfunc, variant){
     if (identical(variant, 1)) {
         LPfunction <- c(
             "StraightLine", "StepFunction", "PiecewiseLinearFunction",
-            "InverseLogisticFunction", "InverseProbitFunction", "RescaledLinearFunction",
-            "EscapeFunction")[which(cfunc == c("Z", "X", "S", "L", "P", "R", "E"))]
+            "InverseLogisticFunction", "InverseProbitFunction",
+            "InverseProbitFunction", "RescaledLinearFunction",
+            "EscapeFunction")[which(cfunc == c("Z", "X", "S", "L", "P", "D", "R", "E"))]
         FUN <- eval(parse(text = LPfunction))
     } else {
         # trap a warning with use of "E"
@@ -1812,6 +1819,7 @@ get_FUN <- function(cfunc, variant){
         FUN <- switch(
             cfunc, L = "invlink(link='logit', x)",
                  P = "stats::pnorm(x)",
+                 D = "stats::pnorm(x)",
                  S = "piecewise(x)",
                  X = "rescale(x)",
                  Z = "rescale(x)",
@@ -1843,7 +1851,7 @@ get_curve <- function(x, analysis) {
         limits[ , 2] <- rep(x[["controlY"]], times = 2)
     }
     if (!is.na(x[["personal_protection"]])) {
-        limits[1, 2] <- invlink(link, x[["int"]] + x[["pvar"]])
+        limits[1, 2] <- invlink(link, x[["int"]] + x[["effect"]])
         limits[2, 1] <- invlink(link, x[["int"]] + x[["arm"]])
     }
     if (identical(cfunc, 'X')) {
@@ -2069,14 +2077,14 @@ getDistanceText <- function(distance = "nearestDiscord", scale_par = NULL) {
     return(value)
 }
 
-compute_pvar <- function(trial, distance, scale_par, FUN) {
+compute_effect <- function(trial, distance, scale_par, FUN) {
     if (distance %in% c('disc','kern')) {
         trial <- compute_distance(trial,
-                                  distance = distance, scale_par = scale_par)$trial
+                    distance = distance, scale_par = scale_par)$trial
         x <- trial[[distance]]
     } else {
         x <- trial[[distance]]/scale_par
     }
-    pvar <- eval(parse(text = FUN))
-    return(pvar)
+    effect <- eval(parse(text = FUN))
+    return(effect)
 }

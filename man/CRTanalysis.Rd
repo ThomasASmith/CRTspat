@@ -21,6 +21,7 @@ CRTanalysis(
   personalProtection = FALSE,
   clusterEffects = TRUE,
   spatialEffects = FALSE,
+  pixel = NULL,
   requireMesh = FALSE,
   inla_mesh = NULL
 )
@@ -57,6 +58,7 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"X"} \tab\tab spillover not modelled\tab the only valid value of \code{cfunc} for methods \code{"EMP"}, \code{"T"} and \code{"GEE"}\cr
 \code{"L"} \tab\tab inverse logistic (sigmoid)\tab the default for \code{"INLA"} and \code{"MCMC"} methods\cr
 \code{"P"} \tab\tab inverse probit (error function)\tab available with \code{"INLA"} and \code{"MCMC"} methods\cr
+\code{"D"} \tab\tab diffusion model\tab only available with the \code{"MCMC"} method\cr
 \code{"S"} \tab\tab piecewise linear\tab only available with the \code{"MCMC"} method\cr
 \code{"E"} \tab\tab estimation of scale factor\tab only available with \code{distance = "disc"} or \code{distance = "kern"}\cr
 \code{"R"} \tab\tab rescaled linear\tab \cr
@@ -89,7 +91,9 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \item{clusterEffects}{logical: indicator of whether the model includes cluster random effects}
 
 \item{spatialEffects}{logical: indicator of whether the model includes spatial random effects
-(available only for \code{method = "INLA"})}
+(available only for \code{method = "INLA"} or for \code{method = "MCMC"})}
+
+\item{pixel}{numeric: size of pixel in km for spatial model (used for \code{method = "MCMC"})}
 
 \item{requireMesh}{logical: indicator of whether spatial predictions are required
 (available only for \code{method = "INLA"})}
