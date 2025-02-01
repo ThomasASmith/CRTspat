@@ -41,13 +41,4 @@ By contributing to this project, you agree to abide by its terms.
 
 `CRTspat` is on [CRAN](https://CRAN.R-project.org/package=CRTspat) and
 on [github](https://github.com/ThomasASmith/CRTspat/). It can be
-installed from CRAN or using:
-
-``` r
-install.packages("devtools")
-library(devtools)
-install_github("thomasasmith/CRTspat")
-```
-
-Markov chain Monte Carlo analysis using `CRTspat` also requires
-installation of [JAGS](https://mcmc-jags.sourceforge.io/)
+installed from CRAN.

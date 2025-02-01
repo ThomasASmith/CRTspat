@@ -162,7 +162,7 @@ stananalysis <- function(analysis){
   }
 
   if (spatialEffects) {
-    # Distance matrix calculations for the observations and prediction stack
+    # Distance matrix calculations for the ICAR analysis
     # Create all pairwise distances
     pred_coords <- get_pred_coords(trial = trial, maskbuffer = pixel/2, pixel = pixel)
     geodata <- assemble_geodata(trial = trial, pred_coords = pred_coords)
