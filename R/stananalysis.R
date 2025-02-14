@@ -13,9 +13,17 @@ stananalysis <- function(analysis){
   clusterEffects<- analysis$options$clusterEffects
   spatialEffects<- analysis$options$spatialEffects
   pixel <- analysis$options$pixel
+  control <- analysis$options$control
+  iter <- ifelse(is.null(control$iter), 2000, control$iter)
+  control$iter <- NULL
   FUN <- get_FUN(cfunc, variant = 0)
 
-  datastan <- list(N = nrow(trial))
+  # fix the maximum of the intercept parameter to correspond to the maximum of the data
+  max_intercept  <- ifelse(link %in% c("logit", "cloglog"),
+       link_tr(link = link, x = 0.9999),
+       link_tr(link = link, x = with(analysis$trial, max(y1/y_off))))
+
+  datastan <- list(N = nrow(trial), max_intercept = max_intercept)
 
   # construct the stan code by concatenating strings
   cb <- "
@@ -23,9 +31,10 @@ stananalysis <- function(analysis){
     " # new line and close brace are needed repeatedly
   functionblock <- ""
   datablock <- "data{
-      int<lower=0> N;"
+      int<lower=0> N;
+      real max_intercept;"
   parameterblock <- "parameters{
-      real intercept;"
+      real<upper = max_intercept> intercept;"
   transformedparameterblock <-"transformed parameters {
       vector[N] lp;"
   transformedparameterblock1 <-""
@@ -273,13 +282,13 @@ stananalysis <- function(analysis){
   }
   if ("effect" %in% fterms) {
     parameterblock <- paste0(parameterblock,"
-      real log_effect;
+      real<upper=2> log_effect;
      ")
     transformedparameterblock <- paste0(transformedparameterblock,"
       real effect;
       effect = -exp(log_effect);")
     modelblock <- paste0(modelblock,"
-      log_effect ~ normal(0, 3);")
+      log_effect ~ normal(0, 2);")
   }
   generatedquantitiesblock <- paste0(generatedquantitiesblock,"
       }
@@ -303,7 +312,8 @@ stananalysis <- function(analysis){
   fit <- rstan::stan(model_code = stancode,
                      model_name = 'test4',
                      data = datastan,
-                     control = list(max_treedepth = 20))
+                     iter = iter,
+                     control = control)
 
   if (identical(cfunc, "E")) cfunc = "ES"
   parameters_to_save <- switch(cfunc, O = c("intercept", "effect", "scale_par"),

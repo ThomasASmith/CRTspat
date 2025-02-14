@@ -10,7 +10,7 @@
 #' \code{"GEE"} \tab Generalised Estimating Equations \cr
 #' \code{"LME4"} \tab Generalized Linear Mixed-Effects Models \cr
 #' \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
-#' \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"JAGS"} \cr
+#' \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"stan"} \cr
 #' \code{"WCA"}\tab Within cluster analysis \cr
 #' }
 #' @param distance Measure of distance or surround with options: \cr
@@ -51,6 +51,8 @@
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
 #' (available only for \code{method = "INLA"} or for \code{method = "MCMC"})
+#' @param control list: control options to be passed to the statistical fitting function
+#' (available only for \code{method = "MCMC"})
 #' @param pixel numeric: size of pixel in km for spatial model (used for \code{method = "MCMC"})
 #' @param requireMesh logical: indicator of whether spatial predictions are required
 #' (available only for \code{method = "INLA"})
@@ -70,7 +72,7 @@
 #' @details \code{CRTanalysis} is a wrapper for the statistical analysis packages:
 #' [gee](https://CRAN.R-project.org/package=gee),
 #' [INLA](https://www.r-inla.org/),
-#' [jagsUI](https://CRAN.R-project.org/package=jagsUI),
+#' [rstan](https://CRAN.R-project.org/package=rstan),
 #' and the [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test)
 #' function of package \code{stats}.\cr\cr
 #' The wrapper does not provide an interface to the full functionality of these packages.
@@ -81,11 +83,12 @@
 #' and can be also be inspected with \code{summary()}, or analysed using \code{stats::fitted()}
 #' for purposes of evaluation of model fit etc..\cr\cr
 #' For models with a complementary log-log link function specified with \code{link = "cloglog"}.
-#' the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1.
-#' The value of \code{denominator} is used as a rate multiplier.\cr\cr
-#' With the \code{"INLA"} and \code{"MCMC"} methods 'iid' random effects are used to model extra-Poisson variation.\cr\cr
+#' the numerator must be coded as 0 or 1. Technically the binomial denominator is then 1 and the
+#' value of \code{denominator} is used as a rate multiplier.\cr\cr
+#' With the \code{"INLA"} method 'iid' random effects are used to model extra-Poisson variation.\cr\cr
 #' Interval estimates for the coefficient of variation of the cluster level outcome are calculated using the method of
-#' [Vangel (1996)](https://www.jstor.org/stable/2685039).
+#' [Vangel (1996)](https://www.jstor.org/stable/2685039).\cr\cr
+#' If a \code{control} list is provided then this is passed to the
 #' @export
 #' @examples
 #' \donttest{
@@ -106,7 +109,7 @@ CRTanalysis <- function(
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
     personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE, pixel = NULL,
-    requireMesh = FALSE, inla_mesh = NULL) {
+    control = NULL, requireMesh = FALSE, inla_mesh = NULL) {
 
     CRT <- CRTsp(trial)
 
@@ -288,6 +291,7 @@ CRTanalysis <- function(
                     clusterEffects = clusterEffects,
                     spatialEffects = spatialEffects,
                     pixel = pixel,
+                    control = control,
                     personalProtection = personalProtection,
                     distance_type = distance_type,
                     linearity = linearity,
