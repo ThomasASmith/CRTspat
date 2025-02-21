@@ -16,7 +16,7 @@ stananalysis <- function(analysis){
   control <- analysis$options$control
   iter <- ifelse(is.null(control$iter), 2000, control$iter)
   control$iter <- NULL
-  FUN <- get_FUN(cfunc, variant = 0)
+  FUN <- get_FUN(cfunc)
 
   # fix the maximum of the intercept parameter to correspond to the maximum of the data
   max_intercept  <- ifelse(link %in% c("logit", "cloglog"),
@@ -39,11 +39,11 @@ stananalysis <- function(analysis){
       vector[N] lp;"
   transformedparameterblock1 <-""
   transformedparameterblock2 <-"
-     for(i in 1:N){
+      for(i in 1:N){
          lp[i] = intercept"
   transformedparameterblock3 <- ""
   modelblock <- "model {
-     for(i in 1:N){"
+      for(i in 1:N){"
   generatedquantitiesblock <-"generated quantities {
       real log_lik;
       vector[N] llik;
@@ -58,7 +58,7 @@ stananalysis <- function(analysis){
         }")
     modelblock <- paste0(modelblock,"
          y[i] ~ normal(lp[i], sigma1);
-        }")
+      }")
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          llik[i] = normal_lpdf(y1[i] | lp[i], sigma1);")
   } else if(identical(link, 'log')){
@@ -69,15 +69,11 @@ stananalysis <- function(analysis){
       vector[N] y_off;")
     parameterblock <- paste0(parameterblock,"
       real<lower=0, upper=2> sigma1;")
-    #      vector[N] gamma1;
     modelblock <- paste0(modelblock,"
          y1[i] ~ poisson(Expect_y[i]);
-        }")
-    #         gamma1[i] ~ normal(0, sigma1);
+      }")
     transformedparameterblock <- paste0(transformedparameterblock,"
       vector[N] Expect_y;")
-    #        transformedparameterblock2 <- paste0(transformedparameterblock2,
-    #        " + gamma1[i]")
     if (!identical(cfunc, "D")) {
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
             Expect_y[i] = exp(lp[i]) * y_off[i];
@@ -101,7 +97,7 @@ stananalysis <- function(analysis){
       array[N] int y_off;")
     modelblock <- paste0(modelblock,"
          y1[i] ~ binomial(y_off[i], p[i]);
-        }")
+      }")
     transformedparameterblock <- paste0(transformedparameterblock,"
       vector[N] p;")
     if (!identical(cfunc, "D")) {
@@ -272,13 +268,11 @@ stananalysis <- function(analysis){
     datastan$mind <- min(trial[[distance]])
     datastan$maxd <- max(trial[[distance]])
     datablock <- paste0(datablock,"
-     vector[N] d;
-     real mind;
-     real maxd;")
-    transformedparameterblock1 <- paste0(transformedparameterblock1,"
-     pr[i] <- (d[i] - mind)/(maxd - mind);")
+      vector[N] d;
+      real mind;
+      real maxd;")
     transformedparameterblock2 <- paste0(transformedparameterblock2,
-                                         " + pr[i] * effect)")
+                                         " + effect*(d[i]-mind)/(maxd-mind)")
   }
   if ("effect" %in% fterms) {
     parameterblock <- paste0(parameterblock,"
@@ -322,6 +316,7 @@ stananalysis <- function(analysis){
                                R = c("intercept", "effect"))
   if ("arm" %in% fterms & cfunc != 'X')
     parameters_to_save <- c(parameters_to_save, "intervened")
+  message(paste0("\n", "*** Calculating goodness-of-fit of stan model***\n"))
   sample <- data.frame(rstan::extract(fit, pars = parameters_to_save, permuted = TRUE))
   # int is a reserved word in stan, so intercept was spelled out
   sample$int <- sample$intercept
