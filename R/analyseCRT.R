@@ -319,11 +319,6 @@ CRTanalysis <- function(
            "WCA" = wc_analysis(analysis, design = CRT$design)
     )
     if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
-        fittedCurve <- get_curve(x = analysis$pt_ests, analysis = analysis)
-        spillover <- get_spilloverStats(fittedCurve=fittedCurve,
-                                    trial=analysis$trial, distance = distance)
-        # compute indirect effects here
-        analysis <- tidySpillover(spillover, analysis, fittedCurve)
         if (!identical(method,"EMP")){
             scale_par <- analysis$options$scale_par
             message(paste0(linearity, ifelse(is.null(scale_par), "",
@@ -721,7 +716,7 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
     trial <- analysis$trial
     link <- analysis$options$link
     cfunc <- analysis$options$cfunc
-    FUN <- get_FUN(cfunc, variant = 0)
+    FUN <- get_FUN(cfunc)
     alpha <- analysis$options$alpha
     scale_par <- analysis$options$scale_par
     distance <- analysis$options$distance
@@ -821,7 +816,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     linearity <- analysis$options$linearity
     scale_par <- analysis$options$scale_par
     alpha <- analysis$options$alpha
-    FUN <- get_FUN(cfunc, variant = 0)
+    FUN <- get_FUN(cfunc)
     fterms <- analysis$options$fterms
     # TODO replace the use of ftext with fterms
     ftext <- analysis$options$ftext
@@ -860,7 +855,7 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     effectsp <- list(df = dfp, s = inla_mesh$indexs)
 
     lc <- NULL
-    FUN <- get_FUN(cfunc=cfunc, variant = 0)
+    FUN <- get_FUN(cfunc)
     log_scale_par <- ifelse(is.null(scale_par), NA, log(scale_par))
     if (!identical(distance_type, "No fixed effects of distance ")) {
         if (analysis$options$penalty > 0) {
@@ -994,7 +989,7 @@ return(analysis)
 }
 
 MCMCanalysis <- function(analysis){
-    #TODO: remove this. It has been replaced
+    #TODO: remove this. It has been replaced and is now orphan code
     trial <- analysis$trial
     link <- analysis$options$link
     cfunc <- analysis$options$cfunc
@@ -1006,7 +1001,7 @@ MCMCanalysis <- function(analysis){
     scale_par <- analysis$options$scale_par
     log_sp_prior <- analysis$options$log_sp_prior
     clusterEffects<- analysis$options$clusterEffects
-    FUN <- get_FUN(cfunc, variant = 0)
+    FUN <- get_FUN(cfunc)
     nsteps <- 10
 
     # JAGS parameters
@@ -1678,8 +1673,9 @@ extractEstimates <- function(analysis, sample) {
     if (!(analysis$options$cfunc %in% c("X", "Z"))) {
         if (is.null(sample$scale_par)) sample$scale_par <- scale_par
         if (is.null(sample$scale_par)) sample$scale_par <- 1
+
         spillover_list <- apply(sample, MARGIN = 1, FUN = get_spillover,
-                                    analysis = analysis)
+                                    analysis = analysis, curve = FALSE)
         spillover_df <- as.data.frame(do.call(rbind, lapply(spillover_list, as.data.frame)))
         sample <- cbind(sample, spillover_df)
     }
@@ -1687,6 +1683,7 @@ extractEstimates <- function(analysis, sample) {
         sample, 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
                                          alpha = alpha, na.rm = TRUE)}))
     analysis <- add_estimates(analysis = analysis, bounds = bounds, CLnames = CLnames)
+    analysis$spillover <- get_spillover(x = analysis$pt_ests, analysis = analysis, curve = TRUE)
 
 return(analysis)
 }
@@ -1723,26 +1720,6 @@ invlink <- function(link = link, x = x)
     return(value)
 }
 
-# Contributions to the linear predictor for different spillover functions
-
-StraightLine <- function(par, trial)
-{
-    par[2] <- par[3] <- -9
-    lp <- par[1]
-    return(lp)
-}
-
-# step function for the case with no spillover
-
-StepFunction <- function(par, trial, distance)
-{
-    par[3] <- -9
-    lp <- ifelse(trial[[distance]] < 0, par[1], par[1] + par[2])
-    return(lp)
-}
-
-
-
 # piecewise linear model
 PiecewiseLinearFunction <- function(par, trial, distance)
 {
@@ -1751,7 +1728,7 @@ PiecewiseLinearFunction <- function(par, trial, distance)
 
     # if scale_par is very large, the curve should be close to a straight line
     if (scale_par > 20){
-        lp <- par[1] + 0.5 * par[2]
+        lp <- rep(par[1] + 0.5 * par[2], times = nrow(trial))
 
     } else {
         lp <- ifelse(
@@ -1770,84 +1747,49 @@ piecewise <- function(x) {
     value <- ifelse(x > 0.5, 1, value)
 return(value)}
 
-# rescaled linear model
-RescaledLinearFunction <- function(par, trial, distance)
-{
-    # par[3] is not used
-    scale_par <- par[3]
-
-    lp <- par[1] + rescale(trial[[distance]]) * par[2]
-
-    return(lp)
-}
-
-
 rescale <- function(x) {
     value <- (x - min(x))/(max(x) - min(x))
 return(value)}
 
-# sigmoid (logit) function
-InverseLogisticFunction <- function(par, trial, distance)
-{
-    lp <- par[1] + par[2] * invlink(link = "logit", x = trial[[distance]]/par[3])
-    return(lp)
-}
-
-# inverse probit function
-InverseProbitFunction <- function(par, trial, distance)
-{
-    lp <- par[1] + par[2] * stats::pnorm(trial[[distance]]/par[3])
-    return(lp)
-}
-
-# escape function
-EscapeFunction <- function(par, trial, distance)
-{
-    lp <- par[1] + par[2] * (1 - exp(-(trial[[distance]]/par[3])))
-    return(lp)
-}
-
-get_FUN <- function(cfunc, variant){
-    # TODO: remove the duplication and simplify here
-    # Specify the function used for calculating the linear predictor
-    if (identical(variant, 1)) {
-        LPfunction <- c(
-            "StraightLine", "StepFunction", "PiecewiseLinearFunction",
-            "InverseLogisticFunction", "InverseProbitFunction",
-            "InverseProbitFunction", "RescaledLinearFunction",
-            "EscapeFunction")[which(cfunc == c("Z", "X", "S", "L", "P", "D", "R", "E"))]
-        FUN <- eval(parse(text = LPfunction))
-    } else {
-        # trap a warning with use of "E"
-        if (identical(cfunc, "E")) cfunc = "ES"
-        FUN <- switch(
-            cfunc, L = "invlink(link='logit', x)",
-                 P = "stats::pnorm(x)",
-                 D = "stats::pnorm(x)",
-                 S = "piecewise(x)",
-                 X = "rescale(x)",
-                 Z = "rescale(x)",
-                 R = "rescale(x)",
-                 ES = "escape(x)")
+fitted_spillover <- function(cfunc, link, par, trial, distance) {
+    lp <- switch(cfunc,
+       Z = par[1],
+       X = ifelse(trial[[distance]] < 0, par[1], par[1] + par[2]),
+       S = PiecewiseLinearFunction(par=par, trial=trial, distance=distance),
+       L = par[1] + par[2] * invlink(link = "logit", x = trial[[distance]]/par[3]),
+       P = par[1] + par[2] * stats::pnorm(trial[[distance]]/par[3]),
+       D = NA,
+       R = par[1] + rescale(trial[[distance]]) * par[2],
+       E = par[1] + par[2] * (1 - exp(-(trial[[distance]]/par[3]))))
+    fv <- invlink(link, lp)
+    if(identical(cfunc,'D')) {
+        u0 <- invlink(link, par[1])
+        u1 <- invlink(link, x = par[1] + par[2])
+        fv <- u0 + (u1 - u0) * stats::pnorm(trial[[distance]]/par[3])
     }
+return(fv)}
+
+get_FUN <- function(cfunc){
+    # trap a warning with use of "E"
+    if (identical(cfunc, "E")) cfunc = "ES"
+    FUN <- switch(
+        cfunc, L = "invlink(link='logit', x)",
+             P = "stats::pnorm(x)",
+             D = "stats::pnorm(x)",
+             S = "piecewise(x)",
+             X = "rescale(x)",
+             Z = "rescale(x)",
+             R = "rescale(x)",
+             ES = "escape(x)")
     return(FUN)
 }
 
-get_spillover <- function(x, analysis){
-        # define the limits of the curve both for control and intervention arms
-    fittedCurve <- get_curve(x = x, analysis = analysis)
-    spillover <- get_spilloverStats(fittedCurve=fittedCurve, trial=analysis$trial,
-                                            distance = analysis$options$distance)
-return(spillover)
-}
-
-get_curve <- function(x, analysis) {
+get_spillover <- function(x, analysis, curve){
     trial <- analysis$trial
     link <- analysis$options$link
     distance <- analysis$options$distance
     cfunc <- analysis$options$cfunc
     if ((distance %in% c("disc", "kern")) & identical(cfunc, "E")) cfunc <- "R"
-    total_effect <- ipsilateral_spillover <- contralateral_spillover <- NULL
     limits <- matrix(x[["controlY"]], nrow = 2, ncol = 2)
     if(!is.null(x[["interventionY"]])) {
         limits[ ,2] <-  rep(x[["interventionY"]], times = 2)
@@ -1868,22 +1810,37 @@ get_curve <- function(x, analysis) {
     if (sum((pars[, 1] - pars[, 2])^2) > 10000) {
         limits <- invlink(link, matrix(c(20,20, -20, -20), nrow = 2, ncol = 2))
     }
-    if (is.null(trial[[distance]]))
-        trial <- compute_distance(trial, distance = distance, scale_par = scale_par)$trial
-    range_d <- max(trial[[distance]]) - min(trial[[distance]])
-    d <- min(trial[[distance]]) + range_d * (seq(1:1001) - 1)/1000
+
+    thetaL <- thetaU <- NA
+    par0 <- c(link_tr(link, limits[1, 1]),
+              link_tr(link, limits[1, 2]) - link_tr(link, limits[1, 1]),
+              scale_par)
+    par1 <- c(
+        link_tr(link, limits[2, 1]),
+        link_tr(link, limits[2, 2]) - link_tr(link, limits[2, 1]),
+        scale_par
+    )
     if (identical(limits[, 1], limits[ , 2])) {
         control_curve <- rep(limits[1, 1], 1001)
         intervention_curve <- rep(limits[2, 1], 1001)
     } else {
-        par0 <- c(link_tr(link, limits[1, 1]),
-                  link_tr(link, limits[1, 2]) - link_tr(link, limits[1, 1]),
-                  scale_par)
-        par1 <- c(
-            link_tr(link, limits[2, 1]),
-            link_tr(link, limits[2, 2]) - link_tr(link, limits[2, 1]),
-            scale_par
-        )
+    #For computation of both point and interval estimates
+
+        # Compute the spillover interval
+        if(!(distance %in% c("disc", "kern", "hdep", "sdep"))){
+            log_interval <- c(-5, 5)
+            log_thetaL <- stats::optimize(
+                f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
+                cfunc = cfunc, par = par0, link = link, sign = 'minus',
+                distance = distance, q = 0.05)$minimum
+            log_thetaU <- stats::optimize(
+                f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
+                cfunc = cfunc, par = par1, link = link, sign = 'plus',
+                distance = distance, q = 0.05)$minimum
+            thetaL <- -exp(log_thetaL)
+            thetaU <- exp(log_thetaU)
+        }
+
         # trap extreme cases with undefined, flat or very steep curves
         if (!identical(cfunc, "R")) {
             if (is.null(scale_par)) {
@@ -1895,95 +1852,45 @@ get_curve <- function(x, analysis) {
                 cfunc <- "X"
             }
         }
-        FUN1 <- get_FUN(cfunc, variant = 1)
-        fitted_values <- ifelse(trial$arm == 'intervention',
-                invlink(link, FUN1(trial = trial, par = par1, distance = distance)),
-                invlink(link, FUN1(trial = trial, par = par0, distance = distance)))
-        total_effect <- x[["controlY"]] - x[["interventionY"]]
-        ipsilateral_spillover <- mean(fitted_values[trial$arm == 'intervention']) - x[["interventionY"]]
-        contralateral_spillover <- x[["controlY"]] - mean(fitted_values[trial$arm == 'control'])
-        intervention_curve <- invlink(link, FUN1(trial = data.frame(d = d), par = par1,
-                                                        distance = "d"))
-        control_curve <- invlink(link, FUN1(trial = data.frame(d = d),
-                                            par = par0, distance = "d"))
     }
-    if(min(d) < 0) {
-        control_curve[d > 0] <- NA
-        intervention_curve[d < 0] <- NA
-    }
-    fittedCurve <- list(d = d, control_curve = control_curve, intervention_curve = intervention_curve,
-                        limits = limits, total_effect = total_effect,
-                        ipsilateral_spillover = ipsilateral_spillover,
-                        contralateral_spillover = contralateral_spillover)
-    return(fittedCurve)
-}
+    if (is.null(trial[[distance]]))
+        trial <- compute_distance(trial, distance = distance, scale_par = scale_par)$trial
 
-# This is called once for each row in the sample data frame (for obtaining interval estimates)
-get_spilloverStats <- function(fittedCurve, trial, distance) {
-    # Compute the spillover interval
-    # The absolute values of the limits are used so that a positive range is
-    # obtained even with negative effect_size
-    limits <- fittedCurve$limits
-    d <- fittedCurve$d
-    curve <- ifelse(d > 0, fittedCurve$intervention_curve, fittedCurve$control_curve)
-    thetaL <- thetaU <- NA
-    if (abs(limits[1, 1] - curve[1000]) >
-        0.025 * abs(limits[1, 1] - limits[1, 2]))
-    {
-        thetaL <- d[min(
-            which(
-                abs(limits[1, 1] - curve) >
-                    0.025 * abs(limits[1, 1] - limits[1, 2])
-            )
-        )]
+    fitted_values <- ifelse(trial$arm == 'intervention',
+        fitted_spillover(cfunc = cfunc, link =link, par = par1, trial = trial, distance = distance),
+        fitted_spillover(cfunc = cfunc, link =link, par = par0, trial = trial, distance = distance))
+    if (!curve) {
+        x[["total_effect"]] <- x[["controlY"]] - x[["interventionY"]]
+        x[["ipsilateral_spillover"]] <- mean(fitted_values[trial$arm == 'intervention']) - x[["interventionY"]]
+        x[["contralateral_spillover"]] <- x[["controlY"]] - mean(fitted_values[trial$arm == 'control'])
+        # spillover interval
+        x[["spillover_limit0"]] <- thetaL
+        x[["spillover_limit1"]] <- thetaU
+        x[["contaminate_pop_pr"]] <- sum(trial[[distance]] > x[["spillover_limit0"]] &
+                                  trial[[distance]] < x[["spillover_limit1"]])/nrow(trial)
+        x[["spillover_interval"]] <- thetaU - thetaL
+        if (identical(thetaU, thetaL)) {
+            # To remove warnings from plotting ensure that spillover interval is non-zero
+            x[["spillover_limit0"]] <- -1e-04
+            x[["spillover_limit1"]] <- 1e-04
+        }
     }
-    if (abs(limits[2, 2] - curve[1000]) <
-        0.025 * abs(limits[2, 1] - limits[2, 2]))
-    {
-        thetaU <- ifelse(abs(limits[2, 2] - curve[1001] > 0.025 * abs(limits[2, 1] - limits[2, 2])),
-            d[max(which(abs(limits[2, 2] - curve) >
-             0.025 * abs(limits[2, 1] - limits[2, 2]))
-        )], d[1001])
-    }
-    if (is.na(thetaU))
-        thetaU <- max(trial[[distance]])
-    if (is.na(thetaL))
-        thetaL <- min(trial[[distance]])
-
-    # spillover interval
-    spillover_limits <- c(thetaL, thetaU)
-    if (thetaL > thetaU)
-        spillover_limits <- c(thetaU, thetaL)
-
-    contaminate_pop_pr <- sum(trial[[distance]] > spillover_limits[1] &
-                                  trial[[distance]] < spillover_limits[2])/nrow(trial)
-    spillover_interval <- thetaU - thetaL
-    if (identical(thetaU, thetaL)) {
-        spillover_interval <- 0
-        # To remove warnings from plotting ensure that spillover interval is non-zero
-        spillover_limits <- c(-1e-04, 1e-04)
-    }
-
     spillover <- list(
-        spillover_interval = spillover_interval,
-        spillover_limit0 = spillover_limits[1],
-        spillover_limit1 = spillover_limits[2],
-        contaminate_pop_pr = contaminate_pop_pr,
-        total_effect = fittedCurve$total_effect,
-        ipsilateral_spillover = fittedCurve$ipsilateral_spillover,
-        contralateral_spillover = fittedCurve$contralateral_spillover)
-return(spillover)}
-
-
-tidySpillover <- function(spillover, analysis, fittedCurve){
-#    if (identical(analysis$options$distance,"nearestDiscord")) {
-        spillover$spillover_limits <-
-            with(spillover, c(spillover_limit0,spillover_limit1))
+        spillover_interval = x[["spillover_interval"]],
+        spillover_limit0 = x[["spillover_limit0"]],
+        spillover_limit1 = x[["spillover_limit1"]],
+        contaminate_pop_pr = x[["contaminate_pop_pr"]],
+        total_effect = x[["total_effect"]],
+        ipsilateral_spillover = x[["ipsilateral_spillover"]],
+        contralateral_spillover = x[["contralateral_spillover"]])
+    if(curve){
         if (analysis$options$cfunc %in% c("Z","X")) {
             spillover$spillover_interval <- NULL
             spillover$contaminate_pop_pr <- NULL
             spillover$spillover_limits <- c(-1.0E-4,1.0E-4)
         } else {
+            spillover$spillover_limits <-
+                with(spillover, c(spillover_limit0,spillover_limit1))
             if (is.na(analysis$pt_ests$scale_par))
                 analysis$pt_ests$scale_par <- spillover$scale_par
             if (is.na(analysis$pt_ests$spillover_interval))
@@ -1991,12 +1898,39 @@ tidySpillover <- function(spillover, analysis, fittedCurve){
                     spillover$spillover_interval
         }
         spillover$spillover_limit0 <- spillover$spillover_limit1 <- NULL
-#    }
-    spillover$FittedCurve <- data.frame(d = fittedCurve$d,
-                                        intervention_curve = fittedCurve$intervention_curve,
-                                        control_curve = fittedCurve$control_curve)
-    analysis$spillover <- spillover
-return(analysis)}
+        # Computation of the full curve
+        range_d <- max(trial[[distance]]) - min(trial[[distance]])
+        d <- min(trial[[distance]]) + range_d * (seq(1:1001) - 1)/1000
+        intervention_curve <-
+            fitted_spillover(cfunc = cfunc, link =link, par = par1, trial = data.frame(d = d), distance = "d")
+        control_curve <-
+            fitted_spillover(cfunc = cfunc, link =link, par = par0, trial = data.frame(d = d), distance = "d")
+        if(min(d) < 0) {
+            control_curve[d > 0] <- NA
+            intervention_curve[d < 0] <- NA
+        }
+        spillover$FittedCurve <- data.frame(d = d,
+             intervention_curve = intervention_curve,
+             control_curve = control_curve)
+    }
+return(spillover)}
+
+
+
+
+calculate_spillover_deviation <- function(d, cfunc, link, distance, par, sign, q, log_interval){
+    qtable <- data.frame(row.names = c(1,2,3))
+    qtable[[distance]] <-  c(exp(log_interval), exp(d))
+    if(sign == 'minus') qtable[[distance]] <- -qtable[[distance]]
+    qtable$y_hat <- fitted_spillover(cfunc = cfunc, link =link, par = par, trial = qtable, distance = distance)
+    if(qtable$y_hat[1] != qtable$y_hat[2]) {
+        quantile <- with(qtable, (y_hat[3] - y_hat[2])/(y_hat[1] - y_hat[2]))
+    } else {
+        quantile <- NA
+    }
+    deviation <- (q - quantile)^2
+    return(deviation)
+}
 
 #' Extract model fitted values
 #'
