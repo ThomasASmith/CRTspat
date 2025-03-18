@@ -109,7 +109,7 @@ CRTanalysis <- function(
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
     personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE, pixel = NULL,
-    control = NULL, requireMesh = FALSE, inla_mesh = NULL) {
+    control = NULL, requireMesh = FALSE, inla_mesh = NULL, verbose = FALSE) {
 
     CRT <- CRTsp(trial)
 
@@ -296,7 +296,8 @@ CRTanalysis <- function(
                     distance_type = distance_type,
                     linearity = linearity,
                     scale_par = scale_par,
-                    penalty = penalty)
+                    penalty = penalty,
+                    verbose = verbose)
 
     # scaffolds for lists
     pt_ests <- list(scale_par = NA, personal_protection = NA, spillover_interval = NA)
@@ -321,14 +322,16 @@ CRTanalysis <- function(
     if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
         if (!identical(method,"EMP")){
             scale_par <- analysis$options$scale_par
-            message(paste0(linearity, ifelse(is.null(scale_par), "",
-            ifelse(identical(scale_par, 1), "", round(scale_par, digits = 3)))," ",
-            distance_type, "-", ifelse(identical(distance_type, "No fixed effects of distance "),
-            "", getDistanceText(distance = distance, scale_par = scale_par)), "\n"))
+            if (verbose){
+                message(paste0(linearity, ifelse(is.null(scale_par), "",
+                ifelse(identical(scale_par, 1), "", round(scale_par, digits = 3)))," ",
+                distance_type, "-", ifelse(identical(distance_type, "No fixed effects of distance "),
+                "", getDistanceText(distance = distance, scale_par = scale_par)), "\n"))
+            }
         }
     }
     class(analysis) <- "CRTanalysis"
-    message(summary(analysis))
+    if (verbose) message(summary(analysis))
     return(analysis)
 }
 
@@ -987,166 +990,6 @@ INLAanalysis <- function(analysis, requireMesh = requireMesh, inla_mesh = inla_m
     }
 return(analysis)
 }
-
-MCMCanalysis <- function(analysis){
-    #TODO: remove this. It has been replaced and is now orphan code
-    trial <- analysis$trial
-    link <- analysis$options$link
-    cfunc <- analysis$options$cfunc
-    alpha <- analysis$options$alpha
-    fterms <- analysis$options$fterms
-    linearity <- analysis$options$linearity
-    personalProtection <- analysis$options$personalProtection
-    distance <- analysis$options$distance
-    scale_par <- analysis$options$scale_par
-    log_sp_prior <- analysis$options$log_sp_prior
-    clusterEffects<- analysis$options$clusterEffects
-    FUN <- get_FUN(cfunc)
-    nsteps <- 10
-
-    # JAGS parameters
-    nchains <- 4
-    iter.increment <- 2000
-    max.iter <- 50000
-    n.burnin <- 1000
-
-    datajags <- list(N = nrow(trial))
-    if (identical(linearity,"Estimated scale parameter: ")) {
-        # Create vector of candidate values of scale_par
-        # by dividing the prior (on log scale) into equal bins
-        # log_sp is the central value of each bin
-        nbins <- 10
-        binsize <- (log_sp_prior[2] - log_sp_prior[1])/(nbins - 1)
-        log_sp <- log_sp_prior[1] + c(0, seq(1:(nbins - 1))) * binsize
-        # calculate effect corresponding to first value of sp
-        Pr <- compute_effect(trial = trial, distance = distance,
-                           scale_par = exp(log_sp[1]), FUN = FUN)
-        for(i in 1:(nbins - 1)){
-            Pri <- compute_effect(trial = trial,
-                       distance = distance, scale_par = exp(log_sp[1 + i]), FUN = FUN)
-            Pr <- data.frame(cbind(Pr, Pri))
-        }
-        log_sp1 <- c(log_sp + binsize/2, log_sp[nbins - 1] + binsize/2)
-        datajags$Pr <- as.matrix(Pr)
-        datajags$nbins <- nbins
-        datajags$log_sp <- log_sp
-        cfunc <- "O"
-    } else if (identical(cfunc, "R")) {
-        trial <- compute_distance(trial, distance = distance,
-                                  scale_par = scale_par)$trial
-        datajags$d <- trial[[distance]]
-        datajags$mind <- min(trial[[distance]])
-        datajags$maxd <- max(trial[[distance]])
-    }
-    if ("arm" %in% fterms) {
-        datajags$intervened <- ifelse(trial$arm == "intervention", 1, 0)
-    }
-    if (identical(link, 'identity')) {
-        datajags$y <- trial$y1/trial$y_off
-    } else {
-        datajags$y1 <- trial$y1
-        datajags$y_off <- trial$y_off
-    }
-    if (clusterEffects) {
-        datajags$cluster <- as.numeric(as.character(trial$cluster))
-        datajags$ncluster <- max(as.numeric(as.character(trial$cluster)))
-    }
-    # construct the rjags code by concatenating strings
-
-    text1 <- "model{\n"
-
-    text2 <- switch(cfunc,
-                    X = "for(i in 1:N){\n",
-                    Z = "for(i in 1:N){\n",
-                    R = "for(i in 1:N){\n
-                        pr[i] <- (d[i] - mind)/(maxd - mind)",
-                    O = "pr_s[1] <- pnorm(log_sp[1],log_scale_par,tau.s)
-                        cum_pr[1] <- pr_s[1]
-                        for (j in 1:(nbins - 2)) {
-                            pr_s[j + 1] <- pnorm(log_sp[j + 1],log_scale_par, tau.s) - cum_pr[j]
-                            cum_pr[j + 1] <- pr_s[j + 1] + cum_pr[j]
-                        }
-                        pr_s[nbins] <- 1 - cum_pr[nbins - 1]
-                        for(i in 1:N){\n
-                            for(j in 1:nbins){\n
-                                pr_j[i,j] <- sum(Pr[i,j] * pr_s[j])
-                            }
-                            pr[i] <- sum(pr_j[i, ])
-                         ")
-
-    text3 <- switch(link,
-                    "identity" = "y[i] ~ dnorm(lp[i],tau1) \n",
-                    "log" =  "gamma1[i] ~ dnorm(0,tau1) \n
-                                  Expect_y[i] <- exp(lp[i] + gamma1[i]) * y_off[i] \n
-                                  y1[i] ~ dpois(Expect_y[i]) \n",
-                    "logit" = "logitp[i] <- lp[i]  \n
-                                   p[i] <- 1/(1 + exp(-logitp[i])) \n
-                                   y1[i] ~ dbin(p[i],y_off[i]) \n",
-                    "cloglog" = "gamma1[i] ~ dnorm(0,tau1) \n
-                                   Expect_p[i] <- 1 - exp(- exp(lp[i] + gamma1[i]) * y_off[i]) \n
-                                   y1[i] ~ dbern(Expect_p[i]) \n"
-    )
-
-    # construct JAGS code for the linear predictor
-
-    if (cfunc %in% c('Z', 'X')) {
-        text4 <- "lp[i] <- int"
-    } else {
-        text4 <- "lp[i] <- int + effect * pr[i]"
-    }
-    text5 <- ifelse(clusterEffects,
-                    " + gamma[cluster[i]] \n
-            }\n
-            for(ic in 1:ncluster) {\n
-                gamma[ic] ~ dnorm(0, tau)\n
-            }\n
-            tau <- 1/(sigma * sigma) \n
-            sigma ~ dunif(0, 2) \n
-            ", "}\n")
-    text6 <-
-        "log_scale_par ~ dnorm(0, 1E-1) \n
-            scale_par <- exp(log_scale_par) \n
-            tau.s ~ dunif(0,3) \n
-            int ~ dnorm(0, 1E-2) \n"
-    if ("arm" %in% fterms) {
-        text4 <- paste0(text4, " + arm * intervened[i]")
-        text6 <- paste(text6, "arm ~ dnorm(0, 1E-2) \n")
-    }
-    text7 <- ifelse(identical(cfunc,'Z'), "effect <- 0 \n", "effect ~ dnorm(0, 1E-2) \n")
-    text8 <- switch(link,
-                    "identity" = "tau1 <- 1/(sigma1 * sigma1) \n
-                                  sigma1 ~ dunif(0, 2) } \n",
-                    "log" = "tau1 <- 1/(sigma1 * sigma1) \n
-                             sigma1 ~ dunif(0, 2) } \n",
-                    "cloglog" = "tau1 <- 1/(sigma1 * sigma1) \n
-                             sigma1 ~ dunif(0, 2) } \n",
-                    "logit" = "} \n")
-
-    MCMCmodel <- paste0(text1, text2, text3, text4, text5, text6, text7, text8)
-    if (identical(cfunc, "E")) cfunc = "ES"
-    parameters_to_save <- switch(cfunc, O = c("int", "effect", "scale_par"),
-                                 X = c("int"),
-                                 Z = c("int"),
-                                 R = c("int", "effect"))
-    if ("arm" %in% fterms) parameters_to_save <- c(parameters_to_save, "arm")
-    model_object <- jagsUI::autojags(data = datajags, inits = NULL,
-                                     parameters_to_save = parameters_to_save,
-                                     model.file = textConnection(MCMCmodel), n.chains = nchains,
-                                     iter.increment = iter.increment, n.burnin = n.burnin, max.iter=max.iter)
-    sample <- data.frame(rbind(model_object$samples[[1]],model_object$samples[[2]]))
-    model_object$MCMCmodel <- MCMCmodel
-    analysis$model_object <- model_object
-    analysis$trial <- trial
-    analysis <- extractEstimates(analysis = analysis, sample = sample)
-    analysis$options$scale_par <- analysis$pt_ests$scale_par
-    # distance must be re-computed in the case of surrounds with estimated scale parameter
-    analysis$trial <- compute_distance(trial, distance = distance,
-                                       scale_par = analysis$options$scale_par)$trial
-    analysis$pt_ests$DIC <- model_object$DIC
-    return(analysis)
-}
-
-
 
 group_data <- function(analysis, distance = NULL, grouping = "quintiles"){
     # define the limits of the curve both for control and intervention arms

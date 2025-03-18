@@ -67,8 +67,6 @@ stananalysis <- function(analysis){
     datablock <- paste0(datablock,"
       array[N] int y1;
       vector[N] y_off;")
-    parameterblock <- paste0(parameterblock,"
-      real<lower=0, upper=2> sigma1;")
     modelblock <- paste0(modelblock,"
          y1[i] ~ poisson(Expect_y[i]);
       }")
@@ -118,23 +116,29 @@ stananalysis <- function(analysis){
   } else if(identical(link, 'cloglog')){
     datastan$y1 <- trial$y1
     datastan$y_off <- trial$y_off
+    datablock <- paste0(datablock,"
+      array[N] int y1;
+      array[N] int y_off;")
+    parameterblock <- paste0(parameterblock,"
+      vector[N] gamma1;
+      real<lower=0, upper=2> sigma1;")
+    transformedparameterblock1 <- paste0(transformedparameterblock1,"
+      vector[N] p;")
+    transformedparameterblock3 <- paste0(transformedparameterblock3,"
+         p[i] = 1 - exp(-exp(lp[i] + gamma1[i]) * y_off[i]);")
     modelblock <- paste0(modelblock,"
          gamma1[i] ~ normal(0, sigma1);
          y1[i] ~ bernoulli(p[i]);
-        }")
-    transformedparameterblock <- paste0(transformedparameterblock,"
-     vector[N] p;
-         ")
-    if (!identical(cfunc, "D")) {
-      transformedparameterblock3 <- paste0(transformedparameterblock3,"
-         p[i] = 1 - exp(-exp(lp[i] + gamma1[i]) * y_off[i]);
       }")
-    } else {
+    if (identical(cfunc, "D")) {
+      transformedparameterblock1 <- paste0(transformedparameterblock1,"
+      real<lower=0, upper=1> efficacy;
+      efficacy = (exp(-effect)-1)/(exp(intercept) + exp(-effect));")
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
-         p[i] = 1 - exp(-exp(lp[i] + gamma1[i]) * y_off[i]);
-         p[i] = p[i] * (1 - pr[i]*efficacy);
-      }")
+         p[i] = p[i] * (1 - pr[i]*efficacy);")
     }
+    transformedparameterblock3 <- paste0(transformedparameterblock3,"
+      }")
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          llik[i] = log(1 - exp(-exp(p[i]))) + log(exp(-exp(p[i])));")
   }
@@ -300,7 +304,7 @@ stananalysis <- function(analysis){
     modelblock, cb,
     generatedquantitiesblock)
 
-  message(cat(stancode))
+  if(analysis$options$verbose) message(cat(stancode))
   message(paste0("\n", "*** Fitting stan model***\n"))
   options(mc.cores = parallel::detectCores())
   fit <- rstan::stan(model_code = stancode,
