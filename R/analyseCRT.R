@@ -1518,7 +1518,7 @@ extractEstimates <- function(analysis, sample) {
         if (is.null(sample$scale_par)) sample$scale_par <- 1
 
         spillover_list <- apply(sample, MARGIN = 1, FUN = get_spillover,
-                                    analysis = analysis, curve = FALSE)
+                                    analysis = analysis, curve = FALSE, verbose = analysis$options$verbose)
         spillover_df <- as.data.frame(do.call(rbind, lapply(spillover_list, as.data.frame)))
         sample <- cbind(sample, spillover_df)
     }
@@ -1526,7 +1526,8 @@ extractEstimates <- function(analysis, sample) {
         sample, 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
                                          alpha = alpha, na.rm = TRUE)}))
     analysis <- add_estimates(analysis = analysis, bounds = bounds, CLnames = CLnames)
-    analysis$spillover <- get_spillover(x = analysis$pt_ests, analysis = analysis, curve = TRUE)
+    analysis$spillover <- get_spillover(x = analysis$pt_ests, analysis = analysis, curve = TRUE,
+                                        verbose = analysis$options$verbose)
 
 return(analysis)
 }
@@ -1627,7 +1628,7 @@ get_FUN <- function(cfunc){
     return(FUN)
 }
 
-get_spillover <- function(x, analysis, curve){
+get_spillover <- function(x, analysis, curve, verbose){
     trial <- analysis$trial
     link <- analysis$options$link
     distance <- analysis$options$distance
@@ -1672,14 +1673,16 @@ get_spillover <- function(x, analysis, curve){
         # Compute the spillover interval
         if(!(distance %in% c("disc", "kern", "hdep", "sdep"))){
             log_interval <- c(-5, 5)
-            log_thetaL <- stats::optimize(
-                f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
-                cfunc = cfunc, par = par0, link = link, sign = 'minus',
-                distance = distance, q = 0.05)$minimum
-            log_thetaU <- stats::optimize(
-                f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
-                cfunc = cfunc, par = par1, link = link, sign = 'plus',
-                distance = distance, q = 0.05)$minimum
+            if(!verbose) suppressWarnings({
+                log_thetaL <- stats::optimize(
+                    f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
+                    cfunc = cfunc, par = par0, link = link, sign = 'minus',
+                    distance = distance, q = 0.05)$minimum
+                log_thetaU <- stats::optimize(
+                    f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
+                    cfunc = cfunc, par = par1, link = link, sign = 'plus',
+                    distance = distance, q = 0.05)$minimum
+            })
             thetaL <- -exp(log_thetaL)
             thetaU <- exp(log_thetaU)
         }

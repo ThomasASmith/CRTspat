@@ -15,6 +15,8 @@ stananalysis <- function(analysis){
   pixel <- analysis$options$pixel
   control <- analysis$options$control
   iter <- ifelse(is.null(control$iter), 2000, control$iter)
+  # thinning is needed if the number of iterations is large to avoid memory problems
+  thin <- ceiling(iter/2000)
   control$iter <- NULL
   FUN <- get_FUN(cfunc)
 
@@ -45,8 +47,7 @@ stananalysis <- function(analysis){
   modelblock <- "model {
       for(i in 1:N){"
   generatedquantitiesblock <-"generated quantities {
-      real log_lik;
-      vector[N] llik;
+      vector[N] log_lik;
       for(i in 1:N){"
 
   if(identical(link,"identity")){
@@ -60,7 +61,7 @@ stananalysis <- function(analysis){
          y[i] ~ normal(lp[i], sigma1);
       }")
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
-         llik[i] = normal_lpdf(y1[i] | lp[i], sigma1);")
+         log_lik[i] = normal_lpdf(y1[i] | lp[i], sigma1);")
   } else if(identical(link, 'log')){
     datastan$y1 <- trial$y1
     datastan$y_off <- trial$y_off
@@ -86,7 +87,7 @@ stananalysis <- function(analysis){
       }")
     }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
-         llik[i] = poisson_lpmf(y1[i] | Expect_y[i]);")
+         log_lik[i] = poisson_lpmf(y1[i] | Expect_y[i]);")
   } else if(identical(link, 'logit')){
     datastan$y1 <- trial$y1
     datastan$y_off <- trial$y_off
@@ -112,7 +113,7 @@ stananalysis <- function(analysis){
       }")
     }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
-         llik[i] = log((p[i] * y1[i]) + (1 - p[i])*(y_off[i] - y1[i]));")
+         log_lik[i] = log((p[i] * y1[i]) + (1 - p[i])*(y_off[i] - y1[i]));")
   } else if(identical(link, 'cloglog')){
     datastan$y1 <- trial$y1
     datastan$y_off <- trial$y_off
@@ -140,7 +141,7 @@ stananalysis <- function(analysis){
     transformedparameterblock3 <- paste0(transformedparameterblock3,"
       }")
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
-         llik[i] = log(1 - exp(-exp(p[i]))) + log(exp(-exp(p[i])));")
+         log_lik[i] = log1m_exp(-exp(p[i])) - exp(p[i]);")
   }
   if ("arm" %in% fterms) {
     #TODO: personal protection models will crash owing to the use of 'effect' for two different parameters
@@ -290,7 +291,6 @@ stananalysis <- function(analysis){
   }
   generatedquantitiesblock <- paste0(generatedquantitiesblock,"
       }
-      log_lik = sum(llik);
     }")
 
   stancode <- paste0(
@@ -311,6 +311,7 @@ stananalysis <- function(analysis){
                      model_name = 'test4',
                      data = datastan,
                      iter = iter,
+                     thin = thin,
                      control = control)
 
   if (identical(cfunc, "E")) cfunc = "ES"
@@ -327,7 +328,6 @@ stananalysis <- function(analysis){
   # Use of loo package to compare fit of stan models
   log_lik_1 <- loo::extract_log_lik(fit, merge_chains = FALSE)
   r_eff <- loo::relative_eff(exp(log_lik_1), cores = getOption("mc.cores", 1))
-
   analysis$model_object <- fit
   analysis$loo <- loo::loo(log_lik_1, r_eff = r_eff, cores = getOption("mc.cores", 1))
   analysis$trial <- trial
