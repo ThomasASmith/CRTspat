@@ -1673,16 +1673,14 @@ get_spillover <- function(x, analysis, curve, verbose){
         # Compute the spillover interval
         if(!(distance %in% c("disc", "kern", "hdep", "sdep"))){
             log_interval <- c(-5, 5)
-            if(!verbose) suppressWarnings({
-                log_thetaL <- stats::optimize(
+            log_thetaL <- stats::optimize(
                     f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
-                    cfunc = cfunc, par = par0, link = link, sign = 'minus',
+                    cfunc = cfunc, par = par0, link = link, sign = 'minus', verbose = verbose,
                     distance = distance, q = 0.05)$minimum
-                log_thetaU <- stats::optimize(
+            log_thetaU <- stats::optimize(
                     f = calculate_spillover_deviation, interval = log_interval, log_interval = log_interval,
-                    cfunc = cfunc, par = par1, link = link, sign = 'plus',
+                    cfunc = cfunc, par = par1, link = link, sign = 'plus', verbose = verbose,
                     distance = distance, q = 0.05)$minimum
-            })
             thetaL <- -exp(log_thetaL)
             thetaU <- exp(log_thetaU)
         }
@@ -1764,7 +1762,7 @@ return(spillover)}
 
 
 
-calculate_spillover_deviation <- function(d, cfunc, link, distance, par, sign, q, log_interval){
+calculate_spillover_deviation <- function(d, cfunc, link, distance, par, sign, q, log_interval, verbose){
     qtable <- data.frame(row.names = c(1,2,3))
     qtable[[distance]] <-  c(exp(log_interval), exp(d))
     if(sign == 'minus') qtable[[distance]] <- -qtable[[distance]]
@@ -1772,9 +1770,16 @@ calculate_spillover_deviation <- function(d, cfunc, link, distance, par, sign, q
     if(qtable$y_hat[1] != qtable$y_hat[2]) {
         quantile <- with(qtable, (y_hat[3] - y_hat[2])/(y_hat[1] - y_hat[2]))
     } else {
-        quantile <- NA
+        if(qtable$y_hat[3] == qtable$y_hat[2]) {
+            quantile <- 0
+        } else {
+            quantile <- NA
+            if (verbose) message('spillover deviation undefined')
+        }
     }
     deviation <- (q - quantile)^2
+    # If the scale parameter is very small, then force the minimum deviation to be at d = 0
+    if (par[3] < 0.05) deviation <- d^2
     return(deviation)
 }
 
