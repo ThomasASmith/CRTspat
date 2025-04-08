@@ -116,9 +116,16 @@ CRTanalysis <- function(
     cluster <- linearity <- penalty <- distance_type <- NULL
     resamples <- 1000
     penalty <- 0
-    # The prior for the scale parameter should allow this to range from smaller than
+
+    # For models based on "nearestDiscord" the prior for the scale parameter should allow this to range from smaller than
     # any plausible spillover zone, to larger than the study area
-    log_sp_prior <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)) + 2)
+    if (identical(distance, "nearestDiscord")) {
+        log_sp_prior <- c(-5, log(max(CRT$trial$x) - min(CRT$trial$x)) + 2)
+    } else {
+    # For models based on surrounds the prior for the scale parameter must be smaller than the distance between locations
+        max_dist <- max(dist(cbind(CRT$trial$x, CRT$trial$y), method = "euclidean"))
+        log_sp_prior <- c(-5, log(max_dist/2))
+    }
 
     # Test of validity of inputs
     if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4", "WCA"))
@@ -1432,10 +1439,13 @@ summary.CRTanalysis <- function(object, ...) {
             if (!identical(object$options$distance_type, "No fixed effects of distance ")){
                 if (!is.null(object$pt_ests$spillover_interval)){
                     cat(
-                        "Spillover interval(km):     ", object$pt_ests$spillover_interval,
+                        "Spillover interval(km)  : ", object$pt_ests$spillover_interval,
                         CLtext, unlist(object$int_ests$spillover_interval),
                         ")\n"
                     )
+                }
+                if (!is.null(object$spillover$midpoint)){
+                    cat("Spillover midpoint(km)  : ", object$spillover$midpoint,"\n")
                 }
                 if (!is.null(object$spillover$contaminate_pop_pr)){
                     cat(
@@ -1455,7 +1465,7 @@ summary.CRTanalysis <- function(object, ...) {
             }
         }
         if (!is.null(object$description$cv_percent))
-            cat("Coefficient of variation: ", object$description$cv_percent,"%",
+            cat("Coefficient of variation:", object$description$cv_percent,"%",
                 CLtext, object$description$cv_lower, object$description$cv_upper,")\n"
             )
         if (!is.null(object$pt_ests$ICC))
@@ -1467,10 +1477,10 @@ summary.CRTanalysis <- function(object, ...) {
         }
         options(digits = defaultdigits)
         # goodness of fit
-        if (!is.null(object$pt_ests$deviance)) cat("deviance: ", object$pt_ests$deviance, "\n")
-        if (!is.null(object$pt_ests$DIC)) cat("DIC     : ", object$pt_ests$DIC)
-        if (!is.null(object$pt_ests$elpd)) cat("elpd    : ", object$pt_ests$elpd)
-        if (!is.null(object$pt_ests$AIC)) cat("AIC     : ", object$pt_ests$AIC)
+        if (!is.null(object$pt_ests$deviance)) cat("deviance                : ", object$pt_ests$deviance, "\n")
+        if (!is.null(object$pt_ests$DIC)) cat("DIC                     : ", object$pt_ests$DIC)
+        if (!is.null(object$pt_ests$elpd)) cat("elpd                    : ", object$pt_ests$elpd)
+        if (!is.null(object$pt_ests$AIC)) cat("AIC                     : ", object$pt_ests$AIC)
         if (object$options$penalty > 0) {
             cat(" including penalty for the spillover scale parameter\n")
         } else {
@@ -1749,6 +1759,8 @@ get_spillover <- function(x, analysis, curve, verbose){
             fitted_spillover(cfunc = cfunc, link =link, par = par1, trial = data.frame(d = d), distance = "d")
         control_curve <-
             fitted_spillover(cfunc = cfunc, link =link, par = par0, trial = data.frame(d = d), distance = "d")
+        curve <- ifelse(d > 0, control_curve, intervention_curve)
+        spillover$midpoint <- d[(curve < (min(curve) + max(curve))/2)][1]
         if(min(d) < 0) {
             control_curve[d > 0] <- NA
             intervention_curve[d < 0] <- NA

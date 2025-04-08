@@ -321,6 +321,7 @@ stananalysis <- function(analysis){
                                R = c("intercept", "effect"))
   if ("arm" %in% fterms & cfunc != 'X')
     parameters_to_save <- c(parameters_to_save, "intervened")
+  if (identical(cfunc, 'A')) parameters_to_save <- c(parameters_to_save, "mu")
   message(paste0("\n", "*** Calculating goodness-of-fit of stan model***\n"))
   sample <- data.frame(rstan::extract(fit, pars = parameters_to_save, permuted = TRUE))
   # int is a reserved word in stan, so intercept was spelled out
