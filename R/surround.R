@@ -76,10 +76,10 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
       if (identical(distance, "nearestDiscord")) {
         trial$nearestDiscord <- ifelse(trial$arm == "control",
                                        -dist_vec$dist_corrected, dist_vec$dist_corrected)
-        message("*** nearestDiscord is distance to nearest pixel in discordant arm ***")
+        message(" nearestDiscord is distance to nearest pixel in discordant arm ")
       } else {
         trial$distanceAssigned <- dist_vec$dist_corrected
-        message("*** distanceAssigned is distance to nearest pixel in the assigned cluster ***")
+        message(" distanceAssigned is distance to nearest pixel in the assigned cluster ")
       }
     }
   } else {
@@ -110,7 +110,7 @@ compute_distance <- function(trial, distance = "nearestDiscord", scale_par = NUL
             trial$nearestDiscord <- ifelse(trial$arm == "control", -apply(discord_dist_trial,
                        MARGIN = 2, min), apply(discord_dist_trial, MARGIN = 2, min))
             CRT$design$nearestDiscord <- distance_stats(trial, distance = "nearestDiscord")
-            message("*** computed distance to nearest measurements in discordant arm ***")
+            message(" computed distance to nearest measurements in discordant arm ")
         }
         if (require_disc){
             if (is.null(scale_par)) {

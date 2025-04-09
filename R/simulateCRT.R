@@ -116,12 +116,12 @@ simulateCRT <- function(trial = NULL, effect = 0, outcome0 = NULL, generateBasel
     trial <- CRT$trial
 
     if (is.null(trial$cluster)){
-      message("*** Clusters not yet assigned ***")
+      message(" Clusters not yet assigned ")
       return()
     }
     trial$cluster <- as.factor(trial$cluster)
     if (is.null(trial$arm)){
-        message("*** No randomization available ***")
+        message(" No randomization available ")
         return()
     }
     trial$arm <- as.factor(trial$arm)

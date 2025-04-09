@@ -202,7 +202,7 @@ get_geom <- function(trial = NULL, design = NULL) {
             stop("*** Number of clusters is a required input ***")
         }
         if (identical(geom$sd_h, 0)) {
-            message("*** Assuming all clusters are the same size ***")
+            message(" Assuming all clusters are the same size ")
         }
 
         # true efficacy

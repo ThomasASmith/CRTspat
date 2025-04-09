@@ -173,10 +173,15 @@ stananalysis <- function(analysis){
 
   if (spatialEffects) {
     # Distance matrix calculations for the ICAR analysis
+
+    # Calculate euclidean distance to discordant arm if this does not yet exist
+    trial <- compute_distance(trial, distance = "nearestDiscord")$trial
+
     # Create all pairwise distances
     pred_coords <- get_pred_coords(trial = trial, maskbuffer = pixel/2, pixel = pixel)
     geodata <- assemble_geodata(trial = trial, pred_coords = pred_coords)
     adjacency_matrix <- adjacency_matrix(dist = geodata$dist)
+    message(paste0('CAR term based on grid of ', geodata$N1, ' pixels, each ',pixel*1000, 'm square'))
     datastan$N3 <- geodata$N1
     datastan$pixel <- geodata$pixel
     datastan$N_edges <- nrow(adjacency_matrix)

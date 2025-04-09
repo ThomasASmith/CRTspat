@@ -37,7 +37,7 @@ aggregateCRT <- function(trial, auxiliaries = NULL) {
           colnames(trial2) <- c('location',var)
           trial1 <- merge(trial1, trial2, by = 'location', all.x = FALSE, all.y = FALSE)
         } else {
-          message('*** Variable', var,' not present in input data ***')
+          message(' Variable', var,' not present in input data ')
         }
       }
     }
@@ -125,7 +125,7 @@ randomizeCRT <- function(trial, matchedPair = FALSE, baselineNumerator = "base_n
 
     # remove any preexisting assignments and coerce matchedPair to FALSE if there are no baseline data
     if(is.null(trial[[baselineNumerator]]) & matchedPair) {
-        message("*** No baseline data for matching. Unmatched randomisation ***")
+        message(" No baseline data for matching. Unmatched randomisation ")
         matchedPair <- FALSE
     }
     trial$arm <- trial$pair <- trial$nearestDiscord <- trial$hdep <- trial$sdep <- trial$disc <- trial$kern <- NULL
@@ -263,13 +263,13 @@ specify_clusters <- function(trial = trial, c = NULL, h = NULL, algorithm = "NN"
         trial$nearestPixel <- dist_vec$dist_corrected
         if (!all(is.na(dist_vec$cluster))) {
           trial$cluster <- dist_vec$cluster
-          message("*** clusters read from auxiliary object ***")
+          message(" clusters read from auxiliary object ")
         }
         if (!all(is.na(dist_vec$arm))) {
           trial$arm <- dist_vec$arm
-          message("*** arm assignments read from auxiliary object ***")
+          message(" arm assignments read from auxiliary object ")
         }
-        message("*** nearestPixel is distance to the nearest pixel in the auxiliary object ***")
+        message(" nearestPixel is distance to the nearest pixel in the auxiliary object ")
       }
     } else {
       nclusters <- 2 * c
