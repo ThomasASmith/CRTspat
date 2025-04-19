@@ -150,7 +150,7 @@ CRTanalysis <- function(
             distance <- "dummy"
             CRT$trial$dummy <- runif(nrow(CRT$trial), 0, 1)
         }
-        linearity <- "No non-linear parameter. "
+        linearity <- " with no non-linear parameter. "
         scale_par <- 1.0
     } else {
         if(identical(distance, "nearestDiscord")) {
@@ -178,13 +178,13 @@ CRTanalysis <- function(
             if (distance  %in% c("disc", "kern")) {
                 if (is.null(scale_par)) {
                     penalty <- ifelse(identical(method, "MCMC"), 0, 2)
-                    linearity <- "Estimated scale parameter: "
+                    linearity <- " with estimation of scale parameter. "
                 } else {
-                    linearity <- paste0("Precalculated scale parameter: ")
+                    linearity <- paste0(" with precalculated scale parameter of ", round(scale_par, digits = 3),": ")
                 }
             } else {
                 scale_par <- 1.0
-                linearity <- "No non-linear parameter. "
+                linearity <- " with no non-linear parameter. "
             }
         }
         else if(is.null(scale_par)) {
@@ -197,9 +197,9 @@ CRTanalysis <- function(
             # the goodness-of-fit is penalised if scale_par needs to be estimated
             # (unless this is via MCMC)
             penalty <- ifelse(identical(method, "MCMC"), 0, 2)
-            linearity <- "Estimated scale parameter: "
+            linearity <- " with estimation of scale parameter. "
         } else {
-            linearity <- paste0("Precalculated scale parameter of ", round(scale_par, digits = 3),": ")
+            linearity <- paste0(" with precalculated scale parameter of ", round(scale_par, digits = 3),": ")
         }
     }
 
@@ -1319,9 +1319,13 @@ add_estimates <- function(analysis, sample, CLnames, alpha, pt_src){
     # If the scale parameter has been estimated then replace the input value
     # with the estimate. Otherwise vice versa.
     if ("scale_par" %in% names(sample)) {
-            analysis$options$scale_par <- analysis$pt_ests$scale_par
-        } else {
-            analysis$pt_ests$scale_par <- analysis$options$scale_par
+        analysis$options$scale_par <- analysis$pt_ests$scale_par
+    } else {
+        analysis$pt_ests$scale_par <- analysis$options$scale_par
+    }
+    if ("spillover_limit0" %in% names(sample)) {
+        analysis$spillover$spillover_limits <- c(analysis$spillover$spillover_limit0,
+                                                 analysis$spillover$spillover_limit1)
     }
 return(analysis)
 }
@@ -1425,19 +1429,17 @@ extractEstimates <- function(analysis, sample) {
         trial$sample_no <- sample(seq(1:nrow(sample)), nrow(trial), replace = TRUE)
         trial$rowname <- rownames(trial)
         curves <- t(apply(trial, MARGIN = 1, FUN = computeFittedCurve, trial = trial, sample = sample, d = d,
-                        link = link, cfunc = cfunc, distance = distance))
+                        link = link, cfunc = cfunc, distance = distance, alpha = alpha))
 
         trial[[distance]] <- curves[, 1] # The first column is a sample from the distribution of the distance variable
         trial$fitted_value <- curves[, 2] # The second column is a sample from the distribution of the fitted value
-
+        trial$spillover_limit0 <- curves[, 3]
+        trial$spillover_limit1 <- curves[, 4]
 
         # Point and interval estimates of the fitted curve
         FittedCurve <- data.frame(t(apply(
-            curves[, seq(3,1003)], 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
+            curves[, seq(5,1005)], 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
                                              alpha = alpha, na.rm = TRUE)})))
-
-        trial$spillover_limit0 <- curves[, 27]
-        trial$spillover_limit1 <- curves[, 978]
         FittedCurve$intervention_curve <- ifelse(d >= 0, FittedCurve$X50., NA)
         FittedCurve$control_curve <- ifelse(d < 0, FittedCurve$X50., NA)
         FittedCurve$X50. <- NULL
@@ -1454,14 +1456,14 @@ extractEstimates <- function(analysis, sample) {
         trial$ipsilateral_spillover <- ifelse(trial$arm == 'intervention',
                             trial$fitted_value - sample[trial$sample_no, "interventionY"], NA)
         trial$contralateral_spillover <- ifelse(trial$arm == 'control',
-                            trial$fitted_value - sample[trial$sample_no, "controlY"], NA)
+                            sample[trial$sample_no, "controlY"] - trial$fitted_value, NA)
     }
     analysis <- add_estimates(analysis = analysis, sample = trial, CLnames = CLnames, alpha = alpha, pt_src = 'spillover')
     analysis <- add_estimates(analysis = analysis, sample = sample, CLnames = CLnames, alpha = alpha, pt_src = 'pt_ests')
 return(analysis)
 }
 
-computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample) {
+computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample, alpha) {
     i <- as.integer(x[['sample_no']])
     scale_par <- sample[i, 'scale_par']
     par0 <- c(sample[i, "par0_1"], sample[i, "par0_2"], sample[i, "scale_par"])
@@ -1474,8 +1476,8 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample) {
     fv <- ifelse((identical(x[['arm']], 'control')),
                  fitted_spillover(cfunc = cfunc, link = link, par = par0, trial = point, distance = distance),
                  fitted_spillover(cfunc = cfunc, link = link, par = par1, trial = point, distance = distance))
-    # Computation of the full curve
 
+    # Computation of the full curve
     curve_df <- data.frame(distance = d)
     names(curve_df) <- c(distance)
     curve <-
@@ -1485,9 +1487,16 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample) {
             fitted_spillover(cfunc = cfunc, link = link, par = par0, trial = curve_df, distance = distance)
         curve <- ifelse(d > 0, control_curve, curve)
     }
-    # concatenate the sampled value of the distance and of the fitted value of the response with the curve
-    # so that the return value is a single vector
-    curve <- c(point[1,1], fv, curve)
+
+    # compute the spillover limits
+    cY <- sample$controlY[i]
+    iY <- sample$interventionY[i]
+    limit0 <- d[which(curve < (cY - alpha * (cY - min(curve[d <= 0]))))][1]
+    limit1 <- d[which(curve < (iY + alpha * (max(curve[d > 0]) - iY)))][1]
+
+    # concatenate the sampled value of the distance, the fitted value of the response, and the spillover limits,
+    # with the curve so that the return value is a single vector
+    curve <- c(point[1,1], fv, limit0, limit1, curve)
 return(curve)}
 
 

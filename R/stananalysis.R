@@ -215,7 +215,7 @@ stananalysis <- function(analysis){
       sum(phi) ~ normal(0, 0.001 * N3);")
   }
 
-  if (identical(linearity,"Estimated scale parameter: ")) {
+  if (identical(linearity," with estimation of scale parameter. ")) {
     # Create vector of candidate values of scale_par
     # by dividing the prior (on log scale) into equal bins
     # log_sp is the central value of each bin
@@ -320,7 +320,8 @@ stananalysis <- function(analysis){
                      control = control)
 
   if (identical(cfunc, "E")) cfunc = "ES"
-  parameters_to_save <- switch(cfunc, O = c("intercept", "effect", "scale_par"),
+  parameters_to_save <- switch(cfunc,
+                               O = c("intercept", "effect", "scale_par"),
                                X = c("intercept", "effect"),
                                Z = c("intercept"),
                                R = c("intercept", "effect"))
