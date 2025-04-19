@@ -338,7 +338,6 @@ stananalysis <- function(analysis){
   analysis$loo <- loo::loo(log_lik_1, r_eff = r_eff, cores = getOption("mc.cores", 1))
   analysis$trial <- trial
   analysis <- extractEstimates(analysis = analysis, sample = sample)
-  analysis$options$scale_par <- analysis$pt_ests$scale_par
   # distance must be re-computed in the case of surrounds with estimated scale parameter
   analysis$trial <- compute_distance(trial, distance = distance,
                                      scale_par = analysis$options$scale_par)$trial
