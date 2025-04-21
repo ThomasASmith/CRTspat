@@ -326,15 +326,13 @@ CRTanalysis <- function(
            "MCMC" = stananalysis(analysis),
            "WCA" = wc_analysis(analysis, design = CRT$design)
     )
-    if (!baselineOnly & !is.null(analysis$pt_ests$controlY)){
-        if (!identical(method,"EMP")){
-            scale_par <- analysis$options$scale_par
-            if (verbose){
-                message(paste0(linearity, ifelse(is.null(scale_par), "",
-                ifelse(identical(scale_par, 1), "", round(scale_par, digits = 3)))," ",
-                distance_type, "-", ifelse(identical(distance_type, "No fixed effects of distance "),
-                "", getDistanceText(distance = distance, scale_par = scale_par)), "\n"))
-            }
+    if (!identical(method,"EMP")){
+        scale_par <- analysis$options$scale_par
+        if (verbose){
+            message(paste0(linearity, ifelse(is.null(scale_par), "",
+            ifelse((scale_par == 1), "", round(scale_par, digits = 3)))," ",
+            distance_type, "-", ifelse(identical(distance_type, "No fixed effects of distance "),
+            "", getDistanceText(distance = distance, scale_par = scale_par)), "\n"))
         }
     }
     class(analysis) <- "CRTanalysis"
@@ -806,12 +804,14 @@ LME4analysis <- function(analysis, cfunc, trial, link, fterms){
         rownames(cov) <- colnames(cov) <- names(q50)
     }
     analysis$model_object <- model_object
-    if (!identical(cfunc, "Z")){
-        sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = q50, Sigma = cov))
-        analysis <- extractEstimates(analysis = analysis, sample = sample)
+    if (identical(cfunc, "Z")){
+        sample <- data.frame(int = rnorm(n  = 10000,
+                                         mean = summary(model_object)$coefficients[,1],
+                                         sd = summary(model_object)$coefficients[,2]))
     } else {
-        analysis$pt_ests$controlY <- invlink(link, summary(model_object)$coefficients[,1])
+        sample <- as.data.frame(MASS::mvrnorm(n = 10000, mu = q50, Sigma = cov))
     }
+    analysis <- extractEstimates(analysis = analysis, sample = sample)
     return(analysis)
 }
 
@@ -1401,29 +1401,32 @@ extractEstimates <- function(analysis, sample) {
     if ("interventionY" %in% names(sample)) {
         sample$effect_size <- 1 - sample$interventionY/sample$controlY
     }
-    if (!(cfunc %in% c("X", "Z"))) {
 
-        # Calculation of measures of spillover
-        if (is.null(sample$scale_par)) sample$scale_par <- scale_par
-        if (is.null(sample$scale_par)) sample$scale_par <- 1
+    # Values of distance for calculation of spillover curves
+    if ((distance %in% c("disc", "kern")) & identical(cfunc, "E")){
+        range_d <- 1
+        d <- (seq(1:1001) - 1)/1000
+        trial[[distance]] <- NA #This is a placeholder for the sample from the estimated surround which will be returned
+    } else {
+        range_d <- max(trial[[distance]]) - min(trial[[distance]])
+        range_d <- max(range_d, 1.0E-3)
+        d <- min(trial[[distance]]) + range_d * (seq(1:1001) - 1)/1000
+    }
 
-        # Measures calculated for each sample from the posterior
-        sample$total_effect <- sample$controlY - sample$interventionY
+    # MEASURES OF SPILLOVER
+    if (is.null(sample$scale_par)) sample$scale_par <- scale_par
+    if (is.null(sample$scale_par)) sample$scale_par <- 1
+
+    # Measures calculated for each sample from the posterior
+    sample$total_effect <- ifelse(identical(cfunc, "Z"), NA, sample$controlY - sample$interventionY)
+
+    if (!(cfunc %in% c("X", "Z"))){
 
         spillover_list <- apply(sample, MARGIN = 1, FUN = get_spillover,
                                     analysis = analysis)
+
         spillover_df <- as.data.frame(do.call(rbind, lapply(spillover_list, as.data.frame)))
         sample <- cbind(sample, spillover_df)
-
-        if ((distance %in% c("disc", "kern")) & identical(cfunc, "E")){
-            range_d <- 1
-            d <- (seq(1:1001) - 1)/1000
-            trial[[distance]] <- NA #This is a placeholder for the sample from the estimated surround which will be returned
-        } else {
-            range_d <- max(trial[[distance]]) - min(trial[[distance]])
-            range_d <- max(range_d, 1.0E-3)
-            d <- min(trial[[distance]]) + range_d * (seq(1:1001) - 1)/1000
-        }
 
         # Measures calculated once for each data point
         trial$sample_no <- sample(seq(1:nrow(sample)), nrow(trial), replace = TRUE)
@@ -1436,16 +1439,6 @@ extractEstimates <- function(analysis, sample) {
         trial$spillover_limit0 <- curves[, 3]
         trial$spillover_limit1 <- curves[, 4]
 
-        # Point and interval estimates of the fitted curve
-        FittedCurve <- data.frame(t(apply(
-            curves[, seq(5,1005)], 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
-                                             alpha = alpha, na.rm = TRUE)})))
-        FittedCurve$intervention_curve <- ifelse(d >= 0, FittedCurve$X50., NA)
-        FittedCurve$control_curve <- ifelse(d < 0, FittedCurve$X50., NA)
-        FittedCurve$X50. <- NULL
-        FittedCurve$d <- d
-        analysis$spillover$FittedCurve <- FittedCurve
-
         trial$contaminate_pop_pr <- sum(trial[[distance]] > trial$spillover_limit0 &
                                              trial[[distance]] < trial$spillover_limit1)/nrow(trial)
         trial$spillover_interval <- abs(trial$spillover_limit1 - trial$spillover_limit0)
@@ -1457,7 +1450,34 @@ extractEstimates <- function(analysis, sample) {
                             trial$fitted_value - sample[trial$sample_no, "interventionY"], NA)
         trial$contralateral_spillover <- ifelse(trial$arm == 'control',
                             sample[trial$sample_no, "controlY"] - trial$fitted_value, NA)
+
+        trial$spillover_limit0 <- ifelse(trial$spillover_interval < 2e-04, -1e-04, trial$spillover_limit0)
+        trial$spillover_limit1 <- ifelse(trial$spillover_interval < 2e-04, 1e-04, trial$spillover_limit1)
+        # Point and interval estimates of the fitted curve
+        FittedCurve <- data.frame(t(apply(
+            curves[, seq(5,1005)], 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
+                                                            alpha = alpha, na.rm = TRUE)})))
+        FittedCurve$intervention_curve <- ifelse(d >= 0, FittedCurve$X50., NA)
+        FittedCurve$control_curve <- ifelse(d < 0, FittedCurve$X50., NA)
+        FittedCurve$X50. <- NULL
+    } else {
+        trial$spillover_limit0 <- -1e-04
+        trial$spillover_limit1 <- 1e-04
+        sample$scale_par <- NA
+        controlY_quantiles <- quantile(sample$controlY, c(alpha/2, 0.5, 1 - alpha/2))
+        if(identical(cfunc, "Z")){
+            interventionY_quantiles <- controlY_quantiles
+        } else {
+            interventionY_quantiles <- quantile(sample$interventionY, c(alpha/2, 0.5, 1 - alpha/2))
+        }
+        FittedCurve <- data.frame(
+            X2.5. = ifelse(d < 0, controlY_quantiles[1], interventionY_quantiles[1]),
+            control_curve = ifelse(d < 0, controlY_quantiles[2], NA),
+            intervention_curve = ifelse(d >= 0, interventionY_quantiles[2], NA),
+            X97.5. = ifelse(d < 0, controlY_quantiles[3], interventionY_quantiles[3]))
     }
+    FittedCurve$d <- d
+    analysis$spillover$FittedCurve <- FittedCurve
     analysis <- add_estimates(analysis = analysis, sample = trial, CLnames = CLnames, alpha = alpha, pt_src = 'spillover')
     analysis <- add_estimates(analysis = analysis, sample = sample, CLnames = CLnames, alpha = alpha, pt_src = 'pt_ests')
 return(analysis)
@@ -1474,8 +1494,8 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample, a
     point <- data.frame(distance = as.numeric(trial[x[['rowname']], distance]), arm = x[['arm']])
     names(point) <- c(eval(distance),'arm')
     fv <- ifelse((identical(x[['arm']], 'control')),
-                 fitted_spillover(cfunc = cfunc, link = link, par = par0, trial = point, distance = distance),
-                 fitted_spillover(cfunc = cfunc, link = link, par = par1, trial = point, distance = distance))
+            fitted_spillover(cfunc = cfunc, link = link, par = par0, trial = point, distance = distance),
+            fitted_spillover(cfunc = cfunc, link = link, par = par1, trial = point, distance = distance))
 
     # Computation of the full curve
     curve_df <- data.frame(distance = d)
@@ -1606,19 +1626,25 @@ get_spillover <- function(x, analysis){
         cfunc <- "R"
     }
     limits <- matrix(x[["controlY"]], nrow = 2, ncol = 2)
-    if(!is.null(x[["interventionY"]])) {
-        limits[ ,2] <-  rep(x[["interventionY"]], times = 2)
-    } else {
-        limits[ , 2] <- rep(x[["controlY"]], times = 2)
-    }
-    if (!is.na(x[["personal_protection"]])) {
-        limits[1, 2] <- invlink(link, x[["int"]] + x[["effect"]])
-        limits[2, 1] <- invlink(link, x[["int"]] + x[["arm"]])
-    }
-    if (identical(cfunc, 'X')) {
-        limits[1, 2] <- limits[1, 1]
-        limits[2, 1] <- limits[2, 2]
-    }
+    # The limits of the spillover curves are:
+
+    # the value for uncontaminated controls
+    limits[1, 1] <- x[["controlY"]]
+
+    # the value for maximally contaminated controls
+    limits[1, 2] <- ifelse(cfunc %in% c('X','Z'), limits[1, 1],
+                           invlink(link, x[["int"]] + x[["effect"]]))
+
+    # the counter-factual for intervention with no effect
+    limits[2, 1] <- ifelse (is.na(x[["personal_protection"]]),
+                           x[["controlY"]],
+                           invlink(link, x[["int"]] + x[["arm"]]))
+
+    # the value for maximally intervention effect
+    limits[2, 2] <- ifelse (is.na(x[["personal_protection"]]),
+                            x[["interventionY"]],
+                            invlink(link, x[["int"]] + x[["effect"]] + x[["arm"]]))
+
     scale_par <- ifelse("scale_par" %in% names(x), x[["scale_par"]], analysis$options$scale_par)
     # Trap cases with extreme effect: TODO: a different criterion may be needed for continuous data
     pars <- link_tr(link,limits)
@@ -1652,31 +1678,6 @@ get_spillover <- function(x, analysis){
         par1_1 = par1[1],
         par1_2 = par1[2])
 return(spillover)}
-
-
-
-# TODO: this is orphan code
-calculate_spillover_deviation <- function(d, cfunc, link, distance, par, sign, q, log_interval, verbose){
-    qtable <- data.frame(row.names = c(1,2,3))
-    qtable[[distance]] <-  c(exp(log_interval), exp(d))
-    if(sign == 'minus') qtable[[distance]] <- -qtable[[distance]]
-    qtable$y_hat <- fitted_spillover(cfunc = cfunc, link =link, par = par, trial = qtable, distance = distance)
-    if(qtable$y_hat[1] != qtable$y_hat[2]) {
-        quantile <- with(qtable, (y_hat[3] - y_hat[2])/(y_hat[1] - y_hat[2]))
-    } else {
-        if(qtable$y_hat[3] == qtable$y_hat[2]) {
-            quantile <- 0
-        } else {
-            quantile <- NA
-            if (verbose) message('spillover deviation undefined')
-        }
-    }
-    deviation <- (q - quantile)^2
-    # If the scale parameter is very small, then force the minimum deviation to be at d = 0
-    if (par[3] < 0.05) deviation <- d^2
-    return(deviation)
-}
-
 
 getDistanceText <- function(distance = "nearestDiscord", scale_par = NULL) {
     value <- switch(distance,

@@ -144,14 +144,13 @@ stananalysis <- function(analysis){
          log_lik[i] = log1m_exp(-exp(p[i])) - exp(p[i]);")
   }
   if ("arm" %in% fterms) {
-    #TODO: personal protection models will crash owing to the use of 'effect' for two different parameters
     datastan$intervened <- ifelse(trial$arm == "intervention", 1, 0)
     datablock <- paste0(datablock,"
       vector[N] intervened;")
     parameterblock <- paste0(parameterblock,"
-       real effect;")
+      real arm;")
     transformedparameterblock2 <- paste0(transformedparameterblock2,
-                                         " + effect * intervened[i]")
+                                         " + arm * intervened[i]")
   }
 
   if (clusterEffects) {
@@ -322,11 +321,10 @@ stananalysis <- function(analysis){
   if (identical(cfunc, "E")) cfunc = "ES"
   parameters_to_save <- switch(cfunc,
                                O = c("intercept", "effect", "scale_par"),
-                               X = c("intercept", "effect"),
+                               X = c("intercept"),
                                Z = c("intercept"),
                                R = c("intercept", "effect"))
-  if ("arm" %in% fterms & cfunc != 'X')
-    parameters_to_save <- c(parameters_to_save, "intervened")
+  if ("arm" %in% fterms) parameters_to_save <- c(parameters_to_save, "arm")
   if (identical(cfunc, 'A')) parameters_to_save <- c(parameters_to_save, "mu")
   message(paste0("\n", "*** Calculating goodness-of-fit of stan model***\n"))
   sample <- data.frame(rstan::extract(fit, pars = parameters_to_save, permuted = TRUE))
