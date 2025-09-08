@@ -10,8 +10,9 @@ stananalysis <- function(analysis){
   distance <- analysis$options$distance
   scale_par <- analysis$options$scale_par
   log_sp_prior <- analysis$options$log_sp_prior
-  clusterEffects<- analysis$options$clusterEffects
-  spatialEffects<- analysis$options$spatialEffects
+  clusterEffects <- analysis$options$clusterEffects
+  spatialEffects <- analysis$options$spatialEffects
+  asymmetry <- analysis$options$asymmetry
   pixel <- analysis$options$pixel
   control <- analysis$options$control
   iter <- ifelse(is.null(control$iter), 2000, control$iter)
@@ -22,8 +23,8 @@ stananalysis <- function(analysis){
 
   # fix the maximum of the intercept parameter to correspond to the maximum of the data
   max_intercept  <- ifelse(link %in% c("logit", "cloglog"),
-       link_tr(link = link, x = 0.9999),
-       link_tr(link = link, x = with(analysis$trial, max(y1/y_off))))
+                           link_tr(link = link, x = 0.9999),
+                           link_tr(link = link, x = with(analysis$trial, max(y1/y_off))))
 
   datastan <- list(N = nrow(trial), max_intercept = max_intercept)
 
@@ -55,11 +56,14 @@ stananalysis <- function(analysis){
     datablock <- paste0(datablock,"
         vector[N] y;")
     transformedparameterblock3 <- paste0(transformedparameterblock3,"
-            lp[i] = lp[i] * (1 + pr[i] * effect);
-        }")
+            lp[i] = lp[i] * (1 + pr[i] * effect);")
     modelblock <- paste0(modelblock,"
          y[i] ~ normal(lp[i], sigma1);
       }")
+    if (asymmetry) {
+      transformedparameterblock3 <- paste0(transformedparameterblock3,"
+        lp[i] = lp[i] * exp(-zeta * lp[i]);")
+    }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = normal_lpdf(y1[i] | lp[i], sigma1);")
   } else if(identical(link, 'log')){
@@ -75,16 +79,18 @@ stananalysis <- function(analysis){
       vector[N] Expect_y;")
     if (!identical(cfunc, "D")) {
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
-            Expect_y[i] = exp(lp[i]) * y_off[i];
-      }")
+            Expect_y[i] = exp(lp[i]) * y_off[i];")
     } else {
       transformedparameterblock1 <- paste0(transformedparameterblock1,"
       real<lower=0, upper=1> efficacy;
       efficacy = 1 - exp(effect);")
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
          Expect_y[i] = exp(lp[i]) * y_off[i];
-         Expect_y[i] = Expect_y[i] * (1 - pr[i] * efficacy);
-      }")
+         Expect_y[i] = Expect_y[i] * (1 - pr[i] * efficacy);")
+    }
+    if (asymmetry) {
+      transformedparameterblock3 <- paste0(transformedparameterblock3,"
+        Expect_y[i] = Expect_y[i] * exp(-zeta * Expect_y[i]);")
     }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = poisson_lpmf(y1[i] | Expect_y[i]);")
@@ -101,16 +107,18 @@ stananalysis <- function(analysis){
       vector[N] p;")
     if (!identical(cfunc, "D")) {
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
-         p[i] = 1/(1 + exp(-lp[i]));
-      }")
+         p[i] = 1/(1 + exp(-lp[i]));")
     } else {
       transformedparameterblock1 <- paste0(transformedparameterblock1,"
       real<lower=0, upper=1> efficacy;
-      efficacy = (exp⁡(-effect)-1)/(exp⁡(intercept) + exp⁡(-effect));")
+      efficacy = (exp(-effect)-1)/(exp(intercept) + exp(-effect));")
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
          p[i] = 1/(1 + exp(-lp[i]));
-         p[i] = p[i] * (1 - pr[i] * efficacy);
-      }")
+         p[i] = p[i] * (1 - pr[i] * efficacy);")
+    }
+    if (asymmetry) {
+      transformedparameterblock3 <- paste0(transformedparameterblock3,"
+        p[i] = p[i] * exp(-zeta * p[i]);")
     }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = log((p[i] * y1[i]) + (1 - p[i])*(y_off[i] - y1[i]));")
@@ -138,8 +146,10 @@ stananalysis <- function(analysis){
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
          p[i] = p[i] * (1 - pr[i]*efficacy);")
     }
-    transformedparameterblock3 <- paste0(transformedparameterblock3,"
-      }")
+    if (asymmetry) {
+      transformedparameterblock3 <- paste0(transformedparameterblock3,"
+        p[i] = p[i] * exp(-zeta * pr[i]);")
+    }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = log1m_exp(-exp(p[i])) - exp(p[i]);")
   }
@@ -170,6 +180,11 @@ stananalysis <- function(analysis){
       }")
   }
 
+  if (asymmetry) {
+    parameterblock <- paste0(parameterblock,"
+      real<lower=0> zeta;")
+  }
+
   if (spatialEffects) {
     # Distance matrix calculations for the ICAR analysis
 
@@ -196,18 +211,18 @@ stananalysis <- function(analysis){
       }
     }
   "
-  datablock <- paste0(datablock, "
+    datablock <- paste0(datablock, "
       int<lower=1> N3; // total number of pixels
       int pixel[N]; // mapping from samples to pixels
       int<lower=0> N_edges;
       array[N_edges] int<lower=1, upper=N3> node1; // node1[i] adjacent to node2[i]
       array[N_edges] int<lower=1, upper=N3> node2; // and node1[i] < node2[i] ")
 
-  transformedparameterblock2 <- paste0(transformedparameterblock2,
-                                       " + phi[pixel[i]] * sigma")
-  parameterblock <- paste0(parameterblock,"
+    transformedparameterblock2 <- paste0(transformedparameterblock2,
+                                         " + phi[pixel[i]] * sigma")
+    parameterblock <- paste0(parameterblock,"
       vector[N3] phi; // spatial effects ")
-  modelblock <- paste0(modelblock,"
+    modelblock <- paste0(modelblock,"
       phi ~ icar_normal(N3, node1, node2);
       // soft sum-to-zero constraint on phi
       // more efficient than mean(phi) ~ normal(0, 0.001)
@@ -218,7 +233,7 @@ stananalysis <- function(analysis){
     # Create vector of candidate values of scale_par
     # by dividing the prior (on log scale) into equal bins
     # log_sp is the central value of each bin
-    nbins <- 10
+    nbins <- 20
     binsize <- (log_sp_prior[2] - log_sp_prior[1])/(nbins - 1)
     log_sp <- log_sp_prior[1] + c(0, seq(1:(nbins - 1))) * binsize
     # calculate effect corresponding to first value of sp
@@ -283,6 +298,7 @@ stananalysis <- function(analysis){
     transformedparameterblock2 <- paste0(transformedparameterblock2,
                                          " + effect*(d[i]-mind)/(maxd-mind)")
   }
+
   if ("effect" %in% fterms) {
     parameterblock <- paste0(parameterblock,"
       real<upper=2> log_effect;
@@ -304,7 +320,7 @@ stananalysis <- function(analysis){
     transformedparameterblock,
     transformedparameterblock1,
     transformedparameterblock2, ";",
-    transformedparameterblock3, cb,
+    transformedparameterblock3, cb, cb,
     modelblock, cb,
     generatedquantitiesblock)
 
@@ -325,7 +341,7 @@ stananalysis <- function(analysis){
                                Z = c("intercept"),
                                R = c("intercept", "effect"))
   if ("arm" %in% fterms) parameters_to_save <- c(parameters_to_save, "arm")
-  if (identical(cfunc, 'A')) parameters_to_save <- c(parameters_to_save, "mu")
+  if (asymmetry) parameters_to_save <- c(parameters_to_save, "zeta")
   message(paste0("\n", "*** Calculating goodness-of-fit of stan model***\n"))
   sample <- data.frame(rstan::extract(fit, pars = parameters_to_save, permuted = TRUE))
   # int is a reserved word in stan, so intercept was spelled out

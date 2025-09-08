@@ -124,44 +124,47 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
         if (isa(object, what = 'CRTanalysis')) {
             # if the object is the output from analysisCRT
             analysis <- object
-            if (is.null(analysis$spillover$FittedCurve))
-                stop("*** No fitted curve available ***")
             d <- average <- upper <- lower <- spilloverFunction <- NULL
-            interval <- analysis$spillover$spillover_limits
-            range <- max(analysis$trial[[distance]]) - min(analysis$trial[[distance]])
-            interval[1] <- max(min(analysis$trial[[distance]]), interval[1])
-            interval[2] <- min(max(analysis$trial[[distance]]), interval[2])
             data <- group_data(analysis = analysis, grouping = "quintiles")
-            FittedCurve <- analysis$spillover$FittedCurve
-            FittedCurve <- FittedCurve[FittedCurve$d >= min(c(interval[1], data$d))
-                                     & FittedCurve$d <= max(c(interval[2], data$d)), ]
-            fitted_median <- median(c(FittedCurve$control_curve,FittedCurve$intervention_curve),na.rm = TRUE)
+            range <- quantile(analysis$trial[[distance]], 0.975) - quantile(analysis$trial[[distance]], 0.025)
             data_median <- median(data$average)
-            if (analysis$options$link %in% c('log', 'cloglog')) {
-                scale_factor <- fitted_median/data_median
-                data_scaled <- data.frame(
-                                    d = data$d,
-                                    arm = data$arm,
-                                    average = data$average * scale_factor,
-                                    lower = data$lower * scale_factor,
-                                    upper = data$upper * scale_factor)
-            } else {
-                data_scaled <- data
-            }
+            data_scaled <- data #To be overwritten in the case of a log link and fitted spillover
+            X2.5. <- X97.5. <- NULL
             g <- ggplot2::ggplot() + ggplot2::theme_bw()
-            g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$control_curve), ],
+            if (is.null(analysis$spillover$FittedCurve)) {
+                warning("*** No fitted curve available ***")
+            } else {
+                interval <- analysis$spillover$spillover_limits
+                interval[1] <- max(min(analysis$trial[[distance]]), interval[1])
+                interval[2] <- min(max(analysis$trial[[distance]]), interval[2])
+                FittedCurve <- analysis$spillover$FittedCurve
+                FittedCurve <- FittedCurve[FittedCurve$d >= min(c(interval[1], data$d))
+                                           & FittedCurve$d <= max(c(interval[2], data$d)), ]
+                fitted_median <- median(c(FittedCurve$control_curve,FittedCurve$intervention_curve),na.rm = TRUE)
+                if (analysis$options$link %in% c('log', 'cloglog')) {
+                    scale_factor <- fitted_median/data_median
+                    data_scaled <- data.frame(
+                        d = data$d,
+                        arm = data$arm,
+                        average = data$average * scale_factor,
+                        lower = data$lower * scale_factor,
+                        upper = data$upper * scale_factor)
+                }
+                g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$control_curve), ],
                             ggplot2::aes(x = d, y = control_curve), linewidth = 2, colour = "#b2df8a")
-            g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$intervention_curve), ],
+                g <- g + ggplot2::geom_line(data = FittedCurve[!is.na(FittedCurve$intervention_curve), ],
                             ggplot2::aes(x = d, y = intervention_curve), linewidth = 2, colour = "#0072A7")
-            if (!is.null(FittedCurve$X2.5.)) {
-                g <- g + ggplot2::geom_ribbon(data = FittedCurve,
+
+                if (!is.null(FittedCurve$X2.5.)) {
+                    g <- g + ggplot2::geom_ribbon(data = FittedCurve,
                          ggplot2::aes(x = d, ymin = X2.5., ymax = X97.5.),
                          fill = "pink", alpha = 0.4, linetype = 0)
+                }
             }
             g <- g + ggplot2::geom_point(data = data_scaled, ggplot2::aes(x = d, y = average,
                                         shape=factor(arm)), size = 2)
             g <- g + ggplot2::scale_shape_manual(name = "Arms", values = c(0, 16),
-                                                 labels = c("Control", "Intervention"))
+                                         labels = c("Control", "Intervention"))
             g <- g + ggplot2::theme(legend.position = legend.position)
             g <- g + ggplot2::geom_errorbar(data = data_scaled, mapping = ggplot2::aes(x = d, ymin = upper,
                                         ymax = lower), linewidth = 0.5, width = range/50)

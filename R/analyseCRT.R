@@ -51,12 +51,16 @@
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
 #' (available only for \code{method = "INLA"} or for \code{method = "MCMC"})
+#' @param asymmetry logical: indicator of whether the model includes an asymmetry term (available
+#' only for \code{method = "MCMC"})
 #' @param control list: control options to be passed to the statistical fitting function
 #' (available only for \code{method = "MCMC"})
 #' @param pixel numeric: size of pixel in km for spatial model (used for \code{method = "MCMC"})
 #' @param requireMesh logical: indicator of whether spatial predictions are required
 #' (available only for \code{method = "INLA"})
 #' @param inla_mesh string: name of pre-existing INLA input object created by \code{compute_mesh()}
+#' @return list of class \code{CRTanalysis} containing the following results of the analysis:
+#' @param verbose logical: indicator of whether progress indicators, stan code, and the result summary should be returned
 #' @return list of class \code{CRTanalysis} containing the following results of the analysis:
 #' \itemize{
 #' \item \code{description} : description of the dataset
@@ -108,8 +112,8 @@ CRTanalysis <- function(
     cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
-    personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE, pixel = 0.1,
-    control = NULL, requireMesh = FALSE, inla_mesh = NULL, verbose = FALSE) {
+    personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE, asymmetry = FALSE,
+    pixel = 0.1, control = NULL, requireMesh = FALSE, inla_mesh = NULL, verbose = FALSE) {
 
     CRT <- CRTsp(trial)
 
@@ -133,6 +137,11 @@ CRTanalysis <- function(
         stop("*** Invalid value for statistical method ***")
         return(NULL)
     }
+    if (identical(cfunc, "D") & !method %in% c("MCMC"))
+    {
+        stop("*** cfunc = 'D' requires method = 'MCMC' ***")
+        return(NULL)
+    }
     if (identical(method, "INLA") & identical(system.file(package='INLA'), "")){
         message("*** INLA package is not installed. Running lme4 analysis instead. ***")
         method <- "LME4"
@@ -143,6 +152,9 @@ CRTanalysis <- function(
     # cfunc='Z' is used to remove the estimation of effect size from the model
     if (baselineOnly) cfunc <- "Z"
 
+    if (asymmetry & !identical(method, "MCMC")){
+        warning("Ignoring asymmetry = TRUE: asymmetry option only available for method = 'MCMC'")
+    }
     # Classification of distance_type and which non-linear fit is needed
     if (cfunc %in% c("Z","X")) {
         distance_type <- "No fixed effects of distance "
@@ -297,6 +309,7 @@ CRTanalysis <- function(
                     log_sp_prior = log_sp_prior,
                     clusterEffects = clusterEffects,
                     spatialEffects = spatialEffects,
+                    asymmetry = asymmetry,
                     pixel = pixel,
                     control = control,
                     personalProtection = personalProtection,
@@ -1327,6 +1340,8 @@ add_estimates <- function(analysis, sample, CLnames, alpha, pt_src){
         analysis$spillover$spillover_limits <- c(analysis$spillover$spillover_limit0,
                                                  analysis$spillover$spillover_limit1)
     }
+    if ("spillover_interval" %in% names(sample))
+        analysis$pt_ests$spillover_interval <- analysis$spillover$spillover_interval
 return(analysis)
 }
 
@@ -1398,9 +1413,6 @@ extractEstimates <- function(analysis, sample) {
     if ("effect" %in% names(sample) & !("arm" %in% names(sample))) {
         sample$interventionY <- invlink(link, sample$int + sample$effect)
     }
-    if ("interventionY" %in% names(sample)) {
-        sample$effect_size <- 1 - sample$interventionY/sample$controlY
-    }
 
     # Values of distance for calculation of spillover curves
     if ((distance %in% c("disc", "kern")) & identical(cfunc, "E")){
@@ -1416,9 +1428,6 @@ extractEstimates <- function(analysis, sample) {
     # MEASURES OF SPILLOVER
     if (is.null(sample$scale_par)) sample$scale_par <- scale_par
     if (is.null(sample$scale_par)) sample$scale_par <- 1
-
-    # Measures calculated for each sample from the posterior
-    sample$total_effect <- ifelse(identical(cfunc, "Z"), NA, sample$controlY - sample$interventionY)
 
     if (!(cfunc %in% c("X", "Z"))){
 
@@ -1476,6 +1485,15 @@ extractEstimates <- function(analysis, sample) {
             intervention_curve = ifelse(d >= 0, interventionY_quantiles[2], NA),
             X97.5. = ifelse(d < 0, controlY_quantiles[3], interventionY_quantiles[3]))
     }
+    # Measures calculated for each sample from the posterior
+    if ("interventionY" %in% names(sample)) {
+        if (!is.null(sample$zeta)) {
+            sample$controlY <- sample$controlY * exp(-sample$zeta * sample$controlY)
+            sample$interventionY <- sample$interventionY * exp(-sample$zeta * sample$interventionY)
+        }
+        sample$effect_size <- 1 - sample$interventionY/sample$controlY
+    }
+    sample$total_effect <- ifelse(identical(cfunc, "Z"), NA, sample$controlY - sample$interventionY)
     FittedCurve$d <- d
     analysis$spillover$FittedCurve <- FittedCurve
     analysis <- add_estimates(analysis = analysis, sample = trial, CLnames = CLnames, alpha = alpha, pt_src = 'spillover')
@@ -1496,7 +1514,9 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample, a
     fv <- ifelse((identical(x[['arm']], 'control')),
             fitted_spillover(cfunc = cfunc, link = link, par = par0, trial = point, distance = distance),
             fitted_spillover(cfunc = cfunc, link = link, par = par1, trial = point, distance = distance))
-
+    if (!is.null(sample$zeta)) {
+        fv <- fv * exp(-sample[i, 'zeta'] * fv)
+    }
     # Computation of the full curve
     curve_df <- data.frame(distance = d)
     names(curve_df) <- c(distance)
@@ -1511,6 +1531,13 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample, a
     # compute the spillover limits
     cY <- sample$controlY[i]
     iY <- sample$interventionY[i]
+
+    if (!is.null(sample$zeta)) {
+        cY <- cY * exp(-sample[i, 'zeta'] * cY)
+        iY <- iY * exp(-sample[i, 'zeta'] * iY)
+        curve <- curve * exp(-sample[i, 'zeta'] * curve)
+    }
+
     limit0 <- d[which(curve < (cY - alpha * (cY - min(curve[d <= 0]))))][1]
     limit1 <- d[which(curve < (iY + alpha * (max(curve[d > 0]) - iY)))][1]
 
@@ -1584,6 +1611,7 @@ rescale <- function(x) {
 return(value)}
 
 fitted_spillover <- function(cfunc, link, par, trial, distance) {
+    if(identical(cfunc, 'E')) cfunc <- 'H' #to deal with partial matching error
     lp <- switch(cfunc,
        Z = par[1],
        X = ifelse(trial[[distance]] < 0, par[1], par[1] + par[2]),
@@ -1592,7 +1620,7 @@ fitted_spillover <- function(cfunc, link, par, trial, distance) {
        P = par[1] + par[2] * stats::pnorm(trial[[distance]]/par[3]),
        D = NA,
        R = par[1] + rescale(trial[[distance]]) * par[2],
-       E = par[1] + par[2] * (1 - exp(-(trial[[distance]]/par[3]))))
+       H = par[1] + par[2] * (1 - exp(-(trial[[distance]]/par[3]))))
     fv <- invlink(link, lp)
     if(identical(cfunc,'D')) {
         u0 <- invlink(link, par[1])

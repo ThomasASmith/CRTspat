@@ -21,10 +21,12 @@ CRTanalysis(
   personalProtection = FALSE,
   clusterEffects = TRUE,
   spatialEffects = FALSE,
-  pixel = NULL,
+  asymmetry = FALSE,
+  pixel = 0.1,
   control = NULL,
   requireMesh = FALSE,
-  inla_mesh = NULL
+  inla_mesh = NULL,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -94,6 +96,9 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \item{spatialEffects}{logical: indicator of whether the model includes spatial random effects
 (available only for \code{method = "INLA"} or for \code{method = "MCMC"})}
 
+\item{asymmetry}{logical: indicator of whether the model includes an asymmetry term (available
+only for \code{method = "MCMC"})}
+
 \item{pixel}{numeric: size of pixel in km for spatial model (used for \code{method = "MCMC"})}
 
 \item{control}{list: control options to be passed to the statistical fitting function
@@ -103,8 +108,12 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 (available only for \code{method = "INLA"})}
 
 \item{inla_mesh}{string: name of pre-existing INLA input object created by \code{compute_mesh()}}
+
+\item{verbose}{logical: indicator of whether progress indicators, stan code, and the result summary should be returned}
 }
 \value{
+list of class \code{CRTanalysis} containing the following results of the analysis:
+
 list of class \code{CRTanalysis} containing the following results of the analysis:
 \itemize{
 \item \code{description} : description of the dataset
