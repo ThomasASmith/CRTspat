@@ -106,7 +106,8 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
     cpalette = NULL, buffer_width = NULL, maskbuffer = 0.2, labelsize = 4,
     legend.position = NULL) {
 
-    control_curve <- intervention_curve <- scale_par <- buffer <- g <- NULL
+    spillover_limits <- control_curve <- intervention_curve <- NULL
+    scale_par <- buffer <- g <- NULL
     if (is.null(legend.position)) legend.position <- "none"
     if (!isa(object, what = 'CRTanalysis')) object <- CRTsp(object)
     trial <- object$trial
