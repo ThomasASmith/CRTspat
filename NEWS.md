@@ -1,3 +1,8 @@
+# CRTspat 1.4.0
+
+* Replaced all JAGS code with stan
+* Include diffusion model of spillover in analysis options 
+
 # CRTspat 1.3.2
 
 # CRTspat 1.3.1
