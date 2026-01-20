@@ -21,7 +21,6 @@ CRTanalysis(
   personalProtection = FALSE,
   clusterEffects = TRUE,
   spatialEffects = FALSE,
-  asymmetry = FALSE,
   pixel = 0.1,
   control = NULL,
   requireMesh = FALSE,
@@ -41,7 +40,6 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 \code{"LME4"} \tab Generalized Linear Mixed-Effects Models \cr
 \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
 \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"stan"} \cr
-\code{"WCA"}\tab Within cluster analysis \cr
 }}
 
 \item{distance}{Measure of distance or surround with options: \cr
@@ -95,9 +93,6 @@ assignments (factor \code{cluster}), and arm assignments (factor \code{arm}) and
 
 \item{spatialEffects}{logical: indicator of whether the model includes spatial random effects
 (available only for \code{method = "INLA"} or for \code{method = "MCMC"})}
-
-\item{asymmetry}{logical: indicator of whether the model includes an asymmetry term (available
-only for \code{method = "MCMC"})}
 
 \item{pixel}{numeric: size of pixel in km for spatial model (used for \code{method = "MCMC"})}
 

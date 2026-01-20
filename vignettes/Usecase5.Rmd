@@ -54,10 +54,10 @@ summary(analysisT)
 ## Link function:  logit 
 ## Model formula:  arm + (1 | cluster) 
 ## No modelling of spillover 
-## Estimates:       Control:  0.364  (95% CL:  0.286 0.451 )
-##             Intervention:  0.21  (95% CL:  0.147 0.292 )
-##                 Efficacy:  0.423  (95% CL:  0.208 0.727 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
+## Estimates:       Control: 0.364 (95% CL: 0.286 0.451)
+##             Intervention: 0.21 (95% CL: 0.147 0.292)
+##                 Efficacy: 0.423 (95% CL: 0.208 0.727)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
 ##  
 ## P-value (2-sided):  0.006879064
 ```
@@ -134,10 +134,10 @@ summary(analysisLME4_Z)
 ## Link function:  logit 
 ## Model formula:  (1 | cluster) 
 ## No comparison of arms 
-## Estimates:       Control:  0.285  (95% CL:  NA )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1387.609 
-## AIC     :  1391.609
+## Estimates:       Control: 0.285 (95% CL: 0.231 0.346)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1391.609
 ```
 
 ``` r
@@ -152,12 +152,12 @@ summary(analysisLME4_X)
 ## Link function:  logit 
 ## Model formula:  arm + (1 | cluster) 
 ## No modelling of spillover 
-## Estimates:       Control:  0.366  (95% CL:  0.291 0.448 )
-##             Intervention:  0.216  (95% CL:  0.162 0.282 )
-##                 Efficacy:  0.41  (95% CL:  0.164 0.583 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1379.898 
-## AIC     :  1385.898
+## Estimates:       Control: 0.367 (95% CL: 0.291 0.448)
+##             Intervention: 0.216 (95% CL: 0.16 0.281)
+##                 Efficacy: 0.412 (95% CL: 0.171 0.587)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1385.898
 ```
 
 ``` r
@@ -171,20 +171,20 @@ summary(analysisLME4_P)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: Signed distance to other arm (km)
-## Estimated scale parameter: 0.45
-## Model formula:  pvar + (1 | cluster) 
+##  with estimation of scale parameter.  
+## Model formula:  effect + (1 | cluster) 
 ## Error function model for spillover
-## Estimates:       Control:  0.417  (95% CL:  0.33 0.508 )
-##             Intervention:  0.186  (95% CL:  0.136 0.251 )
-##                 Efficacy:  0.552  (95% CL:  0.323 0.702 )
-## Spillover interval(km):      4.22  (95% CL:  4.2 4.23 )
-## % locations contaminated: 91.6  (95% CL:  90.6 92 %)
-## Total effect            : 0.229  (95% CL:  0.113 0.344 )
-## Ipsilateral Spillover   : 0.0233  (95% CL:  0.0127 0.0322 )
-## Contralateral Spillover : 0.0415  (95% CL:  0.0191 0.0646 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1374.215 
-## AIC     :  1382.215 including penalty for the spillover scale parameter
+## Estimates:       Control: 0.418 (95% CL: 0.331 0.512)
+##             Intervention: 0.186 (95% CL: 0.135 0.249)
+##                 Efficacy: 0.554 (95% CL: 0.331 0.705)
+##          Scale parameter: 0.45 (95% CL: 0.45 0.45)
+##   Spillover interval(km): 1.749 (95% CL: 1.728 1.762)
+## Pr in spillover interval: 0.685 (95% CL: 0.685 0.685)
+##    Ipsilateral Spillover: 0.009 (95% CL: 0 0.094)
+##  Contralateral Spillover: 0.032 (95% CL: 0 0.13)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1382.215 including penalty for the spillover scale parameter
 ```
 
 ``` r
@@ -198,20 +198,20 @@ summary(analysisLME4_L)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: Signed distance to other arm (km)
-## Estimated scale parameter: 0.249
-## Model formula:  pvar + (1 | cluster) 
+##  with estimation of scale parameter.  
+## Model formula:  effect + (1 | cluster) 
 ## Sigmoid (logistic) function for spillover
-## Estimates:       Control:  0.416  (95% CL:  0.33 0.507 )
-##             Intervention:  0.186  (95% CL:  0.135 0.249 )
-##                 Efficacy:  0.551  (95% CL:  0.328 0.701 )
-## Spillover interval(km):      4.26  (95% CL:  4.24 4.28 )
-## % locations contaminated: 92.7  (95% CL:  92.2 93 %)
-## Total effect            : 0.229  (95% CL:  0.114 0.342 )
-## Ipsilateral Spillover   : 0.0219  (95% CL:  0.012 0.0303 )
-## Contralateral Spillover : 0.0387  (95% CL:  0.018 0.0606 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1374.201 
-## AIC     :  1382.201 including penalty for the spillover scale parameter
+## Estimates:       Control: 0.415 (95% CL: 0.331 0.507)
+##             Intervention: 0.186 (95% CL: 0.135 0.251)
+##                 Efficacy: 0.551 (95% CL: 0.329 0.701)
+##          Scale parameter: 0.249 (95% CL: 0.249 0.249)
+##   Spillover interval(km): 1.81 (95% CL: 1.776 1.823)
+## Pr in spillover interval: 0.706 (95% CL: 0.706 0.706)
+##    Ipsilateral Spillover: 0.009 (95% CL: 0 0.098)
+##  Contralateral Spillover: 0.03 (95% CL: 0 0.127)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1382.201 including penalty for the spillover scale parameter
 ```
 
 ``` r
@@ -225,20 +225,20 @@ summary(analysisLME4_S)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: Signed distance to other arm (km)
-## Estimated scale parameter: 1.674
-## Model formula:  pvar + (1 | cluster) 
+##  with estimation of scale parameter.  
+## Model formula:  effect + (1 | cluster) 
 ## Piecewise linear function for spillover
-## Estimates:       Control:  0.423  (95% CL:  0.334 0.518 )
-##             Intervention:  0.185  (95% CL:  0.135 0.247 )
-##                 Efficacy:  0.561  (95% CL:  0.344 0.71 )
-## Spillover interval(km):      4.1  (95% CL:  4.1 4.11 )
-## % locations contaminated: 86.6  (95% CL:  86.6 87.1 %)
-## Total effect            : 0.237  (95% CL:  0.122 0.354 )
-## Ipsilateral Spillover   : 0.0289  (95% CL:  0.0162 0.0403 )
-## Contralateral Spillover : 0.0521  (95% CL:  0.0253 0.0813 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1374.094 
-## AIC     :  1382.094 including penalty for the spillover scale parameter
+## Estimates:       Control: 0.423 (95% CL: 0.335 0.516)
+##             Intervention: 0.185 (95% CL: 0.134 0.247)
+##                 Efficacy: 0.563 (95% CL: 0.34 0.71)
+##          Scale parameter: 1.674 (95% CL: 1.674 1.674)
+##   Spillover interval(km): 1.586 (95% CL: 1.586 1.593)
+## Pr in spillover interval: 0.633 (95% CL: 0.633 0.633)
+##    Ipsilateral Spillover: 0.012 (95% CL: 0 0.11)
+##  Contralateral Spillover: 0.051 (95% CL: 0 0.139)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1382.094 including penalty for the spillover scale parameter
 ```
 
 ``` r
@@ -252,20 +252,18 @@ summary(analysisLME4_R)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: Signed distance to other arm (km)
-## No non-linear parameter. 1
-## Model formula:  pvar + (1 | cluster) 
+##  with no non-linear parameter.  
+## Model formula:  effect + (1 | cluster) 
 ## Rescaled linear function for spillover
-## Estimates:       Control:  0.584  (95% CL:  0.383 0.759 )
-##             Intervention:  0.116  (95% CL:  0.059 0.216 )
-##                 Efficacy:  0.8  (95% CL:  0.466 0.919 )
-## Spillover interval(km):      6.64  (95% CL:  6.61 6.65 )
-## % locations contaminated: 99.8  (95% CL:  99.8 99.8 %)
-## Total effect            : 0.465  (95% CL:  0.181 0.691 )
-## Ipsilateral Spillover   : 0.117  (95% CL:  0.0559 0.157 )
-## Contralateral Spillover : 0.236  (95% CL:  0.0831 0.367 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1378.711 
-## AIC     :  1384.711
+## Estimates:       Control: 0.585 (95% CL: 0.386 0.76)
+##             Intervention: 0.116 (95% CL: 0.06 0.211)
+##                 Efficacy: 0.8 (95% CL: 0.478 0.918)
+##          Scale parameter: 1 (95% CL: 1 1)
+##   Spillover interval(km): 6.372 (95% CL: 6.243 6.433)
+## Pr in spillover interval: 0.997 (95% CL: 0.997 0.997)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1384.711
 ```
 
 ``` r
@@ -342,20 +340,18 @@ summary(examples_hdep)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: Tukey half-depth 
-## No non-linear parameter. 1
-## Model formula:  pvar + (1 | cluster) 
+##  with no non-linear parameter.  
+## Model formula:  effect + (1 | cluster) 
 ## Rescaled linear function for spillover
-## Estimates:       Control:  0.382  (95% CL:  0.293 0.477 )
-##             Intervention:  0.208  (95% CL:  0.151 0.281 )
-##                 Efficacy:  0.451  (95% CL:  0.168 0.642 )
-## Spillover interval(km):      0.978  (95% CL:  0.976 0.98 )
-## % locations contaminated: 55  (95% CL:  55 55 %)
-## Total effect            : 0.172  (95% CL:  0.0526 0.292 )
-## Ipsilateral Spillover   : 0.0313  (95% CL:  0.0101 0.0511 )
-## Contralateral Spillover : 0.0443  (95% CL:  0.0128 0.0781 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1379.89 
-## AIC     :  1385.89
+## Estimates:       Control: 0.382 (95% CL: 0.293 0.478)
+##             Intervention: 0.208 (95% CL: 0.151 0.282)
+##                 Efficacy: 0.454 (95% CL: 0.168 0.644)
+##          Scale parameter: 1 (95% CL: 1 1)
+##   Spillover interval(km): 0.939 (95% CL: 0.928 0.947)
+## Pr in spillover interval: 0.529 (95% CL: 0.529 0.529)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1385.89
 ```
 
 ``` r
@@ -370,20 +366,18 @@ summary(examples_sdep)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: Simplicial depth 
-## No non-linear parameter. 1
-## Model formula:  pvar + (1 | cluster) 
+##  with no non-linear parameter.  
+## Model formula:  effect + (1 | cluster) 
 ## Rescaled linear function for spillover
-## Estimates:       Control:  0.394  (95% CL:  0.307 0.488 )
-##             Intervention:  0.198  (95% CL:  0.144 0.265 )
-##                 Efficacy:  0.496  (95% CL:  0.248 0.663 )
-## Spillover interval(km):      0.978  (95% CL:  0.976 0.98 )
-## % locations contaminated: 52.4  (95% CL:  52.2 52.4 %)
-## Total effect            : 0.195  (95% CL:  0.0808 0.308 )
-## Ipsilateral Spillover   : 0.0301  (95% CL:  0.0131 0.046 )
-## Contralateral Spillover : 0.0436  (95% CL:  0.0171 0.0713 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1376.417 
-## AIC     :  1382.417
+## Estimates:       Control: 0.394 (95% CL: 0.309 0.488)
+##             Intervention: 0.199 (95% CL: 0.144 0.267)
+##                 Efficacy: 0.495 (95% CL: 0.25 0.661)
+##          Scale parameter: 1 (95% CL: 1 1)
+##   Spillover interval(km): 0.937 (95% CL: 0.927 0.945)
+## Pr in spillover interval: 0.485 (95% CL: 0.485 0.485)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1382.417
 ```
 
 ``` r
@@ -398,20 +392,18 @@ summary(examples_disc)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: disc of radius 0.15 km
-## Precalculated scale parameter: 0.15
-## Model formula:  pvar + (1 | cluster) 
+##  with precalculated scale parameter of 0.15:  
+## Model formula:  effect + (1 | cluster) 
 ## Rescaled linear function for spillover
-## Estimates:       Control:  0.386  (95% CL:  0.312 0.47 )
-##             Intervention:  0.2  (95% CL:  0.149 0.262 )
-##                 Efficacy:  0.481  (95% CL:  0.27 0.635 )
-## Spillover interval(km):      0.978  (95% CL:  0.976 0.98 )
-## % locations contaminated: 8.89  (95% CL:  8.89 8.89 %)
-## Total effect            : 0.185  (95% CL:  0.0903 0.283 )
-## Ipsilateral Spillover   : 0.00456  (95% CL:  0.00237 0.00662 )
-## Contralateral Spillover : 0.00574  (95% CL:  0.00266 0.00905 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1374.274 
-## AIC     :  1380.274
+## Estimates:       Control: 0.387 (95% CL: 0.312 0.47)
+##             Intervention: 0.2 (95% CL: 0.15 0.262)
+##                 Efficacy: 0.482 (95% CL: 0.276 0.632)
+##          Scale parameter: 0.15 (95% CL: 0.15 0.15)
+##   Spillover interval(km): 0.938 (95% CL: 0.928 0.945)
+## Pr in spillover interval: 0.089 (95% CL: 0.089 0.089)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1380.274
 ```
 
 ``` r
@@ -426,20 +418,18 @@ summary(examples_kern)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: kern with kernel s.d. 0.15 km
-## Precalculated scale parameter: 0.15
-## Model formula:  pvar + (1 | cluster) 
+##  with precalculated scale parameter of 0.15:  
+## Model formula:  effect + (1 | cluster) 
 ## Rescaled linear function for spillover
-## Estimates:       Control:  0.406  (95% CL:  0.328 0.49 )
-##             Intervention:  0.184  (95% CL:  0.136 0.246 )
-##                 Efficacy:  0.545  (95% CL:  0.341 0.684 )
-## Spillover interval(km):      0.979  (95% CL:  0.977 0.98 )
-## % locations contaminated: 50.8  (95% CL:  50.6 50.9 %)
-## Total effect            : 0.22  (95% CL:  0.12 0.321 )
-## Ipsilateral Spillover   : 0.011  (95% CL:  0.0065 0.0152 )
-## Contralateral Spillover : 0.0135  (95% CL:  0.0069 0.0204 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1369.677 
-## AIC     :  1375.677
+## Estimates:       Control: 0.406 (95% CL: 0.328 0.491)
+##             Intervention: 0.185 (95% CL: 0.137 0.247)
+##                 Efficacy: 0.544 (95% CL: 0.342 0.684)
+##          Scale parameter: 0.15 (95% CL: 0.15 0.15)
+##   Spillover interval(km): 0.935 (95% CL: 0.925 0.944)
+## Pr in spillover interval: 0.59 (95% CL: 0.59 0.59)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1375.677
 ```
 
 ``` r

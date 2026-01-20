@@ -69,6 +69,10 @@ how much of the data are found close to the boundary between the arms.
 ``` r
 plotCRT(exampleCRT, map = FALSE)
 ```
+
+```
+## Warning: `label` cannot be a <ggplot2::element_blank> object.
+```
 <p>
   <img src="example6d.r-1.png" alt="" > <br>
   <em>Fig 6.5 Numbers of observations by distance from boundary</em>
@@ -85,7 +89,43 @@ analysis <- CRTanalysis(exampleCRT, cfunc = "P", method = "LME4")
 ```
 
 ```
-## Estimated scale parameter: 0.45 Signed distance -Signed distance to other arm (km)
+## AIC: 1382.59556154402 Spillover scale parameter: 0.21981696975569
+```
+
+```
+## AIC: 1385.16678301441 Spillover scale parameter: 1.89442074481204
+```
+
+```
+## AIC: 1384.56974564433 Spillover scale parameter: 0.0580687950830108
+```
+
+```
+## AIC: 1382.41972768805 Spillover scale parameter: 0.296672334826958
+```
+
+```
+## AIC: 1382.21769016816 Spillover scale parameter: 0.435328418519021
+```
+
+```
+## AIC: 1382.82566400225 Spillover scale parameter: 0.76341943326029
+```
+
+```
+## AIC: 1382.27915707782 Spillover scale parameter: 0.53950586833145
+```
+
+```
+## AIC: 1382.21467421951 Spillover scale parameter: 0.450083930258126
+```
+
+```
+## AIC: 1382.21584616456 Spillover scale parameter: 0.4653395817005
+```
+
+```
+## AIC: 1382.21467421951 Spillover scale parameter: 0.450083930258126
 ```
 
 ``` r
@@ -98,20 +138,20 @@ summary(analysis)
 ## Analysis method:  LME4 
 ## Link function:  logit 
 ## Measure of distance or surround: Signed distance to other arm (km)
-## Estimated scale parameter: 0.45
-## Model formula:  pvar + (1 | cluster) 
+##  with estimation of scale parameter.  
+## Model formula:  effect + (1 | cluster) 
 ## Error function model for spillover
-## Estimates:       Control:  0.417  (95% CL:  0.329 0.512 )
-##             Intervention:  0.186  (95% CL:  0.137 0.251 )
-##                 Efficacy:  0.554  (95% CL:  0.323 0.703 )
-## Spillover interval(km):      4.22  (95% CL:  4.2 4.23 )
-## % locations contaminated: 91.6  (95% CL:  90.6 92 %)
-## Total effect            : 0.231  (95% CL:  0.112 0.347 )
-## Ipsilateral Spillover   : 0.0234  (95% CL:  0.0125 0.0325 )
-## Contralateral Spillover : 0.0417  (95% CL:  0.0189 0.0653 )
-## Coefficient of variation:  48.4 %  (95% CL:  36 75.9 )
-## deviance:  1374.215 
-## AIC     :  1382.215 including penalty for the spillover scale parameter
+## Estimates:       Control: 0.417 (95% CL: 0.33 0.509)
+##             Intervention: 0.186 (95% CL: 0.136 0.249)
+##                 Efficacy: 0.553 (95% CL: 0.331 0.702)
+##          Scale parameter: 0.45 (95% CL: 0.45 0.45)
+##   Spillover interval(km): 1.749 (95% CL: 1.728 1.762)
+## Pr in spillover interval: 0.686 (95% CL: 0.686 0.686)
+##    Ipsilateral Spillover: 0.009 (95% CL: 0 0.096)
+##  Contralateral Spillover: 0.034 (95% CL: 0 0.122)
+## Coefficient of variation: 48.425 (95% CL: 35.969 75.865)
+## deviance                :  NA 
+## AIC                     :  1382.215 including penalty for the spillover scale parameter
 ```
 
 ``` r

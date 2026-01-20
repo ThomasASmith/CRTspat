@@ -12,7 +12,6 @@ stananalysis <- function(analysis){
   log_sp_prior <- analysis$options$log_sp_prior
   clusterEffects <- analysis$options$clusterEffects
   spatialEffects <- analysis$options$spatialEffects
-  asymmetry <- analysis$options$asymmetry
   pixel <- analysis$options$pixel
   control <- analysis$options$control
   iter <- ifelse(is.null(control$iter), 2000, control$iter)
@@ -60,10 +59,6 @@ stananalysis <- function(analysis){
     modelblock <- paste0(modelblock,"
          y[i] ~ normal(lp[i], sigma1);
       }")
-    if (asymmetry) {
-      transformedparameterblock3 <- paste0(transformedparameterblock3,"
-        lp[i] = lp[i] * exp(-zeta * lp[i]);")
-    }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = normal_lpdf(y1[i] | lp[i], sigma1);")
   } else if(identical(link, 'log')){
@@ -88,10 +83,6 @@ stananalysis <- function(analysis){
          Expect_y[i] = exp(lp[i]) * y_off[i];
          Expect_y[i] = Expect_y[i] * (1 - pr[i] * efficacy);")
     }
-    if (asymmetry) {
-      transformedparameterblock3 <- paste0(transformedparameterblock3,"
-        Expect_y[i] = Expect_y[i] * exp(-zeta * Expect_y[i]);")
-    }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = poisson_lpmf(y1[i] | Expect_y[i]);")
   } else if(identical(link, 'logit')){
@@ -115,10 +106,6 @@ stananalysis <- function(analysis){
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
          p[i] = 1/(1 + exp(-lp[i]));
          p[i] = p[i] * (1 - pr[i] * efficacy);")
-    }
-    if (asymmetry) {
-      transformedparameterblock3 <- paste0(transformedparameterblock3,"
-        p[i] = p[i] * exp(-zeta * p[i]);")
     }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = log((p[i] * y1[i]) + (1 - p[i])*(y_off[i] - y1[i]));")
@@ -145,10 +132,6 @@ stananalysis <- function(analysis){
       efficacy = (exp(-effect)-1)/(exp(intercept) + exp(-effect));")
       transformedparameterblock3 <- paste0(transformedparameterblock3,"
          p[i] = p[i] * (1 - pr[i]*efficacy);")
-    }
-    if (asymmetry) {
-      transformedparameterblock3 <- paste0(transformedparameterblock3,"
-        p[i] = p[i] * exp(-zeta * pr[i]);")
     }
     generatedquantitiesblock <- paste0(generatedquantitiesblock,"
          log_lik[i] = log1m_exp(-exp(p[i])) - exp(p[i]);")
@@ -178,11 +161,6 @@ stananalysis <- function(analysis){
       for(ic in 1:ncluster) {
         gamma[ic] ~ normal(0, sigma);
       }")
-  }
-
-  if (asymmetry) {
-    parameterblock <- paste0(parameterblock,"
-      real<lower=0> zeta;")
   }
 
   if (spatialEffects) {
@@ -341,7 +319,6 @@ stananalysis <- function(analysis){
                                Z = c("intercept"),
                                R = c("intercept", "effect"))
   if ("arm" %in% fterms) parameters_to_save <- c(parameters_to_save, "arm")
-  if (asymmetry) parameters_to_save <- c(parameters_to_save, "zeta")
   message(paste0("\n", "*** Calculating goodness-of-fit of stan model***\n"))
   sample <- data.frame(rstan::extract(fit, pars = parameters_to_save, permuted = TRUE))
   # int is a reserved word in stan, so intercept was spelled out

@@ -27,76 +27,72 @@ summary.CRTanalysis <- function(object, ...) {
       cat(object$options$linearity, "\n")
     }
   }
-  if (identical(object$options$method,"WCA")) {
-    wc_summary(object)
-  } else {
-    if (!is.null(object$options$ftext))
-      cat("Model formula: ", object$options$ftext, "\n")
-    cat(switch(object$options$cfunc,
-               Z = "No comparison of arms \n",
-               X = "No modelling of spillover \n",
-               S = "Piecewise linear function for spillover\n",
-               P = "Error function model for spillover\n",
-               L = "Sigmoid (logistic) function for spillover\n",
-               R = "Rescaled linear function for spillover\n"))
-    dummy <- printrow(var = 'controlY', pt_src = 'pt_ests', int_src = 'int_ests',
-                      object = object, text = "Estimates:       Control: ", alpha = alpha)
-    dummy <- printrow(var = 'interventionY', pt_src = 'pt_ests', int_src = 'int_ests',
-                      object = object, text = "            Intervention: ", alpha = alpha)
-    effect_distance <- ifelse(object$options$link == 'identity', "             Effect size: ",
-                                                                 "                Efficacy: ")
-    dummy <- printrow(var = 'effect_size', pt_src = 'pt_ests', int_src = 'int_ests',
-                      object = object, text = effect_distance, alpha = alpha)
+  if (!is.null(object$options$ftext))
+    cat("Model formula: ", object$options$ftext, "\n")
+  cat(switch(object$options$cfunc,
+             Z = "No comparison of arms \n",
+             X = "No modelling of spillover \n",
+             S = "Piecewise linear function for spillover\n",
+             P = "Error function model for spillover\n",
+             L = "Sigmoid (logistic) function for spillover\n",
+             R = "Rescaled linear function for spillover\n"))
+  dummy <- printrow(var = 'controlY', pt_src = 'pt_ests', int_src = 'int_ests',
+                    object = object, text = "Estimates:       Control: ", alpha = alpha)
+  dummy <- printrow(var = 'interventionY', pt_src = 'pt_ests', int_src = 'int_ests',
+                    object = object, text = "            Intervention: ", alpha = alpha)
+  effect_distance <- ifelse(object$options$link == 'identity', "             Effect size: ",
+                                                               "                Efficacy: ")
+  dummy <- printrow(var = 'effect_size', pt_src = 'pt_ests', int_src = 'int_ests',
+                    object = object, text = effect_distance, alpha = alpha)
 
-    dummy <- printrow(var = 'personal_protection', pt_src = 'pt_ests', int_src = 'int_ests',
-                      object = object, text = "Personal protection     : ", alpha = alpha)
+  dummy <- printrow(var = 'personal_protection', pt_src = 'pt_ests', int_src = 'int_ests',
+                    object = object, text = "Personal protection     : ", alpha = alpha)
 
-    if (!is.null(object$pt_ests$personal_protection)){
-      if (!is.na(object$pt_ests$personal_protection)){
-        if (object$pt_ests$personal_protection < 0 | object$pt_ests$personal_protection >  1){
-            cat(
-              "** Warning: different signs for main effect and personal protection effect:
-                  face validity check fails **\n")
-        }
+  if (!is.null(object$pt_ests$personal_protection)){
+    if (!is.na(object$pt_ests$personal_protection)){
+      if (object$pt_ests$personal_protection < 0 | object$pt_ests$personal_protection >  1){
+          cat(
+            "** Warning: different signs for main effect and personal protection effect:
+                face validity check fails **\n")
       }
     }
-    dummy <- printrow(var = 'scale_par', pt_src = 'pt_ests', int_src = 'int_ests',
-                      object = object, text = "         Scale parameter: ", alpha = alpha)
-    if (!is.na(object$pt_ests$spillover_interval)){
-      dummy <- printrow(var = 'spillover_interval', pt_src = 'spillover', int_src = 'int_ests',
-                      object = object, text = "  Spillover interval(km): ", alpha = alpha)
-      dummy <- printrow(var = 'midpoint', pt_src = 'spillover', int_src = 'int_ests',
-                      object = object, text = "  Spillover midpoint(km): ", alpha = alpha)
-      dummy <- printrow(var = 'contaminate_pop_pr', pt_src = 'spillover', int_src = 'int_ests',
-                      object = object, text = "Pr in spillover interval: ", alpha = alpha)
-      dummy <- printrow(var = 'total_effect', pt_src = 'spillover', int_src = 'int_ests',
-                      object = object, text = "            Total effect: ", alpha = alpha)
-      dummy <- printrow(var = 'ipsilateral_spillover', pt_src = 'spillover', int_src = 'int_ests',
-                      object = object, text = "   Ipsilateral Spillover: ", alpha = alpha)
-      dummy <- printrow(var = 'contralateral_spillover', pt_src = 'spillover', int_src = 'int_ests',
-                      object = object, text = " Contralateral Spillover: ", alpha = alpha)
-    }
-    if (!is.null(object$description$cv_percent)) object$int_ests$cv_percent <-
-                      c(object$description$cv_lower, object$description$cv_upper)
-    dummy <- printrow(var = 'cv_percent', pt_src = 'description', int_src = 'int_ests',
-                      object = object, text = "Coefficient of variation: ", alpha = alpha)
-    dummy <- printrow(var = 'ICC', pt_src = 'pt_ests', int_src = 'int_ests',
-                      object = object, text = "Intracluster correlation: ", alpha = alpha)
-    options(digits = defaultdigits)
-    # goodness of fit
-    if (!is.null(object$pt_ests$deviance)) cat("deviance                : ", object$pt_ests$deviance, "\n")
-    if (!is.null(object$pt_ests$DIC)) cat("DIC                     : ", object$pt_ests$DIC)
-    if (!is.null(object$pt_ests$elpd)) cat("elpd                    : ", object$pt_ests$elpd)
-    if (!is.null(object$pt_ests$AIC)) cat("AIC                     : ", object$pt_ests$AIC)
-    if (object$options$penalty > 0) {
-      cat(" including penalty for the spillover scale parameter\n")
-    } else {
-      cat(" \n")
-    }
-    # TODO: add the degrees of freedom to the output
-    if (!is.null(object$pt_ests$p.value)){
-      cat("P-value (2-sided): ", object$pt_ests$p.value, "\n")
-    }
+  }
+  dummy <- printrow(var = 'scale_par', pt_src = 'pt_ests', int_src = 'int_ests',
+                    object = object, text = "         Scale parameter: ", alpha = alpha)
+  if (!is.na(object$pt_ests$spillover_interval)){
+    dummy <- printrow(var = 'spillover_interval', pt_src = 'spillover', int_src = 'int_ests',
+                    object = object, text = "  Spillover interval(km): ", alpha = alpha)
+    dummy <- printrow(var = 'midpoint', pt_src = 'spillover', int_src = 'int_ests',
+                    object = object, text = "  Spillover midpoint(km): ", alpha = alpha)
+    dummy <- printrow(var = 'contaminate_pop_pr', pt_src = 'spillover', int_src = 'int_ests',
+                    object = object, text = "Pr in spillover interval: ", alpha = alpha)
+    dummy <- printrow(var = 'total_effect', pt_src = 'spillover', int_src = 'int_ests',
+                    object = object, text = "            Total effect: ", alpha = alpha)
+    dummy <- printrow(var = 'ipsilateral_spillover', pt_src = 'spillover', int_src = 'int_ests',
+                    object = object, text = "   Ipsilateral Spillover: ", alpha = alpha)
+    dummy <- printrow(var = 'contralateral_spillover', pt_src = 'spillover', int_src = 'int_ests',
+                    object = object, text = " Contralateral Spillover: ", alpha = alpha)
+  }
+  if (!is.null(object$description$cv_percent)) object$int_ests$cv_percent <-
+                    c(object$description$cv_lower, object$description$cv_upper)
+  dummy <- printrow(var = 'cv_percent', pt_src = 'description', int_src = 'int_ests',
+                    object = object, text = "Coefficient of variation: ", alpha = alpha)
+  dummy <- printrow(var = 'ICC', pt_src = 'pt_ests', int_src = 'int_ests',
+                    object = object, text = "Intracluster correlation: ", alpha = alpha)
+  options(digits = defaultdigits)
+  # goodness of fit
+  if (!is.null(object$pt_ests$deviance)) cat("deviance                : ", object$pt_ests$deviance, "\n")
+  if (!is.null(object$pt_ests$DIC)) cat("DIC                     : ", object$pt_ests$DIC)
+  if (!is.null(object$pt_ests$elpd)) cat("elpd                    : ", object$pt_ests$elpd)
+  if (!is.null(object$pt_ests$AIC)) cat("AIC                     : ", object$pt_ests$AIC)
+  if (object$options$penalty > 0) {
+    cat(" including penalty for the spillover scale parameter\n")
+  } else {
+    cat(" \n")
+  }
+  # TODO: add the degrees of freedom to the output
+  if (!is.null(object$pt_ests$p.value)){
+    cat("P-value (2-sided): ", object$pt_ests$p.value, "\n")
   }
 }
 

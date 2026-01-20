@@ -11,7 +11,6 @@
 #' \code{"LME4"} \tab Generalized Linear Mixed-Effects Models \cr
 #' \code{"INLA"}\tab Integrated Nested Laplace Approximation (INLA) \cr
 #' \code{"MCMC"}\tab Markov chain Monte Carlo using \code{"stan"} \cr
-#' \code{"WCA"}\tab Within cluster analysis \cr
 #' }
 #' @param distance Measure of distance or surround with options: \cr
 #' \tabular{ll}{
@@ -51,8 +50,6 @@
 #' @param clusterEffects logical: indicator of whether the model includes cluster random effects
 #' @param spatialEffects logical: indicator of whether the model includes spatial random effects
 #' (available only for \code{method = "INLA"} or for \code{method = "MCMC"})
-#' @param asymmetry logical: indicator of whether the model includes an asymmetry term (available
-#' only for \code{method = "MCMC"})
 #' @param control list: control options to be passed to the statistical fitting function
 #' (available only for \code{method = "MCMC"})
 #' @param pixel numeric: size of pixel in km for spatial model (used for \code{method = "MCMC"})
@@ -112,7 +109,7 @@ CRTanalysis <- function(
     cfunc = "L", link = "logit", numerator = "num",
     denominator = "denom", excludeBuffer = FALSE, alpha = 0.05,
     baselineOnly = FALSE, baselineNumerator = "base_num", baselineDenominator = "base_denom",
-    personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE, asymmetry = FALSE,
+    personalProtection = FALSE, clusterEffects = TRUE, spatialEffects = FALSE,
     pixel = 0.1, control = NULL, requireMesh = FALSE, inla_mesh = NULL, verbose = FALSE) {
 
     CRT <- CRTsp(trial)
@@ -132,7 +129,7 @@ CRTanalysis <- function(
     }
 
     # Test of validity of inputs
-    if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4", "WCA"))
+    if (!method %in% c("EMP", "T", "MCMC", "GEE", "INLA", "LME4"))
     {
         stop("*** Invalid value for statistical method ***")
         return(NULL)
@@ -152,9 +149,6 @@ CRTanalysis <- function(
     # cfunc='Z' is used to remove the estimation of effect size from the model
     if (baselineOnly) cfunc <- "Z"
 
-    if (asymmetry & !identical(method, "MCMC")){
-        warning("Ignoring asymmetry = TRUE: asymmetry option only available for method = 'MCMC'")
-    }
     # Classification of distance_type and which non-linear fit is needed
     if (cfunc %in% c("Z","X")) {
         distance_type <- "No fixed effects of distance "
@@ -223,8 +217,6 @@ CRTanalysis <- function(
 
     trial <- CRT$trial
 
-
-
     if ("buffer" %in% colnames(trial) & excludeBuffer) trial <- trial[!trial$buffer, ]
 
     # trial needs to be ordered for some analyses
@@ -235,7 +227,7 @@ CRTanalysis <- function(
 
     if (baselineOnly){
         # Baseline analyses are available only for GEE and INLA
-        if (method %in% c("EMP", "T", "GEE", "MCMC", "LME4", "WCA"))
+        if (method %in% c("EMP", "T", "GEE", "MCMC", "LME4"))
             {
             method <- "GEE"
             message("Analysis of baseline only, using GEE\n")
@@ -309,7 +301,6 @@ CRTanalysis <- function(
                     log_sp_prior = log_sp_prior,
                     clusterEffects = clusterEffects,
                     spatialEffects = spatialEffects,
-                    asymmetry = asymmetry,
                     pixel = pixel,
                     control = control,
                     personalProtection = personalProtection,
@@ -336,8 +327,7 @@ CRTanalysis <- function(
            "GEE" = GEEanalysis(analysis = analysis, resamples=resamples),
            "LME4" = LME4analysis(analysis),
            "INLA" = INLAanalysis(analysis, requireMesh = requireMesh, inla_mesh = inla_mesh),
-           "MCMC" = stananalysis(analysis),
-           "WCA" = wc_analysis(analysis, design = CRT$design)
+           "MCMC" = stananalysis(analysis)
     )
     if (!identical(method,"EMP")){
         scale_par <- analysis$options$scale_par
@@ -557,77 +547,6 @@ clusterSummary <- function(trial = trial, link = link){
     clusterSum$lp[!is.finite(clusterSum$lp)] <- NA
     return(clusterSum)
 }
-
-
-
-wc_analysis <- function(analysis, design) {
-    analysis$pt_ests <- analysis$int_ests <- y1 <- cluster <- y_off <- NULL
-    trial <- analysis$trial
-    link <- analysis$options$link
-    alpha <- analysis$options$alpha
-    distance = analysis$options$distance
-    trial$d <- trial[[distance]]
-    nclusters <- nlevels(trial$cluster)
-    analysis$options <- list(
-         method = "WCA",
-         link = link,
-         distance = distance,
-         alpha = alpha,
-         scale_par = design[[distance]][["scale_par"]]
-    )
-    analysis[[distance]] <- design[[distance]]
-    analysis$nearestDiscord <- design$nearestDiscord
-    fterms <- switch(link,
-                       "identity" = "y1/y_off ~ 1 + d",
-                       "log" = "y1 ~ 1 + d + offset(log(y_off))",
-                       "cloglog" = "y1 ~ 1 + d + offset(log(y_off))",
-                       "logit" = "cbind(y1,y0) ~ 1 + d")
-    formula <- stats::as.formula(paste(fterms, collapse = "+"))
-    pe <- matrix(nrow = 0, ncol = 2)
-    for (cluster in levels(trial$cluster)){
-        glm <- tryCatch(glm(formula = formula, family = "binomial", data = trial[trial$cluster == cluster,])
-            , warning = function(w){ NULL})
-        if (!is.null(glm)) {
-            pe <- rbind(pe, matrix(glm$coefficients, ncol = 2))
-        }
-    }
-    rr <- invlink(link = link, x = pe[ , 1] + pe[, 2])/invlink(link = link, x = pe[ , 1])
-    exact = ifelse(length(unique(rr[!is.infinite(rr)])) == length(rr[!is.infinite(rr)]) , TRUE, FALSE)
-    model_object <- stats::wilcox.test(rr, mu = 1,
-                                alternative = "less", exact = exact, conf.int = TRUE, conf.level = 1 - alpha)
-    model_object$conf.int[1] <- ifelse(model_object$conf.int[1] > 0, model_object$conf.int[1], 0)
-    analysis$pt_ests$effect_size <- 1 - model_object$estimate
-    analysis$int_ests$effect_size <- 1 - rev(unname(model_object$conf.int))
-    analysis$pt_ests$test.statistic <- unname(model_object$statistic)
-    analysis$pt_ests$p.value <- model_object$p.value
-    analysis$model_object <- model_object
-    return(analysis)
-}
-
-wc_summary <- function(analysis){
-    defaultdigits <- getOption("digits")
-    on.exit(options(digits = defaultdigits))
-    options(digits = 3)
-    distance <- analysis$options$distance
-    cat('\nDistance and surround statistics\n')
-    cat('Measure            Minimum    Median    Maximum    S.D.   Within-cluster S.D.   R-squared\n')
-    cat('-------            -------    ------    -------    ----   -------------------   ---------\n')
-    with(analysis$nearestDiscord,cat("Signed distance",
-                                     format(Min., scientific=F), Median,
-                                     format(Max., scientific=F), sd, "   ",
-                                     within_cluster_sd, rSq, "\n", sep = "      "))
-    with(analysis[[distance]],
-         cat(distance, strrep(" ",8-nchar(distance)), Min., Median, Max., sd, "   ", within_cluster_sd, rSq, "\n", sep = "      "))
-    cat("\nClusters assigned    : ", analysis$description$nclusters, "\n")
-    cat("Clusters analysed    : ", analysis$description$nclusters, "\n")
-    cat("Wilcoxon statistic   : ", analysis$pt_ests$statistic, "\n")
-    cat("P-value (1-sided)    : ", analysis$pt_ests$p.value, "\n")
-    cat(
-        "Effect size estimate : ", analysis$pt_ests$effect_size,
-         paste0(" (", 100 * (1 - analysis$options$alpha), "% CL: "), unlist(analysis$int_ests$effect_size),")\n"
-    )
-}
-
 
 GEEanalysis <- function(analysis, resamples){
     trial <- analysis$trial
@@ -1402,8 +1321,8 @@ extractEstimates <- function(analysis, sample) {
         }
         sample$interventionY <- invlink(link, sample$lc)
         sample$personal_protection <- with(
-            sample, (controlY - invlink(link, int + arm))/(controlY -
-                                                               interventionY))
+                sample, (controlY - invlink(link, int + arm))/(controlY -
+                                                           interventionY))
     } else {
         sample$personal_protection <- NA
     }
@@ -1413,7 +1332,6 @@ extractEstimates <- function(analysis, sample) {
     if ("effect" %in% names(sample) & !("arm" %in% names(sample))) {
         sample$interventionY <- invlink(link, sample$int + sample$effect)
     }
-
     # Values of distance for calculation of spillover curves
     if ((distance %in% c("disc", "kern")) & identical(cfunc, "E")){
         range_d <- 1
@@ -1465,7 +1383,7 @@ extractEstimates <- function(analysis, sample) {
         # Point and interval estimates of the fitted curve
         FittedCurve <- data.frame(t(apply(
             curves[, seq(5,1005)], 2, function(x) {quantile(x, c(alpha/2, 0.5, 1 - alpha/2),
-                                                            alpha = alpha, na.rm = TRUE)})))
+                                            alpha = alpha, na.rm = TRUE)})))
         FittedCurve$intervention_curve <- ifelse(d >= 0, FittedCurve$X50., NA)
         FittedCurve$control_curve <- ifelse(d < 0, FittedCurve$X50., NA)
         FittedCurve$X50. <- NULL
@@ -1487,10 +1405,6 @@ extractEstimates <- function(analysis, sample) {
     }
     # Measures calculated for each sample from the posterior
     if ("interventionY" %in% names(sample)) {
-        if (!is.null(sample$zeta)) {
-            sample$controlY <- sample$controlY * exp(-sample$zeta * sample$controlY)
-            sample$interventionY <- sample$interventionY * exp(-sample$zeta * sample$interventionY)
-        }
         sample$effect_size <- 1 - sample$interventionY/sample$controlY
     }
     sample$total_effect <- ifelse(identical(cfunc, "Z"), NA, sample$controlY - sample$interventionY)
@@ -1514,14 +1428,12 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample, a
     fv <- ifelse((identical(x[['arm']], 'control')),
             fitted_spillover(cfunc = cfunc, link = link, par = par0, trial = point, distance = distance),
             fitted_spillover(cfunc = cfunc, link = link, par = par1, trial = point, distance = distance))
-    if (!is.null(sample$zeta)) {
-        fv <- fv * exp(-sample[i, 'zeta'] * fv)
-    }
     # Computation of the full curve
     curve_df <- data.frame(distance = d)
     names(curve_df) <- c(distance)
     curve <-
         fitted_spillover(cfunc = cfunc, link = link, par = par1, trial = curve_df, distance = distance)
+
     if (min(d) < 0) {
         control_curve <-
             fitted_spillover(cfunc = cfunc, link = link, par = par0, trial = curve_df, distance = distance)
@@ -1532,12 +1444,6 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample, a
     cY <- sample$controlY[i]
     iY <- sample$interventionY[i]
 
-    if (!is.null(sample$zeta)) {
-        cY <- cY * exp(-sample[i, 'zeta'] * cY)
-        iY <- iY * exp(-sample[i, 'zeta'] * iY)
-        curve <- curve * exp(-sample[i, 'zeta'] * curve)
-    }
-
     limit0 <- d[which(curve < (cY - alpha * (cY - min(curve[d <= 0]))))][1]
     limit1 <- d[which(curve < (iY + alpha * (max(curve[d > 0]) - iY)))][1]
 
@@ -1546,7 +1452,6 @@ computeFittedCurve <- function(x, trial, cfunc, link, d = d, distance, sample, a
     curve <- c(point[1,1], fv, limit0, limit1, curve)
 return(curve)}
 
-
 # logit transformation
 logit <- function(p = p)
 {
@@ -1554,7 +1459,7 @@ logit <- function(p = p)
 }
 
 # cloglog transformation
-cloglog = function(p) log(-log(1-p))
+cloglog <- function(p) log(-log(1-p))
 
 
 # link transformation
