@@ -200,7 +200,7 @@ plotCRT <- function(object, map = FALSE, distance = "nearestDiscord", fill = "ar
                 ggplot2::geom_bar(aes(x = dcat, y = value), colour = NA, fill = "lightgrey", stat = "identity") +
                 ggplot2::geom_vline(xintercept = 0, linewidth = 1, linetype = "dashed") +
                 ggplot2::xlab(distanceText) +
-                ggplot2::ylab(ggplot2::element_blank()) +
+                ggplot2::ylab("") +
                 ggplot2::facet_wrap( ~ variable, ncol = 1, scales = "free")
 
         }

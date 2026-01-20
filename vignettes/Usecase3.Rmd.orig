@@ -55,7 +55,7 @@ library(ggplot2)
 theme_set(theme_bw(base_size = 14))
 ggplot(data = results, aes(x = mean_h, y = ICC)) + geom_smooth() +
   xlab("Mean locations per cluster") + ylab("Intracluster correlation") +
-  ylim(0.08, 0.15) + xlim(10, 600)
+  ylim(0.04, 0.3) + xlim(5, 120)
 ```
 <p>
     <img src="example3b.r-1.png" alt="" > <br>

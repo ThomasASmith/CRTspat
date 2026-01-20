@@ -13,13 +13,16 @@ The [`CRTanalysis()`](../reference/CRTanalysis.html) function is a wrapper for d
 
 ## Statistical Methods
 
+The [`CRTanalysis()`](../reference/CRTanalysis.html) function analyses trials with outcomes that may be either proportions, rates, or continuous variables. The type of outcome and
+and the corresponding link function are specified with the parameter `link`.
 The options that can be specified using the `method` parameter in the function call are:
 
 + `method = "T"` summarises the outcome at the level of the cluster, and uses 2-sample t-tests to carry out statistical significance tests of the effect, and to compute confidence intervals for the effect size. The [t.test](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/t.test) function in the `stats` package is used.
 +	`method = "GEE"` uses Generalised Estimating Equations to estimate the efficacy in a model with iid random effects for the clusters. An estimate of the intracluster correlation (ICC) is also provided. This uses calls to the [gee](https://CRAN.R-project.org/package=gee) package.
 +	`method = "LME4"` fits linear (for continuous data) or generalized linear (for counts and proportions) mixed models with iid random effects for clusters in [lme4](https://CRAN.R-project.org/package=lme4).
-+ `method = "MCMC"` uses Markov chain Monte Carlo simulation in package [jagsUI](https://CRAN.R-project.org/package=jagsUI), which calls r-JAGS.
-+ `method = "INLA"` uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh. This can be generated using [`CRTspat::new_mesh()`](../reference/new_mesh().html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
++ `method = "MCMC"` uses Markov chain Monte Carlo simulation in package [rstan](https://CRAN.R-project.org/package=rstan).
++ `method = "INLA"` uses approximate Bayesian inference via the [R-INLA package](https://www.r-inla.org/). This provides functionality for geostatistical analysis, which can be used for geographical mapping of model outputs (as illustrated in . INLA spatial analysis requires a prediction mesh.
+This can be generated using [`CRTspat::compute_mesh()`](../reference/compute_mesh.html). This can be computationally expensive, so it is recommended to compute the mesh just once for each dataset.
 
 All these analysis methods can be used to carry out a simple comparision of outcomes between trial arms. Each offers different additional functionality, and has its own limitations (see Table 5.1). Some of these limitations are specific to the options offered within `CRTanalysis()`, which does not embrace the full range of options of the packages that are 'wrapped'. These are specified using the `method` argument of the function.
 
@@ -31,7 +34,7 @@ Table 5.1. Available statistical methods
 | `GEE` | [gee](https://CRAN.R-project.org/package=gee) | Interval estimates for efficacy | No analysis of spillover or degree of clustering |
 | `LME4`| [lme4](https://CRAN.R-project.org/package=lme4) | Analysis of spillover | No geostatistical analysis |
 | `INLA` | [INLA](https://www.r-inla.org/) | Analysis of spillover, geostatistical analysis and spatially structured outputs | Computationally intensive |
-| `MCMC` | [jagsUI](https://CRAN.R-project.org/package=jagsUI) | Interval estimates for spillover parameters | Identifiability issues and slow convergence are possible |
+| `MCMC` | [rstan](https://CRAN.R-project.org/package=rstan) | Interval estimates for spillover parameters | Identifiability issues and slow convergence are possible |
 
 For the analysis of proportions, the outcome in the control arm is estimated as: $\hat{p}_{C} = \frac{1}{1 + exp(-\beta_1)}$, in the intervention arm as $\hat{p}_{I} = \frac{1}{1 + exp(-\beta_1-\beta_2)}$, and the efficacy is estimated as $\tilde{E}_{s} = 1- \frac{\tilde{p}_{I}}{\tilde{p}_{C}}$ where $\beta_1$ is the intercept term and $\beta_2$ the incremental effect associated with the intervention.
 
@@ -82,8 +85,10 @@ analysisT$model_object
 
 ## Assessing model fit
 
-The `model = "LME4"` option outputs the deviance of the model and the Akaike information criterion (AIC), which can be
-used to select the best fitting model. The deviance information criterion (DIC) and Bayesian information criterion (BIC) perform the same role for the Bayesian methods (`"INLA"`, and `"MCMC"`).  The comparison of results with `cfunc = "X"` and `cfunc = "Z"` is used to assess whether the intervention effect is likely to be due to chance. With `method = "T"`, `cfunc = "X"` provides a significance test of the intervention effect directly. The models with spillover (see below) can be compared by that with `cfunc = "X"` to evaluate whether spillover has led to an important bias.
+The `method = "LME4"` option outputs the deviance of the model and the Akaike information criterion (AIC), which can be
+used to select the best fitting model. The deviance information criterion (DIC) and Bayesian information criterion (BIC) perform the same role for `method = "INLA"`.
+For `method = "MCMC"` goodness-of-fit is assessed using the LOO criterion (package [loo](https://CRAN.R-project.org/package=loo)).
+The comparison of results with `cfunc = "X"` and `cfunc = "Z"` is used to assess whether the intervention effect is likely to be due to chance. With `method = "T"`, `cfunc = "X"` provides a significance test of the intervention effect directly. The models with spillover (see below) can be compared by that with `cfunc = "X"` to evaluate whether spillover has led to an important bias.
 
 
 ## Spillover
@@ -114,11 +119,17 @@ Table 5.2. Available spillover functions
     P\left( d \right) = \ 1\  for\ d\  > \ S/2\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \  \ \ \\
     \end{matrix}\ $ | `LME4` `INLA` `MCMC` |
 | `R`| rescaled linear | $P\left( d \right) =\frac{d\ -\ min(d)}{max(d)\ -\ min(d)}$ | `LME4` `INLA` `MCMC` |
+| `D`| diffusion | $P\left( d \right) = 1\ +\ erf\left(\frac{d}{S\sqrt2}\right)$ | `MCMC` |
 
-`cfunc` options `P`, `L` and `S` lead to non-linear models in which the spillover
-scale parameter (`S`) must be estimated. This is done by selecting `scale_par` using a one-dimensional optimisation of the goodness of fit of the model in `stats::optimize()`.
+With `cfunc` options other than `D` the spillover function is applied on the scale of the linear predictor. With option
+`D` the spillover function is on the same scale as the outcome (which matches the linear predictor only if `link = "identity"`). Option
+`D` corresponds to the [diffusion model of spillover](https://doi.org/10.21203/rs.3.rs-5423058/v1).
 
-The different values for `cfunc` lead to the fitted curves shown in Figure 5.1. The light blue shaded part of the
+`cfunc` options `P`, `L`, `S` and `D` lead to non-linear models in which the spillover scale parameter (`S`) must be estimated.
+With the `LME4` and `INLA` options this is done by optimising the `scale_par` by running the generalised linear model iteratively within a one-dimensional optimisation of the goodness of fit of the model in `stats::optimize()`.
+With the `MCMC` option the MCMC algorithm fits the scale parameter as part of the overall non-linear model fit.
+
+Different values for `cfunc` lead to the fitted curves shown in Figure 5.1. The light blue shaded part of the
 plot corresponds to the spillover interval in those cases where this is estimated.
 
 
@@ -284,7 +295,8 @@ plot_grid(p0, p1, p2, p3, p4, p5, labels = c('Z', 'X', 'P', 'L', 'S', 'R'), labe
 The piecewise linear spillover function, `cfunc = "S"`, is only linear on the scale of the linear predictor. When used in a logistic model, as here, the transformation via the inverse of the link function leads to a slightly curved plot (Figure 5.1S). The rescaled linear function, `cfunc = "R"`, is provided as a comparator and for use with `distance` values other than `distance = "nearestDiscord"` see below (it should not be used to estimate the spillover interval).
 
 The full set of different `cfunc` options are available for each of model options `"LME4"`, `"INLA"`, and `"MCMC"`.
-The performance of all these different models has not yet been thoroughly investigated. The analyses of [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable spillover.
+The performance of all these different models has not yet been thoroughly investigated.
+The analyses of [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable spillover.
 
 #### Spillover as a function of surround
 Spillover can also be analysed by assuming the effect size to be a function of the number of intervened locations in the surroundings of the location
@@ -355,7 +367,7 @@ summary(examples_hdep)
 ```
 
 ``` r
-ps4 <- plotCRT(examples_hdep,legend.position = c(0.8, 0.8))
+ps4 <- plotCRT(examples_hdep)
 examples_sdep <- CRTanalysis(examples, method = "LME4", distance = "sdep", cfunc = 'R')
 summary(examples_sdep)
 ```
@@ -407,7 +419,7 @@ summary(examples_disc)
 ```
 
 ``` r
-ps6 <- plotCRT(examples_disc)
+ps6 <- plotCRT(examples_disc,legend.position = c(0.8, 0.8))
 examples_kern <- CRTanalysis(examples, method = "LME4", distance = "kern", cfunc = 'R', scale_par = 0.15)
 summary(examples_kern)
 ```
@@ -447,7 +459,7 @@ To carry out a geostatistical analysis with `method = "INLA"` a prediction mesh 
 resolution mesh is created (creating a high resolution mesh is computationally expensive). To create a 100m INLA mesh
 for `<MyTrial>`, use:
 
-`mesh <- new_mesh(trial = <MyTrial> , pixel = 0.1)`
+`mesh <- compute_mesh(trial = <MyTrial> , pixel = 0.1)`
 
 
 

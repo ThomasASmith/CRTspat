@@ -16,12 +16,16 @@ same number of individuals enrolled in larger clusters.
   + If spillover is an issue, and it is decided to address this by including buffer zones, then the number of individuals included in the trial is less than the total population. Enumeration and intervention allocation are still required for the full trial area, so there can be substantial resource implications if many people are included in the buffers. There is a trade-off between increasing power by creating many small clusters (leading to a large proportion of locations in buffer zones) and reducing the proportion of locations in
 buffer zones by using large clusters.
 
-The `CRTspat` package provides functions for analysing this trade-off for any site for which baseline data are available.
+The `CRTspat` package provides functions for analysing this trade-off via simulations for any site for which baseline data are available.
+An extensive set of simulations is presented by [Smith et al, 2025](https://doi.org/10.21203/rs.3.rs-8450440/v1).
+
 The example shown here uses the baseline prevalence data introduced in [Use Case 1](Usecase1.html). The trial is assumed to plan to be based on the same outcome of prevalence, and to be powered for an efficacy of 30%. A set of different algorithmic cluster allocations are carried out with different numbers of clusters. Each allocation is randomized and buffer zones are specified with the a pre-specified width (in this example, 0.5 km). The ICC is computed from the baseline data, excluding the buffer zones, and corresponding power calculations are carried out. The power is calculated and plotted as a function of cluster size.
 
 ```{r example4a.r, fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 # use the same dataset as for Use Case 1.
 library(CRTspat)
+# specify the number of simulations here (a value of 10 is used for code testing, the figures are based on many more)
+nsimulations <- 10
 example_locations <- readdata('example_site.csv')
 example_locations$base_denom <- 1
 exampleCRT <- CRTsp(example_locations)
@@ -29,7 +33,7 @@ example <- aggregateCRT(exampleCRT,
       auxiliaries = c("RDT_test_result", "base_denom"))
 # randomly sample an array of numbers of clusters to allocate
 set.seed(5)
-c_vec <- round(runif(20, min = 6, max = 60))
+c_vec <- round(runif(nsimulations, min = 6, max = 60))
 
 CRTscenario <- function(c, CRT, buffer_width) {
   ex <- specify_clusters(CRT, c = c, algo = "kmeans") %>%
@@ -63,10 +67,14 @@ results$totallocations_required <- with(results, total_locations/locations *
 
 library(ggplot2)
 theme_set(theme_bw(base_size = 14))
-ggplot(data = results, aes(x = c_full, y = c_core)) + geom_smooth() + xlab("Clusters allocated (per arm)") +
-    ylab("Clusters in core (per arm)") + geom_segment(aes(x = 5, xend = 35,
-    y = 18.5, yend = 18.5), arrow = arrow(length = unit(1, "cm")), lwd = 2,
-    color = "red")
+ggplot(data = results, aes(x = c_full, y = c_core)) +
+    geom_smooth() +
+    xlab("Clusters allocated (per arm)") +
+    ylab("Clusters in core (per arm)") +
+    annotate(
+     geom = "segment", x = 5, y = 18.5, xend = 35, yend = 18.5, linewidth = 2, color = 'red',
+     arrow = arrow(length = unit(1, "cm"))
+ )
 ```
 <p>
     <img src="example4b.r-1.png" alt="" > <br>
@@ -176,10 +184,13 @@ ggplot2::ggplot(data = results, aes(x = c_core, y = proportion_included)) +
 </p>
 
 #### Conclusions
-With the example geography and the selected trial outcome, the most efficient trial design, conditional on a buffer width of 0.5 km, would be achieved by assigning about 30 clusters to each arm in a site of the size analysed, though about one third of these clusters would eliminated
-by inclusion in the buffer zones, so that there would be . This would be far from adequate to achieve
-adequate power. To achieve 80% power about 8,000 locations would be needed, in a larger trial area, of which about 2,400
+With the example geography and the selected trial outcome, the most efficient trial design, conditional on a buffer width of 0.5 km,
+would be achieved by assigning about 30 clusters to each arm in a site of the size analysed, though about one third of these clusters
+would be absorbed into the buffer zones, so that there would be . This would be far from adequate to achieve
+adequate power. To achieve 80% power about 8,000 locations would be needed, in a larger trial area of which about 2,400
 would be in the core (sampled) parts of the clusters.
+
+A more efficient trial design might have narrower or no buffers.
 
 ```{r example4i.r,fig.keep = 'none', message = FALSE, warning = FALSE, include=TRUE, echo = TRUE}
 ggplot2::ggplot(data = results, aes(x = c_core, y = totallocations_required)) +

@@ -69,10 +69,6 @@ how much of the data are found close to the boundary between the arms.
 ``` r
 plotCRT(exampleCRT, map = FALSE)
 ```
-
-```
-## Warning: `label` cannot be a <ggplot2::element_blank> object.
-```
 <p>
   <img src="example6d.r-1.png" alt="" > <br>
   <em>Fig 6.5 Numbers of observations by distance from boundary</em>
