@@ -130,7 +130,7 @@ The piecewise linear spillover function, `cfunc = "S"`, is only linear on the sc
 
 The full set of different `cfunc` options are available for each of model options `"LME4"`, `"INLA"`, and `"MCMC"`.
 The performance of all these different models has not yet been thoroughly investigated.
-The analyses of [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable spillover.
+The analyses of [Multerer *et al.* (2021b)](https://link.springer.com/article/10.1186/s12936-021-03924-7) found that that a model equivalent to  `method = "MCMC"`, `cfunc = "L"` gave estimates of efficacy with low bias, even in simulations with considerable spillover.
 
 #### Spillover as a function of surround
 Spillover can also be analysed by assuming the effect size to be a function of the number of intervened locations in the surroundings of the location

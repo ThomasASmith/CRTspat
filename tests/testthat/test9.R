@@ -1,11 +1,13 @@
 
 # a stochastic optimisation is involved, but the test can fail because INLA uses parallel processing
 # A separate seed should be set for each processor.
+
 get_test9 = function(){
   if (identical(system.file(package='INLA'), "")){
-    return(1303)
+    return(1335)
   } else {
     set.seed(1234)
+    INLA::inla.setOption(num.threads="1:1")
     example_locations <- readdata('example_site.csv')
     example_locations$base_denom <- 1
     library(dplyr)
@@ -19,7 +21,7 @@ get_test9 = function(){
                              generateBaseline = FALSE,
                              baselineNumerator = "RDT_test_result",
                              baselineDenominator = "base_denom",
-                             ICC_inp = 0.05, spillover_interval = 0.8)
+                             ICC_inp = 0.145, spillover_interval = 0.8)
     # Reading in the inla.mesh functions when run outside the check but not as part of a check
     library(Matrix)
     inla_mesh <- readdata("examplemesh100.rds")
@@ -32,5 +34,6 @@ get_test9 = function(){
   }
 }
 test_that("Analysis using INLA option gives expected DIC", {
-  expect_equal(get_test9(), 1303)
+  if (FALSE) skip_on_cran(message = 'INLA is not a CRAN package')
+  expect_equal(get_test9(), 1335)
 })

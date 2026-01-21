@@ -33,7 +33,7 @@
 #' Power and sample size calculations are for an unmatched two-arm trial. For counts
 #' or event rate data the formula of Hayes & Bennett (1999), Int. J. Epi., 28(2) pp319–326 is used. This requires as an input the
 #' between cluster coefficient of variation (\code{cv_percent}). For continuous outcomes and proportions the formulae of
-#' [Hemming et al, 2011](https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-11-102) are used. These make use of
+#' [Hemming et al, 2011](https://link.springer.com/article/10.1186/1471-2288-11-102) are used. These make use of
 #' the intra-cluster correlation in the outcome (\code{ICC}) as an input. If the coefficient of variation and not the ICC is supplied then
 #' the intra-cluster correlation is computed from the coefficient of variation using the formulae
 #' from [Hayes & Moulton](https://www.taylorfrancis.com/books/mono/10.1201/9781584888178/cluster-randomised-trials-richard-hayes-lawrence-moulton). If incompatible values for \code{ICC} and \code{cv_percent} are supplied

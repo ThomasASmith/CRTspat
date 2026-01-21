@@ -128,8 +128,7 @@ Either \code{sigma_m} or \code{spillover_interval} must be provided. If both are
 the value of \code{sigma_m} is overwritten
 by the standard deviation implicit in the value of \code{spillover_interval}.
 Spillover is simulated as arising from a diffusion-like process.
-
-For further details see \href{https://edoc.unibas.ch/85228/}{Multerer (2021)}
+For further details see \href{https://edoc.unibas.ch/entities/publication/f605ff77-0130-40a0-bff7-5d686fd1e2d0}{Multerer (2021)}
 }
 \examples{
 {smalltrial <- readdata('smalltrial.csv')

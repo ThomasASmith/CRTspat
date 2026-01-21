@@ -165,7 +165,8 @@ blue line : zone defined by `sd`.
 The spillover results in a loss of power, and increased negative bias in efficacy estimate, but these effects are
 rather small (Figure 7.3).
 
-The potential for using the `CRTanalysis()` function to model the spillover and hence correct the naive efficacy estimate (from a t-test) can also be explored (see [Use Case 5](Usecase5.html) and [Multerer *et al.* (2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7).
+The potential for using the `CRTanalysis()` function to model the spillover and hence correct the naive efficacy estimate (from a t-test) can also be explored (see [Use Case 5](Usecase5.html)
+and [Multerer *et al.* (2021b)](https://link.springer.com/article/10.1186/s12936-021-03924-7).
 
 <p>
     <img src="example7e.r-2.png" alt="" > <br>

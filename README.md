@@ -24,9 +24,9 @@ model. This does not preclude its use in other fields of research. The
 anticipated use cases are described in the vignettes (articles)
 
 The package builds on the work of [Multerer *et al.*
-(2021a)](https://trialsjournal.biomedcentral.com/articles/10.1186/s13063-021-05543-8),
+(2021a)](https://link.springer.com/article/10.1186/s13063-021-05543-8),
 [Multerer *et al.*
-(2021b)](https://malariajournal.biomedcentral.com/articles/10.1186/s12936-021-03924-7)
+(2021b)](https://link.springer.com/article/10.1186/s12936-021-03924-7)
 and [Anaya-Izquierdo &
 Alexander(2021)](https://onlinelibrary.wiley.com/doi/full/10.1111/biom.13316).
 

@@ -89,7 +89,8 @@
 #' With the \code{"INLA"} method 'iid' random effects are used to model extra-Poisson variation.\cr\cr
 #' Interval estimates for the coefficient of variation of the cluster level outcome are calculated using the method of
 #' [Vangel (1996)](https://www.jstor.org/stable/2685039).\cr\cr
-#' If a \code{control} list is provided then this is passed to the
+#' If a \code{control} list is provided then this is passed to the 'stan' call. In addition to the values allowed by
+#' 'rstan::stan()', the number of iterations can be specified via value of 'iter'.
 #' @export
 #' @examples
 #' \donttest{
